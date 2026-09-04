@@ -10,9 +10,23 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 ## Current state
 
-**Nothing is built.** The repository was cleared on 2026-09-04 and restarted deliberately
-simpler: one package, one process, no service mesh. The next concrete action is the
-spike — one real CV end to end.
+**The spike works.** `docs/CV-SDE-AR.pdf` runs end to end in ~15s on `qwen3:1.7b`:
+19 claims extracted, evidence gathered, four checks evaluated, five buckets printed.
+48 tests passing. ~2,500 lines across 16 modules.
+
+```
+cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
+```
+
+Built: `models/` · `ingest` (PDF, NFKC + index map, section detection) · `spans`
+(two-tier recovery, numeral guard, token recovery) · `extract` (regex pre-pass + 4
+section-scoped model passes) · `filters` (the deterministic gate) · `gather`
+(Codeforces + liveness) · `rules` (P1 P2 P3 W1 + isolation runner) · `report`.
+
+Not built: skills extraction (bands are lost — the `Proficient - C | C++` pattern is
+regular and wants a regex), the date parser (every project claim carries
+`date_unparsed`, which blocks D5–D8 and G5), the GitHub connector (4 repos sit unused
+in the graph), and 37 of the 41 checks.
 
 Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 
@@ -73,6 +87,46 @@ someone and one you would not.
    `GIT_COMMITTER_DATE` are attacker-controlled. Use `repo.created_at`, `pushed_at`, and
    the GraphQL contributions calendar. Where no server-side value exists, leave the field
    `null` and open a gap.
+7. **Every field must be corroborated by the claim's OWN span** — not merely be present
+   somewhere in the document. This one is not in the original design; it comes from
+   watching a real model fail.
+
+   Grounding proves the *text* is real. It does not prove the *pairing* is. Given the
+   whole CV, `qwen3:1.7b` found one achievement — Codeforces 1495 Specialist — and then
+   stamped those same field values onto fourteen unrelated sentences, including the CV's
+   name header. Every verbatim was genuine and 1495 was a genuine rating, so grounding
+   saw nothing wrong. It also labelled a CodeChef rating `codeforces`, which would have
+   compared 1733 against Codeforces' 1495 and fired a decisive contradiction against an
+   honest candidate.
+
+   So each field is read back from the span that cites it:
+
+   | Field | Rule |
+   |---|---|
+   | `value` | the number must appear in this claim's verbatim |
+   | `platform` | whichever platform the verbatim names; none named → unattributable |
+   | `proficiency` | the band the sentence uses, or `None`. Never invented |
+   | `handle`, owner, ids | recovered from the span, with the document's casing |
+   | two or more platforms named | flag `aggregate_across_sources`; the rule abstains |
+
+   A field the span does not support is dropped — the claim usually survives without it.
+
+8. **Extraction runs narrow passes over sections, never one wide call.** Measured on a
+   real CV: one call with every field optional returned 18 claims carrying `kind` and
+   `verbatim` and nothing else. Four calls with `required` in the JSON schema returned
+   every value correctly. `required` is the lever — an optional field is one a small
+   model will skip.
+
+   Section scoping is the largest single quality lever. Whole document: 1 of 4
+   achievements correct. The 817-character achievements section: 4 of 4, and four times
+   faster. The window is a *boundary*, not a hint — a claim whose text is not in its
+   pass's own section does not belong to that pass, and must not be rescued by a
+   document-wide search.
+
+9. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
+   JEE ranks, returned them anyway — and `qwen3:1.7b` returned them relabelled as
+   `codeforces`, which no label-based filter can catch. Anything the design excludes is
+   dropped by code reading the verbatim, which the model cannot alter.
 
 And two that shape everything else:
 
