@@ -1,0 +1,65 @@
+[project]
+name = "cvv"
+version = "0.1.0"
+description = "CV Verification Engine — verifies developer CVs against the systems they name."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "httpx>=0.27",       # connectors, liveness probes, and the Ollama client
+    "pymupdf>=1.24",     # PDF text + bounding boxes
+    "rapidfuzz>=3.10",   # span recovery, fuzzy tier
+    "typer>=0.15",       # the CLI
+    "structlog>=24.4",
+]
+
+# Added when the phase that needs them lands, not before:
+#   phase 2  python-docx
+#   phase 3  selectolax          (CodeChef scrape, issuer pages)
+#   phase 4  fastapi · psycopg[binary] · psycopg_pool · qdrant-client
+#   phase 5  pandas · matplotlib
+[project.optional-dependencies]
+ocr = ["rapidocr-onnxruntime>=1.4"]   # ~100 MB; scanned CVs only
+
+[project.scripts]
+cvv = "cvv.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "hypothesis>=6.112",
+    "respx>=0.21",       # connectors tested against recorded responses
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cvv"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["*.md"]   # ruff formats python blocks inside markdown; docs are prose
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src/cvv"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --import-mode=importlib"
+markers = [
+    "live: hits a real model or a real external API; excluded by default",
+]
