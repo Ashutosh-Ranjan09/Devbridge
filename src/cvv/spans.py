@@ -127,12 +127,13 @@ def recover_token(token: str, text: str, *, within: Span | None = None) -> str |
     needle = token.lower()
 
     if within is not None:
+        # No fallback to the whole document. The same hazard as the span window: a
+        # token absent from the claim's own sentence gets rescued from somewhere
+        # else, and comes back with that other occurrence's casing. The CV carries
+        # `handle: AR009` and `handle: ar009` two lines apart, and some APIs care.
         window = text[within.text_slice]
         i = window.lower().find(needle)
-        if i != -1:
-            return window[i : i + len(token)]
+        return window[i : i + len(token)] if i != -1 else None
 
     i = text.lower().find(needle)
-    if i == -1:
-        return None
-    return text[i : i + len(token)]
+    return text[i : i + len(token)] if i != -1 else None

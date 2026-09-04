@@ -59,6 +59,7 @@ files = ["src/cvv"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-q --strict-markers --import-mode=importlib"
 markers = [
     "live: hits a real model or a real external API; excluded by default",

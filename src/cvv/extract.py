@@ -344,10 +344,11 @@ def ground(
             span_failures += 1
             continue
 
+        # A handle absent from the claim's own span is dropped; the CLAIM is not.
+        # "peak Codeforces rating of 1495" is checkable whether or not the handle sits
+        # in that same sentence — the profile claim from the regex pre-pass carries it.
+        # Dropping the whole claim here cost seven claims and both handles.
         handle = recover_token(p.handle, doc.text, within=span) if p.handle else None
-        if p.handle and handle is None:
-            span_failures += 1  # the model mangled it; the document has no such token
-            continue
 
         urls = [u for u in p.urls if recover_token(u, doc.text) is not None]
         parsed: dict[str, Any] | None = None
