@@ -137,6 +137,27 @@ def section_text(doc: Document, keywords: tuple[str, ...]) -> tuple[str, int]:
     return doc.text[start:end], start
 
 
+def line_at(doc: Document, offset: int) -> tuple[int, int]:
+    """The normalised span of the raw line containing `offset`.
+
+    Normalisation collapses newlines, so line structure survives only in `raw` and the
+    index map is the way back to it. Used for line-level provenance: a claim about a
+    single token — a skill name — should cite the line it sits on, because a span
+    covering the word "C" tells a reader nothing and highlights nothing useful.
+    """
+    if not 0 <= offset < len(doc.index_map):
+        return offset, offset
+    raw_pos = doc.index_map[offset]
+    start = doc.raw.rfind("\n", 0, raw_pos) + 1
+    end = doc.raw.find("\n", raw_pos)
+    if end == -1:
+        end = len(doc.raw)
+
+    lo = bisect.bisect_left(doc.index_map, start)
+    hi = bisect.bisect_left(doc.index_map, end)
+    return lo, min(hi, len(doc.text))
+
+
 def read_pdf(path: Path) -> Document:
     """PyMuPDF, one page at a time so page boundaries stay visible."""
     doc = pymupdf.open(path)

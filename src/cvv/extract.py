@@ -31,7 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from cvv.filters import apply as apply_filters
 from cvv.ids import claim_id
-from cvv.ingest import Document, section_text
+from cvv.ingest import Document, line_at, section_text
 from cvv.models import (
     Artefact,
     ArtefactType,
@@ -67,7 +67,7 @@ class ProposedClaim(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     kind: ClaimKind
-    verbatim: str
+    verbatim: str = ""
     org: str | None = None
     title: str | None = None
     degree: str | None = None
@@ -80,6 +80,10 @@ class ProposedClaim(BaseModel):
     proficiency: Proficiency | None = None
     date_text: str | None = None
     urls: list[str] = Field(default_factory=list)
+    # skills pass only — one item per technology, grouped into a claim per line
+    name: str | None = None
+    category: str | None = None
+    categories: dict[str, str] = Field(default_factory=dict)
 
     # Set by the caller after validation, never by the model (extra="ignore" drops
     # anything the model tries to put here). The span search is scoped to this window
@@ -187,19 +191,28 @@ PASSES: list[Pass] = [
         sections=("SKILL", "EXPERTISE"),
         kind=ClaimKind.SKILL,
         instruction=(
-            "Extract the technologies this CV claims, one claim per proficiency band.\n"
-            "  skill_refs   the technologies in that band, lowercased\n"
-            "  proficiency  familiar | intermediate | proficient | expert, if stated"
+            "Categorise every technology named in this CV section.\n"
+            "  name      the technology, exactly as written\n"
+            "  category  language | framework | library | tool | concept | not_a_skill\n"
+            "\n"
+            "Use not_a_skill for a heading or category label rather than a skill: a line\n"
+            "reading 'Frameworks and Libraries : Next.js | Express.js' names two skills,\n"
+            "and 'Frameworks and Libraries' is not one of them."
         ),
+        # No `verbatim` here, deliberately. Asking for both `name` and `verbatim`
+        # made the model set them equal and return the whole line as the skill name.
+        # The line is derived from where the name sits — see group_skills().
         properties={
-            "verbatim": _STR,
-            "skill_refs": {"type": "array", "items": _STR},
-            "proficiency": {
+            "name": _STR,
+            # The enum is what does the work. The prompt DESCRIBES the categories; the
+            # schema CONSTRAINS them, and Ollama grammar-constrains generation to the
+            # schema — so a seventh category is unreachable rather than discouraged.
+            "category": {
                 "type": "string",
-                "enum": ["familiar", "intermediate", "proficient", "expert"],
+                "enum": ["language", "framework", "library", "tool", "concept", "not_a_skill"],
             },
         },
-        required=["verbatim", "skill_refs"],
+        required=["name", "category"],
     ),
 ]
 
@@ -275,6 +288,12 @@ def _call(p: Pass, text: str, offset: int, provider: LLMProvider) -> list[Propos
     claims: list[ProposedClaim] = []
     for item in raw.get("claims", []):
         item["kind"] = p.kind.value
+        if "verbatim" not in p.properties:
+            # This pass does not cite a span — the skills pass returns bare names and
+            # the line is derived afterwards. Without this the item fails validation
+            # and is swallowed by the except below, which is how the skills pass
+            # silently returned zero claims.
+            item["verbatim"] = ""
         try:
             claim = ProposedClaim.model_validate(item)
         except Exception:
@@ -288,6 +307,46 @@ def _call(p: Pass, text: str, offset: int, provider: LLMProvider) -> list[Propos
             )
         )
     return claims
+
+
+def group_skills(
+    skills: list[ProposedClaim], doc: Document, window: tuple[int, int]
+) -> list[ProposedClaim]:
+    """One item per technology in, one claim per source LINE out.
+
+    The line is derived, not asked for. Requesting both `name` and `verbatim` made the
+    model set them equal and return the whole line as the skill name — so it returns
+    only the name, and `line_at` finds the line the name sits on.
+
+    Line-level provenance rather than token-level: `recover_span` on "C" finds the
+    first capital C in the window, which under a heading like "Core Skills" is inside
+    the word "Core". A span covering one letter highlights nothing a reader can use.
+
+    A name that is not in the section is dropped — guardrail 7, applied here.
+    """
+    lines: dict[tuple[int, int], dict[str, str]] = {}
+    lo, hi = window
+
+    for p in skills:
+        if not p.name or p.category == "not_a_skill":
+            continue
+        found = doc.text.lower().find(p.name.lower(), lo, hi)
+        if found == -1:
+            continue  # the section does not contain it
+        lines.setdefault(line_at(doc, found), {})[p.name.lower()] = p.category or "unknown"
+
+    return [
+        ProposedClaim(
+            kind=ClaimKind.SKILL,
+            verbatim=doc.text[start:end],
+            skill_refs=sorted(categories),
+            categories=categories,
+            window_start=start,
+            window_end=end,
+        )
+        for (start, end), categories in lines.items()
+        if categories
+    ]
 
 
 def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], dict[str, int]]:
@@ -305,6 +364,8 @@ def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], 
         text, offset = section_text(doc, p.sections) if p.sections else (doc.text, 0)
         found = _call(p, text, offset, provider)
         counts[p.name] = len(found)
+        if p.kind is ClaimKind.SKILL:
+            found = group_skills(found, doc, (offset, offset + len(text)))
         proposed.extend(found)
     return proposed, counts
 
@@ -359,6 +420,7 @@ def ground(
                 "serial": int(m.group(3)),
             }
 
+        context = {"categories": p.categories} if p.categories else None
         discriminator = handle or (p.skill_refs[0] if p.skill_refs else "") or (p.metric or "")
         cid = claim_id(graph_id, span.char_start, p.kind, discriminator)
         if cid in seen:
@@ -385,6 +447,7 @@ def ground(
                 qualifier=p.qualifier,
                 skill_refs=p.skill_refs,
                 proficiency=p.proficiency,
+                context=context,
                 parsed=parsed,
                 artefacts=[_artefact(u) for u in urls],
                 flags=["date_unparsed"] if p.date_text else [],
