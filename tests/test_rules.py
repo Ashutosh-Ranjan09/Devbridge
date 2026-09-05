@@ -1260,3 +1260,89 @@ class TestG9LanguageTenure:
         result = outcome(assemble(graph, bundle(graph, github=gh)), "G9")
         assert result.status is RuleStatus.ABSTAINED
         assert "how many years" in (result.reason or "")
+
+
+EXPERIENCE_DOC = DOCUMENT + " 5+ years of professional experience in software"
+
+
+class TestD6DurationArithmetic:
+    """Attention, and the catalogue's `decisive` is wrong here. A CV need not list
+    every role — a page forces the choice — so a stated total larger than the dated
+    roles is the ordinary shape of an edited CV rather than a lie."""
+
+    def test_a_stated_total_beyond_the_dated_roles_is_a_question(self) -> None:
+        graph = make_graph([role("Acme", "Jan 2022 - Dec 2022")], EXPERIENCE_DOC)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D6")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.params["stated_years"] == 5.0
+        assert finding.params["listed_years"] == 1.0
+        assert "need not list every role" in finding.innocent_explanation
+        assert finding.finding_id in report.buckets.needs_context
+
+    def test_roles_held_at_once_are_merged_before_summing(self) -> None:
+        """Two jobs in the same year is one year of experience, not two — max spans,
+        merged, which is the reading most generous to the candidate."""
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2020 - Dec 2022", claim_id="ca1"),
+                role("Globex", "Jan 2021 - Dec 2021", claim_id="cb1"),
+            ],
+            EXPERIENCE_DOC,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D6")
+        assert finding.params["listed_years"] == 3.0
+
+    def test_clean_when_the_dated_roles_cover_the_claim(self) -> None:
+        graph = make_graph([role("Acme", "Jan 2018 - Dec 2022")], EXPERIENCE_DOC)
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D6").status is RuleStatus.CLEAN
+
+    def test_abstains_when_the_cv_states_no_total(self) -> None:
+        graph = make_graph([role("Acme", "Jan 2022 - Dec 2022")], DOCUMENT)
+        result = outcome(assemble(graph, bundle(graph)), "D6")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "states no total" in (result.reason or "")
+
+    def test_abstains_when_it_states_a_total_but_dates_no_role(self) -> None:
+        graph = make_graph([], EXPERIENCE_DOC)
+        result = outcome(assemble(graph, bundle(graph)), "D6")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "dates no role" in (result.reason or "")
+
+
+class TestD7TechnologyAnachronism:
+    """A date against a date — no judgement about a career anywhere in it."""
+
+    def test_fires_when_the_technology_postdates_the_project(self) -> None:
+        graph = make_graph([project("Portal", "2011-2012", tech=("React",))], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D7")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.params["technology"] == "React"
+        assert finding.params["released"] == "2013-05-29"
+        assert finding.finding_id in report.buckets.contradicted
+
+    def test_a_year_precision_project_never_fires_on_that_same_year(self) -> None:
+        """React shipped in May 2013. A project dated only "2013" ran for all of it
+        under the max-span reading, so there is no month at which it is impossible."""
+        graph = make_graph([project("Portal", "2013", tech=("React",))], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D7"]
+
+    def test_an_unlisted_technology_is_unknown_not_anachronistic(self) -> None:
+        graph = make_graph([project("Portal", "2011", tech=("Chakra UI",))], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D7").status is RuleStatus.CLEAN
+
+    def test_punctuation_never_hides_a_match(self) -> None:
+        graph = make_graph([project("Portal", "2014", tech=("next.js",))], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D7")
+        assert finding.params["released"] == "2016-10-25"
+
+    def test_abstains_when_no_project_is_both_dated_and_described(self) -> None:
+        graph = make_graph([project("Portal", "2011")], DOCUMENT)
+        result = outcome(assemble(graph, bundle(graph)), "D7")
+        assert result.status is RuleStatus.ABSTAINED

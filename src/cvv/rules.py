@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, cast
 
 from cvv.ids import finding_id
-from cvv.intervals import Rel, bounds, gap_between, overlap
+from cvv.intervals import Rel, bounds, gap_between, max_span, merge_non_overlapping, overlap
 from cvv.models import (
     ArtefactType,
     Claim,
@@ -38,7 +38,16 @@ from cvv.models import (
     Severity,
     Tier,
 )
-from cvv.reference import department_matches, programme_years, roll_schemes, scheme_for
+from cvv.reference import (
+    department_matches,
+    programme_years,
+    roll_schemes,
+    scheme_for,
+    tech_releases,
+)
+from cvv.reference import (
+    normalise_tech as _norm,
+)
 
 
 class Abstain(Exception):  # noqa: N818 - a control signal, not an error
@@ -1080,6 +1089,162 @@ class G9LanguageTenure:
 # --------------------------------------------------------------------------- #
 
 
+_EXPERIENCE = re.compile(
+    r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?"
+    r"(?:professional\s+|industry\s+|relevant\s+|work\s+|software\s+|"
+    r"development\s+|hands[-\s]on\s+)*experience",
+    re.I,
+)
+
+
+@register
+@dataclass(frozen=True)
+class D6DurationArithmetic:
+    """A stated total of experience against the roles the CV actually dates.
+
+    ATTENTION, and the catalogue's `decisive` is wrong here for a reason worth
+    stating: a CV need not list every role. Early jobs, short contracts, freelance
+    work and anything outside the story a candidate is telling get left off on
+    purpose, and a one-page CV forces that. A stated total larger than the listed
+    roles is therefore the ordinary shape of an edited CV, not a lie — the arithmetic
+    is worth a reviewer's question and nothing more.
+
+    Overlapping roles are merged before summing, so holding two jobs at once counts
+    once. Max spans are used throughout, which is the reading most generous to the
+    candidate.
+    """
+
+    rule_id: str = "D6"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "A stated total of experience against the roles the CV dates"
+    slack_years: float = 1.0
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        # Read from the document rather than from a claim: the contract's nine claim
+        # kinds have no slot for a document-level summary figure, and inventing a
+        # tenth would break the round-trip with the upstream schema. The matched text
+        # and its offset go into params, so the figure keeps its provenance.
+        text = ctx.graph.source.normalised_text
+        stated = [(float(m.group(1)), m.start()) for m in _EXPERIENCE.finditer(text)]
+        if not stated:
+            raise Abstain("The CV states no total years of experience to check.")
+
+        years, at = max(stated)
+        roles = [c for c in ctx.claims(ClaimKind.EMPLOYMENT) if c.interval is not None]
+        if not roles:
+            raise Abstain(
+                f"The CV states {years:g} years of experience but dates no role, so "
+                "there is nothing to sum against it."
+            )
+
+        spans = merge_non_overlapping(
+            [c.interval for c in roles if c.interval is not None], today=ctx.today
+        )
+        listed = sum((hi - lo).days for lo, hi in spans) / 365.25
+        if years <= listed + self.slack_years:
+            return
+
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, [c.claim_id for c in roles]),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.LOW,
+            confidence=0.5,
+            scoring=self.scoring,
+            claim_refs=[c.claim_id for c in roles],
+            evidence_refs=[f"document.char:{at}"],
+            params={
+                "stated_years": years,
+                "listed_years": round(listed, 1),
+                "roles_dated": len(roles),
+            },
+            explanation=(
+                f"The CV states {years:g} years of experience. The {len(roles)} role(s) "
+                f"it dates cover {listed:.1f} years once overlaps are merged."
+            ),
+            innocent_explanation=(
+                "A CV need not list every role, and a one-page CV forces the choice. "
+                "Early jobs, short contracts, freelance work and anything off the "
+                "story being told are routinely omitted, so a stated total larger "
+                "than the dated roles is the ordinary shape of an edited CV."
+            ),
+        )
+
+
+@register
+@dataclass(frozen=True)
+class D7TechnologyAnachronism:
+    """A project built with something that did not exist yet.
+
+    Decisive, and one of the few document-intrinsic checks that earns it: this is not
+    a judgement about a career, it is a date against a date. React shipped in May
+    2013, so a project dated 2011-2015 that claims React is either misdated or
+    misdescribed, and either way the document does not hold together.
+
+    Two layers of caution, because a false accusation here is expensive. Every date in
+    the table is biased early, and the release must fall after the project's ENTIRE
+    max span — so a project dated only "2016" never fires on a technology released
+    during 2016, whatever month it was.
+    """
+
+    rule_id: str = "D7"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "A project dated before the technology it names existed"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        releases = tech_releases()
+        if not releases:
+            raise Abstain("No technology release table is installed.")
+
+        dated = [
+            c
+            for c in ctx.claims(ClaimKind.PROJECT)
+            if c.interval is not None and c.skill_refs
+        ]
+        if not dated:
+            raise Abstain("No project both names a technology and carries a date.")
+
+        for claim in dated:
+            assert claim.interval is not None
+            _, latest = max_span(claim.interval, today=ctx.today)
+            for tech in claim.skill_refs:
+                released = releases.get(_norm(tech))
+                # Unlisted is UNKNOWN, not anachronistic. Most of what a CV names
+                # will not be in the table, and that must stay silent.
+                if released is None or released <= latest:
+                    continue
+
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.HIGH,
+                    confidence=0.9,
+                    scoring=self.scoring,
+                    claim_refs=[claim.claim_id],
+                    evidence_refs=["data/tech-releases.json"],
+                    params={
+                        "project": claim.title,
+                        "technology": tech,
+                        "released": str(released),
+                        "project_ended_by": str(latest),
+                    },
+                    explanation=(
+                        f"{claim.title!r} names {tech}, and under the latest reading of "
+                        f"its dates the project ended by {latest}. {tech} was not "
+                        f"publicly available until {released}."
+                    ),
+                )
+
+
+
+
 @register
 @dataclass(frozen=True)
 class D9RollNumberStructure:
@@ -1824,15 +1989,6 @@ class D12TitleProgression:
                     "total."
                 ),
             )
-
-
-def _norm(name: str) -> str:
-    """A technology name reduced to what is comparable across sources.
-
-    `+` and `#` survive: dropping them collapses C, C++ and C# onto each other, and
-    those are three different claims.
-    """
-    return re.sub(r"[^a-z0-9+#]", "", name.lower())
 
 
 def _matches(tech: str, observed: list[str]) -> bool:

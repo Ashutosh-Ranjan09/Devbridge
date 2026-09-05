@@ -10,6 +10,7 @@ hard-coded, so adding a second institution is a data change and not a code chang
 
 from __future__ import annotations
 
+import datetime
 import functools
 import json
 import re
@@ -26,6 +27,33 @@ def roll_schemes() -> dict[str, dict[str, Any]]:
         return {}
     raw: dict[str, Any] = json.loads(path.read_text())
     return {k: v for k, v in raw.items() if not k.startswith("_")}
+
+
+@functools.cache
+def tech_releases() -> dict[str, datetime.date]:
+    """Technology -> first public availability, keyed by normalised name.
+
+    Every date in the file is biased EARLY on purpose: a date that is too early makes
+    D7 miss a real anachronism, and a date that is too late makes it accuse an honest
+    candidate. Only the first error is acceptable.
+    """
+    path = DATA_DIR / "tech-releases.json"
+    if not path.is_file():
+        return {}
+    raw: dict[str, Any] = json.loads(path.read_text())
+    return {
+        normalise_tech(name): datetime.date.fromisoformat(released)
+        for name, released in raw.get("releases", {}).items()
+    }
+
+
+def normalise_tech(name: str) -> str:
+    """A technology name reduced to what is comparable across sources.
+
+    `+` and `#` survive: dropping them collapses C, C++ and C# onto each other, and
+    those are three different claims.
+    """
+    return re.sub(r"[^a-z0-9+#]", "", name.lower())
 
 
 def scheme_for(roll: str, org: str | None) -> dict[str, Any] | None:
