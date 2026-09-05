@@ -36,6 +36,7 @@ from cvv.models.enums import (
     Tier,
 )
 from cvv.models.evidence import (
+    ActivityWindow,
     ContestResult,
     DeploymentEvidence,
     EvidenceBundle,
@@ -53,6 +54,7 @@ from cvv.models.findings import (
 )
 
 __all__ = [
+    "ActivityWindow",
     "Artefact",
     "ArtefactType",
     "AssertedBy",

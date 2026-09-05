@@ -1,5 +1,5 @@
 {
-  "fetched_at": 1788603749.6865544,
+  "fetched_at": 1788605839.1312916,
   "key": "/repos/Ashutosh-Ranjan09/Terminal-Chat-Room",
   "body": {
     "id": 822160871,
@@ -103,7 +103,13 @@
     "open_issues": 0,
     "watchers": 0,
     "default_branch": "main",
-    "temp_clone_token": null,
+    "permissions": {
+      "admin": true,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
     "network_count": 0,
     "subscribers_count": 1
   }

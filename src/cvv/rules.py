@@ -11,16 +11,20 @@ Four checks for now: P1, P2, P3, W1. The remaining 37 in docs/plan.md.
 from __future__ import annotations
 
 import datetime
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Protocol
 
 from cvv.ids import finding_id
+from cvv.intervals import bounds
 from cvv.models import (
     ClaimGraph,
     ClaimKind,
     Discrepancy,
     EvidenceBundle,
+    GapReason,
+    GitHubEvidence,
     Platform,
     PlatformEvidence,
     RuleOutcome,
@@ -57,6 +61,23 @@ class Context:
                 raise Abstain(gap.detail or f"{platform.value}: {gap.reason.value}")
         raise Abstain(f"No {platform.value} evidence was gathered.")
 
+    def github(self) -> GitHubEvidence:
+        if self.bundle.github is not None:
+            return self.bundle.github
+        for gap in self.bundle.gaps:
+            if gap.source == "github":
+                raise Abstain(gap.detail or f"github: {gap.reason.value}")
+        raise Abstain("No GitHub evidence was gathered.")
+
+    def named_repos(self) -> dict[str, str]:
+        """Repository name -> the claim that named it."""
+        return {
+            a.url.rstrip("/").split("/")[-1]: c.claim_id
+            for c in self.graph.claims
+            for a in c.artefacts
+            if a.type.value == "repo"
+        }
+
 
 class Rule(Protocol):
     rule_id: str
@@ -81,6 +102,19 @@ def register(rule: type[Rule]) -> type[Rule]:
     """
     REGISTRY.append(rule())
     return rule
+
+
+_ROUND = re.compile(r"\bround\s+#?(\d{2,4})\b", re.I)
+
+
+def _round_number(text: str) -> int | None:
+    """The contest number out of "Codeforces Round 998 (Div. 3)".
+
+    Read from the claim's own verbatim rather than a model-supplied field: the model
+    controls its fields, but it cannot alter text it copied from the document.
+    """
+    m = _ROUND.search(text)
+    return int(m[1]) if m else None
 
 
 def _achievements(ctx: Context, platform: Platform, metric: str) -> list:  # type: ignore[type-arg]
@@ -143,10 +177,23 @@ class P1CodeforcesRating:
 @register
 @dataclass(frozen=True)
 class P2ContestRank:
-    """An exact match on round and rank against the full contest history."""
+    """Match the NAMED contest first, then compare ranks within it.
+
+    An earlier version asked only whether the claimed rank appeared anywhere in the
+    history. Against a real CV that produced a technically true and useless finding:
+    "no contest records rank 1106". The account had in fact competed in the very
+    contest named, placing 1109 — three places out.
+
+    Saying "claimed 1106 in Round 998, the API records 1109" lets a reviewer see in
+    one line that this is a standings-timing artefact and not a fabrication. Codeforces
+    ranks move after system testing and after cheat removals, and a CV written from
+    the live standings can be a few places off. Severity scales with the size of the
+    gap, because a three-place difference on 1100 is not the same claim as saying 100
+    when the record says 5000.
+    """
 
     rule_id: str = "P2"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
     scoring: bool = True
     summary: str = "Claimed contest rank vs. the contest history"
@@ -159,25 +206,82 @@ class P2ContestRank:
         if not cf.contests:
             raise Abstain("Codeforces returned no contest history for this handle.")
 
-        ranks = {c.rank for c in cf.contests}
-        for c in claims:
-            claimed = int(c.value) if isinstance(c.value, int | float) else None
-            if claimed is None or claimed in ranks:
+        for claim in claims:
+            claimed = int(claim.value) if isinstance(claim.value, int | float) else None
+            if claimed is None:
                 continue
+
+            # The contest is identified from the claim's OWN span, not from a model
+            # field — guardrail 7. "Codeforces Round 998 (Div. 3)" gives 998.
+            round_no = _round_number(claim.provenance.verbatim)
+            match = None
+            if round_no is not None:
+                match = next(
+                    (c for c in cf.contests if _round_number(c.name) == round_no), None
+                )
+
+            if match is None:
+                if any(c.rank == claimed for c in cf.contests):
+                    continue  # the rank is on record, just not tied to a named round
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.MEDIUM,
+                    confidence=1.0,
+                    scoring=self.scoring,
+                    claim_refs=[claim.claim_id],
+                    evidence_refs=["codeforces.user.rating"],
+                    params={"claimed_rank": claimed, "contests_on_record": len(cf.contests)},
+                    explanation=(
+                        f"The CV claims a contest rank of {claimed}. No contest in the "
+                        f"{len(cf.contests)}-contest rated history for {cf.handle!r} "
+                        "records that rank, and the contest named could not be matched."
+                    ),
+                )
+                continue
+
+            if match.rank == claimed:
+                continue
+
+            delta = abs(match.rank - claimed)
+            relative = delta / max(match.rank, 1)
+            severity = (
+                Severity.INFO
+                if relative < 0.02
+                else Severity.MEDIUM
+                if relative < 0.25
+                else Severity.HIGH
+            )
             yield Discrepancy(
-                finding_id=finding_id(ctx.report_id, self.rule_id, [c.claim_id]),
+                finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
                 tier=self.tier,
-                severity=Severity.MEDIUM,
+                severity=severity,
                 confidence=1.0,
                 scoring=self.scoring,
-                claim_refs=[c.claim_id],
+                claim_refs=[claim.claim_id],
                 evidence_refs=["codeforces.user.rating"],
-                params={"claimed_rank": claimed, "ranks_on_record": sorted(ranks)[:10]},
+                params={
+                    "contest": match.name,
+                    "claimed_rank": claimed,
+                    "actual_rank": match.rank,
+                    "difference": delta,
+                },
                 explanation=(
-                    f"The CV claims a contest rank of {claimed}. No contest in the "
-                    f"{len(cf.contests)}-contest history for {cf.handle!r} records that rank."
+                    f"The CV claims rank {claimed} in {match.name}. The Codeforces API "
+                    f"records rank {match.rank} for {cf.handle!r} in that contest — a "
+                    f"difference of {delta} "
+                    + ("place." if delta == 1 else "places.")
+                    + (
+                        " Ranks shift after system testing and after cheat removals, so a"
+                        " small difference is consistent with a CV written from the live"
+                        " standings."
+                        if relative < 0.02
+                        else ""
+                    )
                 ),
             )
 
@@ -342,3 +446,273 @@ def run_all(ctx: Context) -> tuple[list[Discrepancy], list[RuleOutcome]]:
 
     assert len(outcomes) == len(REGISTRY), "every registered rule must be accounted for"
     return findings, outcomes
+
+
+# --------------------------------------------------------------------------- #
+# G · GitHub
+# --------------------------------------------------------------------------- #
+
+
+@register
+@dataclass(frozen=True)
+class G2AccountExists:
+    """The simplest decisive check in the system: does the account resolve at all."""
+
+    rule_id: str = "G2"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "The GitHub account named on the CV exists"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        for gap in ctx.bundle.gaps:
+            if gap.source == "github" and gap.reason is GapReason.NOT_FOUND:
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, []),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.HIGH,
+                    confidence=1.0,
+                    scoring=self.scoring,
+                    claim_refs=[
+                        c.claim_id for c in ctx.claims(ClaimKind.PROFILE)
+                        if (c.platform or "") == "github"
+                    ],
+                    evidence_refs=["github.users"],
+                    params={"detail": gap.detail},
+                    explanation=gap.detail or "The GitHub account does not exist.",
+                )
+                return
+        ctx.github()  # abstains with the gap's reason if there is no evidence at all
+
+
+@register
+@dataclass(frozen=True)
+class G4RepoExistsOwnedNotFork:
+    """Three facts about a named repository, each settled by the API.
+
+    A fork is the one that matters most: presenting someone else's work as a project
+    is a different claim from writing it, and GitHub records the distinction.
+    """
+
+    rule_id: str = "G4"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "Named repositories exist, are owned, and are not forks"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        if not gh.repos:
+            raise Abstain("No repositories named on the CV.")
+        by_claim = ctx.named_repos()
+
+        for repo in gh.repos:
+            refs = [by_claim[repo.name]] if repo.name in by_claim else []
+            common = {
+                "rule_id": self.rule_id,
+                "rule_version": self.rule_version,
+                "tier": self.tier,
+                "confidence": 1.0,
+                "scoring": self.scoring,
+                "claim_refs": refs,
+                "evidence_refs": [f"github.repos[{repo.name}]"],
+            }
+            if not repo.exists:
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name]),
+                    severity=Severity.HIGH,
+                    params={"repo": repo.name},
+                    explanation=(
+                        f"The repository {repo.name!r} named on the CV does not exist at "
+                        f"github.com/{gh.handle}/{repo.name}."
+                    ),
+                    **common,  # type: ignore[arg-type]
+                )
+            elif repo.is_fork:
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name, "fork"]),
+                    severity=Severity.HIGH,
+                    params={"repo": repo.name, "is_fork": True},
+                    explanation=(
+                        f"{repo.name!r} is a fork of another repository, not original work."
+                    ),
+                    **common,  # type: ignore[arg-type]
+                )
+            elif repo.owner_matches is False:
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name, "owner"]),
+                    severity=Severity.MEDIUM,
+                    params={"repo": repo.name},
+                    explanation=f"{repo.name!r} is not owned by {gh.handle!r}.",
+                    **common,  # type: ignore[arg-type]
+                )
+
+
+@register
+@dataclass(frozen=True)
+class G5ActivityDuringClaimedWindow:
+    """Was the account active when the CV says the work happened?
+
+    Reads the contributions calendar, never repo.created_at. Measured on a real CV:
+    the ATMA project claims Mar-Apr 2025 and its repository was created 2025-06-24 —
+    two months later — which a created_at comparison would report as a contradiction.
+    The calendar records 20 contributions across March and April. The repository was
+    pushed after the work, which is what a course project looks like.
+
+    ATTENTION, not decisive, and the catalogue's `decisive` is wrong here. The
+    calendar excludes private contributions unless the account owner opted in, so a
+    quiet window means "no PUBLIC activity", never "no work".
+    """
+
+    rule_id: str = "G5"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Account activity during the claimed project window"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        if not gh.contribution_windows:
+            raise Abstain(
+                "No contributions calendar was gathered. It needs an authenticated "
+                "GraphQL request; set CVV_GITHUB_TOKEN."
+            )
+        covered_from = min(w.start for w in gh.contribution_windows)
+        covered_to = max(w.end for w in gh.contribution_windows)
+
+        for claim in ctx.claims(ClaimKind.PROJECT):
+            if claim.interval is None:
+                continue
+            lo = bounds(claim.interval.start)[0]
+            hi = bounds(claim.interval.end or claim.interval.start)[1]
+            if lo < covered_from or hi > covered_to:
+                continue  # the calendar does not cover it; no claim either way
+
+            total = sum(
+                w.commit_count
+                for w in gh.contribution_windows
+                if w.start <= hi and lo <= w.end
+            )
+            if total > 0:
+                continue
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.LOW,
+                confidence=0.5,
+                scoring=self.scoring,
+                claim_refs=[claim.claim_id],
+                evidence_refs=["github.contribution_windows"],
+                params={"project": claim.title, "window": f"{lo} .. {hi}", "contributions": 0},
+                explanation=(
+                    f"{claim.title!r} is dated {lo:%b %Y} to {hi:%b %Y}, and GitHub records "
+                    f"no public contributions from {gh.handle!r} in that period."
+                ),
+                innocent_explanation=(
+                    "The contributions calendar counts only public activity unless the "
+                    "account owner has enabled private contributions. Work done in a "
+                    "private repository, on an institutional system, or pushed later "
+                    "leaves no trace here."
+                ),
+            )
+
+
+@register
+@dataclass(frozen=True)
+class G7RepoSubstance:
+    """Is there anything in the repository but a README?
+
+    Deliberately not a size or commit-count threshold. Those encode an opinion about
+    how big a project should be, which differs by institution, language and year, and
+    a two-file Python program is a program.
+    """
+
+    rule_id: str = "G7"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "Named repositories contain more than a README"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        present = [r for r in gh.repos if r.exists and r.is_readme_only is not None]
+        if not present:
+            raise Abstain("No repository contents were gathered.")
+        by_claim = ctx.named_repos()
+
+        for repo in present:
+            if not repo.is_readme_only:
+                continue
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.MEDIUM,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[by_claim[repo.name]] if repo.name in by_claim else [],
+                evidence_refs=[f"github.repos[{repo.name}]"],
+                params={"repo": repo.name, "size_kb": repo.size_kb},
+                explanation=(
+                    f"{repo.name!r} is presented as a project but contains no files "
+                    "beyond a README and boilerplate."
+                ),
+            )
+
+
+@register
+@dataclass(frozen=True)
+class G8PortfolioComposition:
+    """What proportion of the account is forked rather than written.
+
+    Attention tier: forking is a normal way to learn and to contribute, and a high
+    ratio is a question rather than a finding.
+    """
+
+    rule_id: str = "G8"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Proportion of the account that is forked rather than original"
+    threshold: float = 0.75
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        if gh.public_repo_count is None:
+            raise Abstain("The account's repository list was not gathered.")
+        if not gh.public_repos:
+            raise Abstain("The account has no public repositories to compose.")
+
+        forks = sum(1 for r in gh.public_repos if r.is_fork)
+        ratio = forks / len(gh.public_repos)
+        if ratio < self.threshold:
+            return
+
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, []),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.LOW,
+            confidence=0.6,
+            scoring=self.scoring,
+            claim_refs=[],
+            evidence_refs=["github.public_repos"],
+            params={"forks": forks, "total": len(gh.public_repos), "ratio": round(ratio, 2)},
+            explanation=(
+                f"{forks} of {len(gh.public_repos)} public repositories on "
+                f"{gh.handle!r} are forks of other people's work."
+            ),
+            innocent_explanation=(
+                "Forking is how contributions to other projects begin, and how most "
+                "people follow a tutorial. A high ratio says the account is used for "
+                "reading and contributing, not that the named projects are not the "
+                "candidate's own — those are checked separately by G4."
+            ),
+        )

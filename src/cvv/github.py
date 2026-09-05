@@ -16,6 +16,7 @@ nobody mentioned still corroborates a Python claim.
 from __future__ import annotations
 
 import base64
+import calendar as calendar_module
 import datetime
 import json
 import re
@@ -25,7 +26,14 @@ import httpx
 
 from cvv import cache
 from cvv.config import settings
-from cvv.models import Gap, GapReason, GitHubEvidence, Ownership, RepoEvidence
+from cvv.models import (
+    ActivityWindow,
+    Gap,
+    GapReason,
+    GitHubEvidence,
+    Ownership,
+    RepoEvidence,
+)
 
 API = "https://api.github.com"
 SOURCE = "github"
@@ -178,6 +186,99 @@ def _repo_evidence(
     return RepoEvidence(**evidence)
 
 
+CONTRIBUTIONS_QUERY = """
+query($login: String!, $from: DateTime!, $to: DateTime!) {
+  user(login: $login) {
+    contributionsCollection(from: $from, to: $to) {
+      contributionCalendar {
+        totalContributions
+        weeks { contributionDays { date contributionCount } }
+      }
+    }
+  }
+}
+"""
+
+
+def _contributions(
+    client: httpx.Client, login: str, since: datetime.date, until: datetime.date
+) -> list[ActivityWindow]:
+    """GitHub's own record of when this account was active, one window per year.
+
+    This is what G5 and G10 are meant to read. `git commit --date=` sets a commit's
+    author date to anything, and so does GIT_COMMITTER_DATE; both live inside the
+    repository and are attacker-controlled. The contributions calendar is GitHub's
+    server-side record of when a push actually arrived.
+
+    Requires a token — the GraphQL API rejects unauthenticated requests. Without one
+    this returns nothing and the dependent rules abstain, which is the honest outcome.
+
+    **What it does NOT include:** private contributions, unless the account owner has
+    turned that on for their profile. A quiet window therefore means "no PUBLIC
+    activity", never "no work". Any rule reading this must carry that as its innocent
+    explanation.
+    """
+    if not settings.github_token:
+        return []
+
+    windows: list[ActivityWindow] = []
+    year = since.year
+    while year <= until.year:
+        start = max(since, datetime.date(year, 1, 1))
+        end = min(until, datetime.date(year, 12, 31))
+        key = f"graphql:contributions:{login}:{start}:{end}"
+
+        body = cache.get(SOURCE, key)
+        if body is None:
+            response = client.post(
+                f"{API}/graphql",
+                timeout=30.0,
+                json={
+                    "query": CONTRIBUTIONS_QUERY,
+                    "variables": {
+                        "login": login,
+                        "from": f"{start}T00:00:00Z",
+                        "to": f"{end}T23:59:59Z",
+                    },
+                },
+            )
+            if response.status_code in (401, 403, 429):
+                raise RateLimited(f"GraphQL returned {response.status_code}")
+            response.raise_for_status()
+            body = response.json()
+            cache.put(SOURCE, key, body)
+
+        user = ((body or {}).get("data") or {}).get("user") or {}
+        calendar_data = (
+            user.get("contributionsCollection") or {}
+        ).get("contributionCalendar") or {}
+
+        # One window per MONTH, including empty ones. Year-level windows cannot
+        # answer "was this account active during March-April 2025", which is exactly
+        # what G5 and G10 ask. An empty month is the signal, so it has to be emitted
+        # rather than skipped.
+        by_month: dict[tuple[int, int], list[int]] = {}
+        for week in calendar_data.get("weeks", []):
+            for day in week.get("contributionDays", []):
+                d = datetime.date.fromisoformat(day["date"])
+                by_month.setdefault((d.year, d.month), []).append(
+                    day.get("contributionCount", 0)
+                )
+
+        for (yr, month), counts in sorted(by_month.items()):
+            last = calendar_module.monthrange(yr, month)[1]
+            windows.append(
+                ActivityWindow(
+                    start=datetime.date(yr, month, 1),
+                    end=datetime.date(yr, month, last),
+                    commit_count=sum(counts),
+                    active_days=sum(1 for c in counts if c > 0),
+                )
+            )
+        year += 1
+    return windows
+
+
 def _first_commit_by_language(repos: list[RepoEvidence]) -> dict[str, datetime.date]:
     """A LOWER BOUND ON EVIDENCE, not when the person first wrote the language.
 
@@ -229,6 +330,9 @@ def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
                 for name in dict.fromkeys(named_repos)
             ]
 
+            created = _as_date(user.get("created_at")) or datetime.date.today()
+            activity = _contributions(client, owner, created, datetime.date.today())
+
         except RateLimited as limit:
             return Gap(source=SOURCE, reason=GapReason.RATE_LIMITED, detail=str(limit))
         except httpx.HTTPError as exc:
@@ -242,6 +346,7 @@ def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
         # undermines them.
         ownership=Ownership.CLAIMED_UNVERIFIED,
         account_created=_as_date(user.get("created_at")),
+        contribution_windows=activity,
         repos=named,
         public_repos=public,
         # None would mean NOT GATHERED. 0 means an account with no public

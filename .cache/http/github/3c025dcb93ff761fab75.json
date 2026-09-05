@@ -1,5 +1,5 @@
 {
-  "fetched_at": 1788603746.5532827,
+  "fetched_at": 1788605835.371694,
   "key": "/users/Ashutosh-Ranjan09/repos?per_page=100&type=owner&sort=created",
   "body": [
     {
@@ -103,7 +103,14 @@
       "forks": 1,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     },
     {
       "id": 1190485257,
@@ -206,7 +213,14 @@
       "forks": 0,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     },
     {
       "id": 1093648671,
@@ -309,7 +323,14 @@
       "forks": 0,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     },
     {
       "id": 1007884832,
@@ -412,7 +433,14 @@
       "forks": 0,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     },
     {
       "id": 1007514890,
@@ -515,7 +543,14 @@
       "forks": 0,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     },
     {
       "id": 980537396,
@@ -618,7 +653,14 @@
       "forks": 0,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     },
     {
       "id": 822160871,
@@ -721,7 +763,14 @@
       "forks": 0,
       "open_issues": 0,
       "watchers": 0,
-      "default_branch": "main"
+      "default_branch": "main",
+      "permissions": {
+        "admin": true,
+        "maintain": true,
+        "push": true,
+        "triage": true,
+        "pull": true
+      }
     }
   ]
 }

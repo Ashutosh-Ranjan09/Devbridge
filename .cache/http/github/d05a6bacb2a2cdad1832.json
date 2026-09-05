@@ -1,5 +1,5 @@
 {
-  "fetched_at": 1788603750.7529757,
+  "fetched_at": 1788605840.379336,
   "key": "/repos/Ashutosh-Ranjan09/cf-connect",
   "body": {
     "id": 980537396,
@@ -103,7 +103,13 @@
     "open_issues": 0,
     "watchers": 0,
     "default_branch": "main",
-    "temp_clone_token": null,
+    "permissions": {
+      "admin": true,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
     "network_count": 0,
     "subscribers_count": 1
   }

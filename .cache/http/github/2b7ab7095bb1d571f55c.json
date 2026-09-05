@@ -1,5 +1,5 @@
 {
-  "fetched_at": 1788603746.9223416,
+  "fetched_at": 1788605835.8834164,
   "key": "/repos/Ashutosh-Ranjan09/ATMA-Final",
   "body": {
     "id": 1007514890,
@@ -103,7 +103,13 @@
     "open_issues": 0,
     "watchers": 0,
     "default_branch": "main",
-    "temp_clone_token": null,
+    "permissions": {
+      "admin": true,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
     "network_count": 0,
     "subscribers_count": 0
   }

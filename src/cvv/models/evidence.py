@@ -7,6 +7,7 @@ document-only path working correctly, not a failure.
 from __future__ import annotations
 
 import datetime
+from typing import Literal
 
 from pydantic import Field
 
@@ -64,6 +65,28 @@ class RepoEvidence(Model):
     frameworks: list[str] = Field(default_factory=list)
 
 
+class ActivityWindow(Model):
+    """A period of GitHub activity, from the GraphQL contributions calendar.
+
+    `source_timestamps` is a const, not a setting. It documents in the payload itself
+    that these counts come from GitHub's server-side record of when a push arrived —
+    git author and committer dates are attacker-controlled and never populate
+    anything here.
+
+    What the calendar does NOT include: private contributions, unless the account
+    owner has enabled that on their profile. A quiet window means "no PUBLIC
+    activity", never "no work", and any rule reading this must carry that as its
+    innocent explanation.
+    """
+
+    start: datetime.date
+    end: datetime.date
+    commit_count: int = Field(ge=0)
+    active_days: int | None = Field(default=None, ge=0)
+    primary_languages: list[str] = Field(default_factory=list)
+    source_timestamps: Literal["server_side"] = "server_side"
+
+
 class GitHubEvidence(Model):
     """Two depths. `repos` are the ones the CV named, fetched deeply. `public_repos`
     is the whole account, shallow — one query, metadata and languages only.
@@ -75,6 +98,7 @@ class GitHubEvidence(Model):
     handle: str
     ownership: Ownership
     account_created: datetime.date | None = None
+    contribution_windows: list[ActivityWindow] = Field(default_factory=list)
     repos: list[RepoEvidence] = Field(default_factory=list)
     public_repos: list[RepoEvidence] = Field(default_factory=list)
     # None means NOT GATHERED, which is a gap. 0 means an account with no public
