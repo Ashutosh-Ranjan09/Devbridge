@@ -18,6 +18,7 @@ from cvv.config import settings
 from cvv.extract import extract
 from cvv.gather import gather
 from cvv.ingest import document_info, read, sections
+from cvv.narrative import narrate
 from cvv.providers import OllamaProvider
 from cvv.report import assemble, coverage, render
 from cvv.rules import REGISTRY
@@ -40,6 +41,9 @@ def verify(
     ] = None,
     offline: Annotated[
         bool, typer.Option(help="Skip evidence gathering; run only the document-intrinsic checks.")
+    ] = False,
+    brief: Annotated[
+        bool, typer.Option(help="Add a model-written briefing above the buckets.")
     ] = False,
 ) -> None:
     """Run a CV end to end and print the five buckets."""
@@ -97,8 +101,23 @@ def verify(
 
     if as_json:
         typer.echo(report.model_dump_json(indent=2))
-    else:
-        typer.echo(render(report, graph, bundle))
+        return
+
+    if brief:
+        note = narrate(report, OllamaProvider(model))
+        typer.echo("\n" + "=" * 78)
+        typer.echo("  BRIEFING" + ("" if note.faithful else "  (model output rejected)"))
+        typer.echo("=" * 78)
+        typer.echo(note.text)
+        if not note.faithful:
+            typer.secho(
+                f"\n  The model's prose was not used: {note.rejected_because}. Every "
+                "number in a briefing must appear in the findings it was given, and "
+                "every rule it cites must have fired. The deterministic summary is "
+                "printed instead.",
+                fg="yellow",
+            )
+    typer.echo(render(report, graph, bundle))
 
 
 @app.command()
