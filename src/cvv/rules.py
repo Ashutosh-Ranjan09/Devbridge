@@ -48,6 +48,17 @@ class Abstain(Exception):  # noqa: N818 - a control signal, not an error
     """
 
 
+class Corroborated(Exception):  # noqa: N818 - a control signal, not an error
+    """A rule finishing with something POSITIVE to say.
+
+    Some checks can only ever confirm. GitHub organisation membership is private by
+    default, so its presence is real evidence and its absence is the ordinary state
+    of an honest employee — a rule reading it must be able to report the first
+    without inventing the second. `Corroborated` is how it says so: the outcome is
+    CLEAN, and the message reaches the reader in the `verified` bucket.
+    """
+
+
 @dataclass(frozen=True)
 class Context:
     graph: ClaimGraph
@@ -455,6 +466,16 @@ def run_all(ctx: Context) -> tuple[list[Discrepancy], list[RuleOutcome]]:
     for rule in REGISTRY:
         try:
             produced = list(rule.evaluate(ctx))
+        except Corroborated as confirmed:
+            outcomes.append(
+                RuleOutcome(
+                    rule_id=rule.rule_id,
+                    rule_version=rule.rule_version,
+                    status=RuleStatus.CLEAN,
+                    note=str(confirmed),
+                )
+            )
+            continue
         except Abstain as reason:
             outcomes.append(
                 RuleOutcome(
@@ -757,6 +778,126 @@ class G8PortfolioComposition:
                 "candidate's own — those are checked separately by G4."
             ),
         )
+
+
+@register
+@dataclass(frozen=True)
+class G10ActivityDuringEmployment:
+    """Public GitHub activity across a claimed employment window.
+
+    CORROBORATION ONLY, and the asymmetry is the whole rule rather than a gap in it.
+    The contributions calendar records PUBLIC activity; work code is normally private,
+    on a company remote, behind a VPN, or in an enterprise instance the calendar never
+    sees. A silent two-year window is what an ordinary salaried job looks like from
+    outside, so firing on silence would flag most employed developers and would be
+    the same mistake G5's first version made about projects.
+
+    Activity that DOES span the window is real evidence, and this reports it.
+    """
+
+    rule_id: str = "G10"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Public activity across a claimed employment window"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        if not gh.contribution_windows:
+            raise Abstain(
+                "No contributions calendar was gathered. It needs an authenticated "
+                "GraphQL request; set CVV_GITHUB_TOKEN."
+            )
+        roles = [c for c in ctx.claims(ClaimKind.EMPLOYMENT) if c.interval is not None]
+        if not roles:
+            raise Abstain("The CV dates no role to look for activity across.")
+
+        covered_from = min(w.start for w in gh.contribution_windows)
+        covered_to = max(w.end for w in gh.contribution_windows)
+
+        confirmed: list[str] = []
+        for claim in roles:
+            assert claim.interval is not None
+            lo = bounds(claim.interval.start)[0]
+            hi = bounds(claim.interval.end or claim.interval.start)[1]
+            if lo < covered_from or hi > covered_to:
+                continue  # outside the calendar; no statement either way
+
+            inside = [w for w in gh.contribution_windows if w.start <= hi and lo <= w.end]
+            total = sum(w.commit_count for w in inside)
+            active = sum(1 for w in inside if w.commit_count > 0)
+            if total == 0:
+                continue  # private work looks exactly like this; say nothing
+
+            confirmed.append(
+                f"{claim.title or 'the role'} at {claim.org or 'an unnamed employer'} "
+                f"({lo:%b %Y} to {hi:%b %Y}): {total} public contributions across "
+                f"{active} of {len(inside)} months"
+            )
+
+        if not confirmed:
+            raise Abstain(
+                "No claimed role falls inside the contributions calendar with public "
+                "activity in it. That is the ordinary case — work code is normally "
+                "private, and the calendar cannot see it — so nothing is concluded."
+            )
+        raise Corroborated(
+            "Public GitHub activity spans a claimed role — " + "; ".join(confirmed)
+        )
+        yield  # pragma: no cover - unreachable; keeps the generator signature
+
+
+@register
+@dataclass(frozen=True)
+class G11OrgMembership:
+    """A claimed employer against the account's public GitHub organisations.
+
+    Corroboration only, for a reason that is a fact about GitHub rather than a
+    limitation here: organisation membership is PRIVATE BY DEFAULT. A member must go
+    into the organisation's people page and switch their own membership to public,
+    and most never do. Absence is therefore the normal state of a real employee, and
+    a rule that fired on it would report a finding against nearly everyone who has
+    ever held a job.
+
+    Presence is different in kind. The organisation itself admitted the account, and
+    nobody can add themselves — so a match is evidence from a party other than the
+    candidate, which is the strongest thing this system ever gets.
+    """
+
+    rule_id: str = "G11"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Claimed employers against public GitHub organisation membership"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        employers = [c for c in ctx.claims(ClaimKind.EMPLOYMENT) if c.org]
+        if not employers:
+            raise Abstain("The CV names no employer to look for.")
+        if not gh.org_memberships:
+            raise Abstain(
+                "The account lists no public organisation membership. GitHub hides "
+                "membership by default and a member must opt in to being listed, so "
+                "an empty list is the normal case and says nothing either way."
+            )
+
+        matched = [
+            f"{claim.org!r} is corroborated by the GitHub organisation "
+            f"{org!r}, which lists {gh.handle!r} publicly"
+            for claim in employers
+            for org in gh.org_memberships
+            if _same_org(claim.org or "", org)
+        ]
+        if not matched:
+            raise Abstain(
+                "None of the claimed employers appears among this account's public "
+                f"organisations ({', '.join(sorted(gh.org_memberships))}). Membership "
+                "is private by default and an employer need not run a GitHub "
+                "organisation at all, so this is not evidence against the claim."
+            )
+        raise Corroborated("Employer corroborated from outside the CV — " + "; ".join(matched))
+        yield  # pragma: no cover - unreachable; keeps the generator signature
 
 
 # --------------------------------------------------------------------------- #
@@ -1508,6 +1649,21 @@ class D12TitleProgression:
                     "total."
                 ),
             )
+
+
+def _same_org(claimed: str, org_login: str) -> bool:
+    """Does a GitHub organisation login name the employer the CV claims?
+
+    Containment either way on alphanumerics: "Vercel" matches `vercel`, and "IIT
+    Kharagpur, Dept. of CSE" matches `iitkgp` in neither direction — which is correct.
+    An abbreviation the system cannot derive is a miss, and a miss abstains rather
+    than contradicting, so the cost of being strict here is nothing.
+    """
+    a = re.sub(r"[^a-z0-9]", "", claimed.lower())
+    b = re.sub(r"[^a-z0-9]", "", org_login.lower())
+    if len(a) < 3 or len(b) < 3:
+        return False
+    return a in b or b in a
 
 
 def _pdf_date(value: str | None) -> datetime.date | None:

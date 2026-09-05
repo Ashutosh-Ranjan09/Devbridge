@@ -50,6 +50,11 @@ class RuleOutcome(Model):
     rule_version: str | None = None
     status: RuleStatus
     reason: str | None = None
+    # What the rule CONFIRMED. A check that positively corroborates a claim has
+    # nowhere else to say it: Discrepancy means discrepancy, and a bare CLEAN
+    # renders as "nothing raised", which understates "the employer's own GitHub
+    # organisation lists this account publicly".
+    note: str | None = None
 
     @model_validator(mode="after")
     def _abstain_needs_reason(self) -> RuleOutcome:

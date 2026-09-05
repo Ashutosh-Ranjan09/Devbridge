@@ -51,7 +51,9 @@ def assemble(
 
     for outcome in outcomes:
         rule = by_id[outcome.rule_id]
-        if outcome.status is RuleStatus.CLEAN and rule.tier is Tier.DECISIVE:
+        if outcome.status is RuleStatus.CLEAN and outcome.note:
+            verified.append(outcome.note)
+        elif outcome.status is RuleStatus.CLEAN and rule.tier is Tier.DECISIVE:
             verified.append(f"{rule.summary} — checked, no discrepancy")
         elif outcome.status in (RuleStatus.ABSTAINED, RuleStatus.ERROR):
             not_evaluated.append(f"{rule.summary} — not evaluated: {outcome.reason}")
@@ -130,6 +132,7 @@ def quietly_clean(report: FindingsReport) -> list[str]:
         f"{by_id[o.rule_id].summary} — checked, nothing raised"
         for o in report.rule_outcomes
         if o.status is RuleStatus.CLEAN
+        and not o.note  # already printed, in full, under verified
         and o.rule_id in by_id
         and by_id[o.rule_id].tier is not Tier.DECISIVE
     ]

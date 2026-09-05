@@ -330,6 +330,11 @@ def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
                 for name in dict.fromkeys(named_repos)
             ]
 
+            # PUBLIC memberships only. GitHub hides membership by default and a
+            # member must opt in to being listed, so an empty list is the normal
+            # case and never evidence against anyone — see rule G11.
+            orgs = _get(client, f"/users/{owner}/orgs") or []
+
             created = _as_date(user.get("created_at")) or datetime.date.today()
             activity = _contributions(client, owner, created, datetime.date.today())
 
@@ -352,6 +357,6 @@ def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
         # None would mean NOT GATHERED. 0 means an account with no public
         # repositories, which is a finding. Never conflate them.
         public_repo_count=user.get("public_repos", len(public)),
-        org_memberships=[],
+        org_memberships=[o["login"] for o in orgs if o.get("login")],
         first_commit_by_language=_first_commit_by_language(public + named),
     )

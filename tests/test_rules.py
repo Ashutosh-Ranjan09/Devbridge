@@ -35,7 +35,7 @@ from cvv.models import (
     Tier,
 )
 from cvv.report import assemble
-from cvv.rules import REGISTRY
+from cvv.rules import REGISTRY, _same_org
 from tests.cvdata import (
     AGGREGATE,
     CF_RANK,
@@ -352,6 +352,7 @@ def github(
     repos: tuple[RepoEvidence, ...] = (),
     public: tuple[RepoEvidence, ...] = (),
     windows: tuple[tuple[str, int], ...] = (),
+    orgs: tuple[str, ...] = (),
 ) -> GitHubEvidence:
     return GitHubEvidence(
         handle="Ashutosh-Ranjan09",
@@ -360,6 +361,7 @@ def github(
         repos=list(repos),
         public_repos=list(public or repos),
         public_repo_count=len(public or repos),
+        org_memberships=list(orgs),
         contribution_windows=[
             ActivityWindow(
                 start=datetime.date.fromisoformat(f"{month}-01"),
@@ -1049,3 +1051,88 @@ class TestD12TitleProgression:
         )
         report = assemble(graph, bundle(graph))
         assert not [f for f in report.discrepancies if f.rule_id == "D12"]
+
+
+# ---------------------------------------------------------------------------
+# Corroboration-only checks. Both can confirm and neither can contradict, and in
+# both cases that asymmetry is a fact about GitHub rather than a gap here.
+# ---------------------------------------------------------------------------
+
+WORKING_YEAR = (("2024-05", 5), ("2024-06", 40), ("2024-07", 30), ("2024-08", 20),
+                ("2024-09", 5))
+
+
+class TestG10ActivityDuringEmployment:
+    def test_activity_spanning_the_role_reaches_the_verified_bucket(self) -> None:
+        graph = make_graph([role("Acme", "Jun 2024 - Aug 2024")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(windows=WORKING_YEAR)))
+        result = outcome(report, "G10")
+        assert result.status is RuleStatus.CLEAN
+        assert result.note is not None
+        assert "90 public contributions across 3 of 3 months" in result.note
+        assert result.note in report.buckets.verified
+
+    def test_a_silent_window_is_never_a_finding(self) -> None:
+        """The rule this one was written not to be. A salaried job leaves no public
+        trace — work code is private — so firing on silence would flag most employed
+        developers, exactly the mistake G5's first version made about projects."""
+        quiet = (("2024-05", 5), ("2024-06", 0), ("2024-07", 0), ("2024-08", 0),
+                 ("2024-09", 5))
+        graph = make_graph([role("Acme", "Jun 2024 - Aug 2024")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(windows=quiet)))
+        result = outcome(report, "G10")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "work code is normally private" in (result.reason or "")
+        assert not [f for f in report.discrepancies if f.rule_id == "G10"]
+
+    def test_says_nothing_about_a_role_the_calendar_does_not_cover(self) -> None:
+        graph = make_graph([role("Acme", "Jun 2019 - Aug 2019")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(windows=WORKING_YEAR)))
+        assert outcome(report, "G10").status is RuleStatus.ABSTAINED
+
+    def test_abstains_without_a_calendar(self) -> None:
+        graph = make_graph([role("Acme", "Jun 2024 - Aug 2024")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github()))
+        result = outcome(report, "G10")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "CVV_GITHUB_TOKEN" in (result.reason or "")
+
+
+class TestG11OrgMembership:
+    def test_a_public_membership_is_evidence_from_outside_the_cv(self) -> None:
+        graph = make_graph([role("Vercel", "2024")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(orgs=("vercel",))))
+        result = outcome(report, "G11")
+        assert result.status is RuleStatus.CLEAN
+        assert result.note is not None
+        assert "'Vercel'" in result.note and "'vercel'" in result.note
+        assert result.note in report.buckets.verified
+
+    def test_no_matching_org_is_an_abstention_not_a_finding(self) -> None:
+        """Membership is private by default; a real employee is normally invisible
+        here. A rule that fired on absence would flag nearly everyone with a job."""
+        graph = make_graph([role("Vercel", "2024")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(orgs=("kgp-chess-club",))))
+        result = outcome(report, "G11")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "not evidence against the claim" in (result.reason or "")
+        assert not [f for f in report.discrepancies if f.rule_id == "G11"]
+
+    def test_an_account_in_no_public_org_abstains_with_the_reason(self) -> None:
+        graph = make_graph([role("Vercel", "2024")], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github()))
+        result = outcome(report, "G11")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "hides membership by default" in (result.reason or "")
+
+    def test_abstains_when_the_cv_names_no_employer(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(orgs=("vercel",))))
+        assert outcome(report, "G11").status is RuleStatus.ABSTAINED
+
+    def test_a_short_token_never_matches_by_accident(self) -> None:
+        """'IT' inside 'kgp-it-society' is not a match. A miss abstains, so strictness
+        costs nothing and a false corroboration would cost a great deal."""
+        assert not _same_org("IT", "kgp-it-society")
+        assert _same_org("Vercel", "vercel")
+        assert _same_org("Acme Corporation", "acme-corporation")
