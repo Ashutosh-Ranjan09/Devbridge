@@ -10,30 +10,34 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 ## Current state
 
-**Working end to end.** `docs/CV-SDE-AR.pdf` runs in ~15s on `qwen3:1.7b`: 17 claims
-extracted, live evidence gathered from Codeforces and GitHub, **10 of the 41 checks**
-evaluated, five buckets printed. 131 tests. ~5,600 lines.
+**27 of the 41 checks are built and the pipeline runs end to end** on
+`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 237 tests, ~6,200 lines across 25
+modules, ruff and `mypy --strict` clean.
 
 ```
 cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
+cvv verify cv.pdf [--brief] [--json] [--offline] [--save DIR]
+cvv rules | inspect | config
 ```
 
-| Built | |
-|---|---|
-| `models/` `ids` `intervals` | the contract, stable ids, three-valued date algebra |
-| `ingest` | PDF, NFKC + index map, section detection, line lookup |
-| `spans` | two-tier recovery, numeral guard, span-scoped token recovery |
-| `dates` | table-driven parser; `2022-26`, seasons, two-digit years |
-| `extract` | regex pre-pass + 4 section-scoped model passes + grounding |
-| `filters` | the deterministic gate — seven corroboration filters |
-| `gather` `github` `cache` | Codeforces, liveness, GitHub REST + GraphQL calendar |
-| `rules` | P1 P2 P3 · W1 · G2 G4 G5 G7 G8 · D9 + registry + isolation runner |
-| `report` | tier→bucket, coverage, five buckets |
-| `reference` `data/` | roll-number schemes, programme durations |
+Built: `models/` · `ingest` · `spans` · `extract` · `filters` · `dates` ·
+`intervals` · `gather` (Codeforces · LeetCode · GitHub · liveness) · `github` ·
+`leetcode` · `reference` · `rules` · `report` · `narrative` · `cli`.
 
-**Not built:** G6 (needs project technologies from the extractor), 31 further checks,
-the narrative renderer, storage, the API surface, and the evaluation harness.
-`scripts_spike.py` is still a scratch entry point rather than `cvv/cli.py`.
+| Group | Built | Missing |
+|---|---|---|
+| D · document-intrinsic | D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 | — |
+| G · GitHub | G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 | G12 (per-commit distribution, expensive) |
+| P · platforms | P1 P2 P3 P4 P6 | P5 (CodeChef — no API, scraper only) |
+| W · deployments | W1 | W2 (human — a reviewer opens the link) |
+| C · credentials | C5 (narrative) | C1–C4 — blocked on DATA, not code |
+| H · human | — | H1–H6, by design |
+
+**The eleven remaining checks are not remaining because they are hard.** C1–C4 need
+per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
+directories — acquisition problems, not engineering ones. P5 needs a scraper, which
+is a source that breaks silently and answers wrongly. H1–H6 are human by design and
+the system's job there is to prepare the worksheet, not to guess.
 
 **Reproducibility is measured, not assumed.** Same document and seed gives a
 byte-identical claim set, including across a forced model reload. The one variable is
@@ -46,8 +50,10 @@ Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 ## The invariant
 
 **A CV from someone with no account, no repositories and no contest history must still
-produce a complete, honest report.** The twelve document-intrinsic checks need no network
-at all, so the document-only path is a real path, not a failure mode. Everything else
+produce a complete, honest report.** All eleven document-intrinsic checks are built and
+need no network at all, so the document-only path is a real path rather than a failure
+mode — `cvv verify --offline` is that path, and a test asserts every rule still appears
+in the report with its reason. Everything else
 follows from this: abstention is a first-class result, and evidence gathering lives
 inside this system rather than arriving from somewhere else.
 
@@ -143,7 +149,7 @@ someone and one you would not.
    because a heading has no plausible category. Junk output is often a task-framing
    problem before it is a capability one.
 
-9. **A check that is technically correct can still be unfair.** Four rules, on their
+9. **A check that is technically correct can still be unfair.** Nine rules, on their
    first version, would have put a false or misleading finding in front of a reviewer
    looking at an honest CV. None was a bug in the usual sense; each was a defensible
    reading of available data.
@@ -154,11 +160,25 @@ someone and one you would not.
    | G7 | fewer than N files means empty | an 11 KB program in two files is a program |
    | P2 | is the claimed rank anywhere in the history | true, useless, and it hid that the named contest was found three places out |
    | D9 | the roll number's department is not in the degree text | the CV named no department at all. Absence is not contradiction |
+   | G6 | a claimed technology is missing from the repo | a CV names databases, protocols and services no language census or manifest can show. MongoDB is not a language and is not an npm package. Fire only when NOTHING matches |
+   | G9 | claimed tenure exceeds the earliest evidence | the account is usually younger than the claim. Eight years of Python against a three-year-old GitHub reports when they joined GitHub |
+   | G10 | no public commits during a claimed job | that is what a salaried job looks like from outside. Work code is private |
+   | G11 | employer absent from public org memberships | org membership is private by default; most members never opt in |
+   | D6 | stated total exceeds the dated roles | a CV need not list every role, and one page forces the choice |
 
    So: **state both numbers, not just the mismatch**; scale severity to the size of
    the gap; and where half a check can run and half cannot, say which — "could not
    check the roll number" and "checked the years, they line up, could not check the
    department" are different statements, and only one of them is true.
+
+   Four of those nine survive as **corroboration-only** rules — G10, G11, P6 and the
+   confirming half of G9. They can raise nothing and confirm something, which is not
+   a weakened check but the correct shape when absence is the ordinary state of an
+   honest candidate. `Corroborated` is the control signal, symmetric with `Abstain`,
+   and what it says reaches the reader in the `verified` bucket. Where a table would
+   make a rule fire, the entries are biased so it under-fires: every date in
+   `data/tech-releases.json` is deliberately early, because a missed anachronism and
+   a false accusation are not equally bad.
 
 10. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
    JEE ranks, returned them anyway — and `qwen3:1.7b` returned them relabelled as
@@ -169,7 +189,19 @@ And two that shape everything else:
 
 - **The LLM translates, never judges.** It converts unstructured to structured, or
   structured to prose. It never produces a number that enters a finding and never decides
-  whether a claim is true. Five call sites, listed in `docs/plan.md`.
+  whether a claim is true.
+
+  The second call site proves the rule needs teeth. Asked for free prose over a report
+  carrying four attention findings, `qwen3:1.7b` opened with *"the CV does not
+  contradict any rules, as all claimed information is verified"* — a verdict, from a
+  system whose first principle is that it produces none, and it passed a numeral check
+  because it contained no numbers. So the model no longer writes a briefing: it writes
+  **one sentence per finding**, Python assembles the frame, and three layers hold it —
+  a signature that cannot reach the document, an omission check (every finding gets a
+  sentence), and numeral containment **per finding** rather than per report. A number
+  belonging to P1 in a sentence about G5 is the extraction failure arriving at the
+  other end of the pipeline. Rejected prose falls back to a summary assembled by
+  counting, and the CLI says why.
 - **No overall trust score. No verdicts.** `FindingsReport` has no `overall_score` field,
   deliberately. This is most tempting to add during demo prep — don't.
 

@@ -22,6 +22,17 @@ Phase 1 is days. It is deliberately ahead of the fixture corpus: real extraction
 tells you which of the 22 claim shapes actually break, and hand-writing 84 fixture files
 before seeing one is guesswork.
 
+**Where the build actually is.** Phases 0, 1 and 3 are done for everything reachable:
+27 of the 41 checks are registered, four connectors are built, and the narrative
+renderer from phase 4 is in. Phase 2 is partly done — PDF, spans, dates and all nine
+claim kinds work; DOCX and OCR do not. Phase 5 has not started.
+
+The fourteen unbuilt checks are not unbuilt because they are hard. C1-C4 need
+per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
+directories; P5 needs a scraper; H1-H6 are human by design and G12 is expensive for
+what it returns. Every one of those is an acquisition or policy problem rather than an
+engineering one, and `CLAUDE.md` carries the current table.
+
 ### Phase 0 — contracts
 
 Nine claim kinds, not five. `profile` carries the handle, and no handle means 18 checks
