@@ -56,7 +56,13 @@ SKILLS_LINE = (
 )
 
 
-DOCUMENT = ACHIEVEMENTS + " " + SKILLS_LINE
+# The header line, as the CDC template writes it. The roll number lives here and the
+# programme name beside it — which is exactly why D9 cannot find a department in the
+# extracted `degree` field, and must abstain rather than call that a contradiction.
+HEADER = "ASHUTOSH RANJAN | 23CS10004 B.Tech.(Hons.) in COMPUTER SCIENCE AND ENGINEERING"
+ROLL = "23CS10004"
+
+DOCUMENT = HEADER + " " + ACHIEVEMENTS + " " + SKILLS_LINE
 
 
 def make_claim(

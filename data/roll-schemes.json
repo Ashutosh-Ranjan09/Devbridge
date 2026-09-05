@@ -1,0 +1,60 @@
+{
+  "_note": [
+    "Roll-number schemes are institution-specific. 23CS10004 is IIT Kharagpur's;",
+    "another institution encodes different things in a different shape. D9 applies a",
+    "scheme only when its pattern matches, and abstains otherwise — it never guesses",
+    "at an unrecognised format.",
+    "",
+    "Each scheme names the departments it encodes and how long its programmes run,",
+    "because the check is admission_year + programme_length == graduation_year.",
+    "Programme durations are India-specific and are the same table D8 needs."
+  ],
+
+  "iitkgp": {
+    "label": "IIT Kharagpur",
+    "pattern": "^(?P<year>\\d{2})(?P<dept>[A-Z]{2})(?P<serial>\\d{5})$",
+    "institutions": ["iit kharagpur", "indian institute of technology kharagpur", "iitkgp"],
+
+    "departments": {
+      "AE": ["aerospace"],
+      "AG": ["agricultural", "food engineering"],
+      "AR": ["architecture"],
+      "BT": ["biotechnology"],
+      "CE": ["civil"],
+      "CH": ["chemical"],
+      "CS": ["computer science", "computer science and engineering", "cse"],
+      "CY": ["chemistry"],
+      "EC": ["electronics", "electronics and electrical communication"],
+      "EE": ["electrical"],
+      "EX": ["exploration geophysics", "geophysics"],
+      "GG": ["geology", "geological"],
+      "HS": ["humanities", "social sciences"],
+      "IE": ["industrial engineering", "industrial and systems"],
+      "IM": ["industrial and systems engineering"],
+      "MA": ["mathematics", "mathematics and computing"],
+      "ME": ["mechanical"],
+      "MF": ["manufacturing"],
+      "MI": ["mining"],
+      "MT": ["metallurgical", "metallurgical and materials"],
+      "NA": ["ocean engineering", "naval architecture"],
+      "PH": ["physics"],
+      "QD": ["quality engineering", "design and manufacturing"]
+    },
+
+    "programme_years": {
+      "b.tech": 4,
+      "btech": 4,
+      "b.tech.(hons.)": 4,
+      "bachelor of technology": 4,
+      "b.arch": 5,
+      "dual degree": 5,
+      "integrated m.tech": 5,
+      "integrated msc": 5,
+      "m.tech": 2,
+      "mtech": 2,
+      "msc": 2,
+      "mba": 2,
+      "phd": null
+    }
+  }
+}

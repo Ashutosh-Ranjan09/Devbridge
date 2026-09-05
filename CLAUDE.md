@@ -10,22 +10,30 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 ## Current state
 
-**The spike works.** `docs/CV-SDE-AR.pdf` runs end to end in ~15s on `qwen3:1.7b`:
-19 claims extracted, evidence gathered, four checks evaluated, five buckets printed.
-48 tests passing. ~2,500 lines across 16 modules.
+**Working end to end.** `docs/CV-SDE-AR.pdf` runs in ~15s on `qwen3:1.7b`: 17 claims
+extracted, live evidence gathered from Codeforces and GitHub, **10 of the 41 checks**
+evaluated, five buckets printed. 131 tests. ~5,600 lines.
 
 ```
 cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
 ```
 
-Built: `models/` · `ingest` (PDF, NFKC + index map, section detection) · `spans`
-(two-tier recovery, numeral guard, token recovery) · `extract` (regex pre-pass + 4
-section-scoped model passes) · `filters` (the deterministic gate) · `gather`
-(Codeforces + liveness) · `rules` (P1 P2 P3 W1 + isolation runner) · `report`.
+| Built | |
+|---|---|
+| `models/` `ids` `intervals` | the contract, stable ids, three-valued date algebra |
+| `ingest` | PDF, NFKC + index map, section detection, line lookup |
+| `spans` | two-tier recovery, numeral guard, span-scoped token recovery |
+| `dates` | table-driven parser; `2022-26`, seasons, two-digit years |
+| `extract` | regex pre-pass + 4 section-scoped model passes + grounding |
+| `filters` | the deterministic gate — seven corroboration filters |
+| `gather` `github` `cache` | Codeforces, liveness, GitHub REST + GraphQL calendar |
+| `rules` | P1 P2 P3 · W1 · G2 G4 G5 G7 G8 · D9 + registry + isolation runner |
+| `report` | tier→bucket, coverage, five buckets |
+| `reference` `data/` | roll-number schemes, programme durations |
 
-Not built: the date parser (every project claim carries `date_unparsed`, which blocks
-D5–D8 and G5), the GitHub connector (4 repos sit unused in the graph), and 37 of the
-41 checks.
+**Not built:** G6 (needs project technologies from the extractor), 31 further checks,
+the narrative renderer, storage, the API surface, and the evaluation harness.
+`scripts_spike.py` is still a scratch entry point rather than `cvv/cli.py`.
 
 **Reproducibility is measured, not assumed.** Same document and seed gives a
 byte-identical claim set, including across a forced model reload. The one variable is
@@ -135,7 +143,24 @@ someone and one you would not.
    because a heading has no plausible category. Junk output is often a task-framing
    problem before it is a capability one.
 
-9. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
+9. **A check that is technically correct can still be unfair.** Four rules, on their
+   first version, would have put a false or misleading finding in front of a reviewer
+   looking at an honest CV. None was a bug in the usual sense; each was a defensible
+   reading of available data.
+
+   | Rule | The tempting version | Why it is wrong |
+   |---|---|---|
+   | G5 | repository created after the claimed window | `created_at` bounds when the REPO existed, not when the WORK happened. The calendar showed 20 contributions in the claimed months |
+   | G7 | fewer than N files means empty | an 11 KB program in two files is a program |
+   | P2 | is the claimed rank anywhere in the history | true, useless, and it hid that the named contest was found three places out |
+   | D9 | the roll number's department is not in the degree text | the CV named no department at all. Absence is not contradiction |
+
+   So: **state both numbers, not just the mismatch**; scale severity to the size of
+   the gap; and where half a check can run and half cannot, say which — "could not
+   check the roll number" and "checked the years, they line up, could not check the
+   department" are different statements, and only one of them is true.
+
+10. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
    JEE ranks, returned them anyway — and `qwen3:1.7b` returned them relabelled as
    `codeforces`, which no label-based filter can catch. Anything the design excludes is
    dropped by code reading the verbatim, which the model cannot alter.

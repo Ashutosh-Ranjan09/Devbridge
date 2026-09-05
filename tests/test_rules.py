@@ -32,7 +32,15 @@ from cvv.models import (
 )
 from cvv.report import assemble
 from cvv.rules import REGISTRY
-from tests.cvdata import AGGREGATE, CF_RANK, CF_RATING, DOCUMENT, make_claim, make_graph
+from tests.cvdata import (
+    AGGREGATE,
+    CF_RANK,
+    CF_RATING,
+    DOCUMENT,
+    ROLL,
+    make_claim,
+    make_graph,
+)
 
 NOW = datetime.datetime(2026, 9, 4, tzinfo=datetime.UTC)
 
@@ -514,3 +522,111 @@ class TestG8PortfolioComposition:
         graph = make_graph([], DOCUMENT)
         report = assemble(graph, bundle(graph, github=gh))
         assert outcome(report, "G8").status is RuleStatus.CLEAN
+
+
+# --------------------------------------------------------------------------- #
+# D · document-intrinsic
+# --------------------------------------------------------------------------- #
+
+
+def roll(number: str = ROLL, *, year: int = 2023, dept: str = "CS") -> object:
+    return make_claim(
+        number,
+        DOCUMENT,
+        claim_id="cid001",
+        kind=ClaimKind.IDENTIFIER,
+        parsed={"admission_year": year, "dept_code": dept, "serial": 10004},
+    )
+
+
+def degree(name: str, org: str, year: str, claim_id: str = "cdeg01") -> object:
+    interval = parse_interval(year)
+    return make_claim(
+        CF_RANK,
+        DOCUMENT,
+        claim_id=claim_id,
+        kind=ClaimKind.EDUCATION,
+        degree=name,
+        org=org,
+        interval=interval,
+    )
+
+
+class TestD9RollNumberStructure:
+    """The invariant working: a decisive check needing no network at all, because the
+    evidence is the document's own internal consistency."""
+
+    def test_the_real_cv_abstains_but_reports_what_it_did_check(self) -> None:
+        """23CS10004 with a B.TECH completing 2027. The years line up (2023 + 4), and
+        the CV never states a department — the programme name lives in the header, not
+        in the degree field. Absence is not a contradiction, so the rule abstains, and
+        the reason has to carry the half that DID run."""
+        graph = make_graph(
+            [roll(), degree("B.TECH", "IIT Kharagpur", "2027")], DOCUMENT
+        )
+        report = assemble(graph, bundle(graph))
+        result = outcome(report, "D9")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "states no department" in (result.reason or "")
+        assert "which the CV agrees with" in (result.reason or ""), (
+            "the timeline check ran and passed; dropping that is the silence the "
+            "design forbids"
+        )
+
+    def test_fires_when_the_timeline_does_not_add_up(self) -> None:
+        """Admitted 2023, a four-year B.Tech, but the CV claims completion in 2025."""
+        graph = make_graph(
+            [roll(), degree("B.TECH", "IIT Kharagpur", "2025")], DOCUMENT
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D9")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.params["expected_completion"] == 2027
+        assert finding.params["claimed_completion"] == 2025
+        assert finding.finding_id in report.buckets.contradicted
+
+    def test_fires_when_the_department_contradicts_the_degree(self) -> None:
+        graph = make_graph(
+            [
+                roll(dept="ME"),
+                degree("B.Tech in Computer Science and Engineering", "IIT Kharagpur", "2027"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D9")
+        assert finding.tier is Tier.DECISIVE
+        assert "mechanical" in finding.explanation.lower()
+
+    def test_a_matching_department_and_timeline_is_clean(self) -> None:
+        graph = make_graph(
+            [
+                roll(),
+                degree("B.Tech in Computer Science and Engineering", "IIT Kharagpur", "2027"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D9").status is RuleStatus.CLEAN
+
+    def test_an_unrecognised_scheme_abstains(self) -> None:
+        """Roll-number schemes are institution-specific. An unknown shape is decoded
+        by nothing, and guessing at it is how a rule invents a finding."""
+        graph = make_graph(
+            [
+                make_claim(
+                    "AR009", DOCUMENT, claim_id="cid002", kind=ClaimKind.IDENTIFIER,
+                    parsed={"admission_year": 2021, "dept_code": "ZZ", "serial": 1},
+                ),
+                degree("B.Tech", "Some Other University", "2025"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D9").status is RuleStatus.ABSTAINED
+
+    def test_abstains_without_an_identifier(self) -> None:
+        graph = make_graph([degree("B.TECH", "IIT Kharagpur", "2027")], DOCUMENT)
+        result = outcome(assemble(graph, bundle(make_graph([], DOCUMENT))), "D9")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "identifier" in (result.reason or "")

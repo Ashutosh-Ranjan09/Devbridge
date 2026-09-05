@@ -32,6 +32,7 @@ from cvv.models import (
     Severity,
     Tier,
 )
+from cvv.reference import department_matches, programme_years, scheme_for
 
 
 class Abstain(Exception):  # noqa: N818 - a control signal, not an error
@@ -750,3 +751,177 @@ class G8PortfolioComposition:
                 "candidate's own — those are checked separately by G4."
             ),
         )
+
+
+# --------------------------------------------------------------------------- #
+# D · document-intrinsic — no network, ever
+# --------------------------------------------------------------------------- #
+
+
+@register
+@dataclass(frozen=True)
+class D9RollNumberStructure:
+    """A roll number encodes an admission year and a department, both checkable
+    against the CV using nothing but the document.
+
+    This is the invariant working: a candidate with no account, no repositories and no
+    contest history still gets a decisive check, because the evidence is the
+    document's own internal consistency.
+
+    Two INDEPENDENT sub-checks. The department needs the CV to name one; the timeline
+    needs a programme with a known duration and a completion year. Either can run
+    without the other, and the rule abstains only when neither can — an earlier
+    version abstained as soon as the department was unavailable and silently gave up
+    the timeline check that would have run fine.
+
+    Scoped honestly. `23CS10004` is IIT Kharagpur's scheme; another institution
+    encodes different things in a different shape. A scheme applies only when its
+    pattern matches, an unlisted department code is unknown rather than wrong, and a
+    CV that names no department is not claiming a different one.
+    """
+
+    rule_id: str = "D9"
+    rule_version: str = "1.1"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "Roll-number structure against the claimed programme and dates"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        identifiers = [
+            c for c in ctx.claims(ClaimKind.IDENTIFIER) if (c.parsed or {}).get("dept_code")
+        ]
+        if not identifiers:
+            raise Abstain("No structured identifier found in the document.")
+        degrees = [c for c in ctx.claims(ClaimKind.EDUCATION) if c.degree]
+        if not degrees:
+            raise Abstain("No degree claimed to check the roll number against.")
+
+        skipped: list[str] = []
+        checked: list[str] = []
+
+        for ident in identifiers:
+            parsed = ident.parsed or {}
+            roll = ident.provenance.verbatim
+            scheme = scheme_for(roll, next((d.org for d in degrees if d.org), None))
+            if scheme is None:
+                skipped.append(
+                    f"{roll!r} matches no scheme in data/roll-schemes.json, so nothing "
+                    "about it can be decoded"
+                )
+                continue
+
+            code = str(parsed["dept_code"])
+            admission = int(parsed["admission_year"])
+
+            # Departments the CV actually names, searched across each education
+            # claim's degree, institution and its own span — the document's words.
+            named = {
+                dept: d
+                for d in degrees
+                for dept in scheme.get("departments", {})
+                if department_matches(
+                    scheme, dept, f"{d.degree or ''} {d.org or ''} {d.provenance.verbatim}"
+                )
+            }
+
+            if named and code not in named:
+                subject = next(iter(named.values()))
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [ident.claim_id]),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.HIGH,
+                    confidence=1.0,
+                    scoring=self.scoring,
+                    claim_refs=[ident.claim_id, subject.claim_id],
+                    evidence_refs=["data/roll-schemes.json"],
+                    params={
+                        "roll": roll,
+                        "dept_code": code,
+                        "encodes": scheme["departments"].get(code, []),
+                        "cv_names": sorted(named),
+                    },
+                    explanation=(
+                        f"The roll number {roll} encodes department {code!r} "
+                        f"({', '.join(scheme['departments'].get(code, []))}), but the CV "
+                        f"names {', '.join(sorted(named))} instead."
+                    ),
+                )
+            elif not named:
+                # ABSENCE ABSTAINS. Fired here once, on an honest CV: the extracted
+                # degree was "B.TECH" and "COMPUTER SCIENCE AND ENGINEERING" sat in
+                # the header line. Not naming a department is not claiming a
+                # different one.
+                skipped.append(
+                    f"the CV states no department to compare {roll} against"
+                )
+
+            # The timeline sub-check, independent of the above. Prefer the degree
+            # whose department matches, else one at the scheme's own institution,
+            # else the longest programme claimed.
+            subject = named.get(code) or _degree_at(scheme, degrees) or degrees[0]
+            years = programme_years(scheme, subject.degree or "")
+            if years is None:
+                skipped.append(f"{subject.degree!r} has no standard duration on record")
+                continue
+            if subject.interval is None:
+                skipped.append(f"{subject.degree!r} carries no year to check against")
+                continue
+
+            end = subject.interval.end or subject.interval.start
+            expected = admission + years
+            if end.year == expected:
+                # The timeline agrees. Recorded even though it produces no finding:
+                # if the department could not be compared, the rule abstains, and the
+                # reader must be told which half DID run. "Could not check the roll
+                # number" and "checked the years, they line up, could not check the
+                # department" are different statements.
+                checked.append(
+                    f"{roll} encodes admission in {admission} and a {years}-year "
+                    f"{subject.degree} completes in {expected}, which the CV agrees with"
+                )
+                continue
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [ident.claim_id, "years"]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.MEDIUM,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[ident.claim_id, subject.claim_id],
+                evidence_refs=["data/roll-schemes.json"],
+                params={
+                    "roll": roll,
+                    "admission_year": admission,
+                    "programme": subject.degree,
+                    "programme_years": years,
+                    "expected_completion": expected,
+                    "claimed_completion": end.year,
+                },
+                explanation=(
+                    f"The roll number {roll} encodes admission in {admission}. A "
+                    f"{years}-year {subject.degree} started then completes in "
+                    f"{expected}, but the CV gives {end.year}."
+                ),
+            )
+            return
+
+        if skipped:
+            reason = "; ".join(dict.fromkeys(skipped)) + "."
+            if checked:
+                reason += " Checked: " + "; ".join(dict.fromkeys(checked)) + "."
+            raise Abstain(reason)
+
+
+def _degree_at(scheme: dict[str, object], degrees: list) -> object | None:  # type: ignore[type-arg]
+    """The degree awarded by the scheme's own institution, if the CV names it."""
+    institutions = scheme.get("institutions", [])
+    assert isinstance(institutions, list)
+    for d in degrees:
+        org = (d.org or "").lower()
+        if any(name in org for name in institutions):
+            return d
+    return None
