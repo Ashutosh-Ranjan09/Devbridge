@@ -16,6 +16,7 @@ import time
 
 import httpx
 
+from cvv.github import gather_github
 from cvv.models import (
     ClaimGraph,
     ContestResult,
@@ -165,18 +166,44 @@ def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
     )
     deployments = [probe(u) for u in urls]
 
-    if any(a.type.value == "repo" for c in graph.claims for a in c.artefacts):
+    github = None
+    owners = {
+        a.owner
+        for c in graph.claims
+        for a in c.artefacts
+        if a.type.value == "repo" and a.owner
+    }
+    named = sorted(
+        {
+            a.url.rstrip("/").split("/")[-1]
+            for c in graph.claims
+            for a in c.artefacts
+            if a.type.value == "repo"
+        }
+    )
+    if owners:
+        # One CV, one account. More than one owner means repositories belonging to
+        # different people, which is a claim about collaboration rather than
+        # ownership — out of scope for now.
+        owner = sorted(owners)[0]
+        result = gather_github(owner, named)
+        if isinstance(result, Gap):
+            gaps.append(result)
+        else:
+            github = result
+    else:
         gaps.append(
             Gap(
                 source="github",
-                reason=GapReason.NOT_SUPPLIED,
-                detail="Repositories were named, but no GitHub connector is built yet.",
+                reason=GapReason.NO_HANDLE_IN_CV,
+                detail="No GitHub repository URL found in the document.",
             )
         )
 
     return EvidenceBundle(
         bundle_id=bundle_id,
         graph_id=graph.graph_id,
+        github=github,
         platforms=platforms,
         deployments=deployments,
         gathered_at=datetime.datetime.now(datetime.UTC),

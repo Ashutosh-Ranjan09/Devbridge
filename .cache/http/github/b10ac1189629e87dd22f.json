@@ -1,0 +1,637 @@
+{
+  "fetched_at": 1788603747.612397,
+  "key": "/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/main?recursive=1",
+  "body": {
+    "sha": "1f25dd37bb3b78a92943c24a19c1dcd732234fab",
+    "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/1f25dd37bb3b78a92943c24a19c1dcd732234fab",
+    "tree": [
+      {
+        "path": ".gitignore",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5ef6a520780202a1d6addd833d800ccb1ecac0bb",
+        "size": 480,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/5ef6a520780202a1d6addd833d800ccb1ecac0bb"
+      },
+      {
+        "path": "README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "89bb96aa81c55825fbcd6e65eb722b83dabf46a2",
+        "size": 3881,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/89bb96aa81c55825fbcd6e65eb722b83dabf46a2"
+      },
+      {
+        "path": "app",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "48e270a900c6df195ec4053c2840109c3e86c1a7",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/48e270a900c6df195ec4053c2840109c3e86c1a7"
+      },
+      {
+        "path": "app/CreateTimetable",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "75675a062030d302cbdc073f4ce372e50665e778",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/75675a062030d302cbdc073f4ce372e50665e778"
+      },
+      {
+        "path": "app/CreateTimetable/page.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a672dde756cebec1d144edeeefef724f6ae9968f",
+        "size": 1219,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/a672dde756cebec1d144edeeefef724f6ae9968f"
+      },
+      {
+        "path": "app/Dashboard",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "b6b6f315f8afa1d033cdef92acf2d77f63ecbc17",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/b6b6f315f8afa1d033cdef92acf2d77f63ecbc17"
+      },
+      {
+        "path": "app/Dashboard/page.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2dda25139c016b86465693d7d5ff7b7943b784d9",
+        "size": 114,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/2dda25139c016b86465693d7d5ff7b7943b784d9"
+      },
+      {
+        "path": "app/EditTimetable",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "f85f81cb2757ce9ade69ef0cd4da540933e690c8",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/f85f81cb2757ce9ade69ef0cd4da540933e690c8"
+      },
+      {
+        "path": "app/EditTimetable/page.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ad7d7bb32498ab7aa4974f0f717f352a6db75554",
+        "size": 151,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/ad7d7bb32498ab7aa4974f0f717f352a6db75554"
+      },
+      {
+        "path": "app/ExportTimeTable",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "99dbf4b641389902c64179fe8405f4958d462bca",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/99dbf4b641389902c64179fe8405f4958d462bca"
+      },
+      {
+        "path": "app/ExportTimeTable/page.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "906071597451e7ae75b2ed748bc4546e40af818b",
+        "size": 173,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/906071597451e7ae75b2ed748bc4546e40af818b"
+      },
+      {
+        "path": "app/ViewTimeTable",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "6fa71e2f9eb21908fbf928e685af9f57e6e1268f",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/6fa71e2f9eb21908fbf928e685af9f57e6e1268f"
+      },
+      {
+        "path": "app/ViewTimeTable/page.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a192b5b15334e1927801f25790b8a600dec1ae71",
+        "size": 165,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/a192b5b15334e1927801f25790b8a600dec1ae71"
+      },
+      {
+        "path": "app/api",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "fafecb8070ff70047f3de7b691c24c58766692ee",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/fafecb8070ff70047f3de7b691c24c58766692ee"
+      },
+      {
+        "path": "app/api/courses",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "8ed8e84f92ce7cd46c53f16f42f01874e3c12eaf",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/8ed8e84f92ce7cd46c53f16f42f01874e3c12eaf"
+      },
+      {
+        "path": "app/api/courses/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "180b8da3b6dc41883a02892908754f3a7852a369",
+        "size": 1969,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/180b8da3b6dc41883a02892908754f3a7852a369"
+      },
+      {
+        "path": "app/api/departments",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "e3be88f4382cae847315070a179d3d88d4cedb3c",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/e3be88f4382cae847315070a179d3d88d4cedb3c"
+      },
+      {
+        "path": "app/api/departments/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "62d12180b6771246574a7215ae283818d4f5bddc",
+        "size": 2029,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/62d12180b6771246574a7215ae283818d4f5bddc"
+      },
+      {
+        "path": "app/api/roomCombinations",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "7898a79112542e8bb92c1f76ff919ae55e16a009",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/7898a79112542e8bb92c1f76ff919ae55e16a009"
+      },
+      {
+        "path": "app/api/roomCombinations/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6c16aa4230407849a3fc05266b7c64794ed8316b",
+        "size": 3256,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/6c16aa4230407849a3fc05266b7c64794ed8316b"
+      },
+      {
+        "path": "app/api/rooms",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "aac00310b7611158af4e5797cc9d7fd185f3d791",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/aac00310b7611158af4e5797cc9d7fd185f3d791"
+      },
+      {
+        "path": "app/api/rooms/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a6bae1e446b28a99ed3e4be024f6b21811a78f64",
+        "size": 2758,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/a6bae1e446b28a99ed3e4be024f6b21811a78f64"
+      },
+      {
+        "path": "app/api/timetables",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "d9de4b3270e207f8ec82d6e0e648e69a0648df70",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/d9de4b3270e207f8ec82d6e0e648e69a0648df70"
+      },
+      {
+        "path": "app/api/timetables/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e92b514e43ba358c67174a7dbebee34def0a3a10",
+        "size": 4466,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/e92b514e43ba358c67174a7dbebee34def0a3a10"
+      },
+      {
+        "path": "app/api/user",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "168c0b176973d5c0c3c37dd82e8fad787dac9557",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/168c0b176973d5c0c3c37dd82e8fad787dac9557"
+      },
+      {
+        "path": "app/api/user/login",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "c651b99bc34264edcdfbac40e5f950a4d828c4aa",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/c651b99bc34264edcdfbac40e5f950a4d828c4aa"
+      },
+      {
+        "path": "app/api/user/login/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "026f820741356886cedfee467a5ad0c9b4df902c",
+        "size": 1376,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/026f820741356886cedfee467a5ad0c9b4df902c"
+      },
+      {
+        "path": "app/api/user/logout",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "1cc9968e6ff772a1bac259d067d5f4af80047bad",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/1cc9968e6ff772a1bac259d067d5f4af80047bad"
+      },
+      {
+        "path": "app/api/user/logout/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "eff93d567cde6ab9702cb43dbd8e01e37b74e711",
+        "size": 339,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/eff93d567cde6ab9702cb43dbd8e01e37b74e711"
+      },
+      {
+        "path": "app/api/user/me",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "50f6ab54bed82e9a939869396aee1cc3205d94b7",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/50f6ab54bed82e9a939869396aee1cc3205d94b7"
+      },
+      {
+        "path": "app/api/user/me/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "7e3ca15d07c31b1a62a2b65baab4bc14004bbf24",
+        "size": 626,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/7e3ca15d07c31b1a62a2b65baab4bc14004bbf24"
+      },
+      {
+        "path": "app/api/user/register",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "5d132d7b798dc76be94a0ac6f1249bb797b86024",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/5d132d7b798dc76be94a0ac6f1249bb797b86024"
+      },
+      {
+        "path": "app/api/user/register/route.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "b5777f1ddf6daf29dc0bde51d0f7939a6bd5b193",
+        "size": 950,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/b5777f1ddf6daf29dc0bde51d0f7939a6bd5b193"
+      },
+      {
+        "path": "app/favicon.ico",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "718d6fea4835ec2d246af9800eddb7ffb276240c",
+        "size": 25931,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/718d6fea4835ec2d246af9800eddb7ffb276240c"
+      },
+      {
+        "path": "app/globals.css",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e3734be15e1f6fbb4b207761c8e424b77cf3a4eb",
+        "size": 608,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/e3734be15e1f6fbb4b207761c8e424b77cf3a4eb"
+      },
+      {
+        "path": "app/layout.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "66c5e125e6b963c25f6a00ea6593fa7062ad3bc3",
+        "size": 567,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/66c5e125e6b963c25f6a00ea6593fa7062ad3bc3"
+      },
+      {
+        "path": "app/login",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "8a24406a2c55988181a937b1e80bb1863fae0d4a",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/8a24406a2c55988181a937b1e80bb1863fae0d4a"
+      },
+      {
+        "path": "app/login/page.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "fafe7ffc55a053fd8f854de7e04ebd03748d65c0",
+        "size": 2093,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/fafe7ffc55a053fd8f854de7e04ebd03748d65c0"
+      },
+      {
+        "path": "app/page.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "1042cff55d1079a6b2dbd33506e054ded9f76be6",
+        "size": 200,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/1042cff55d1079a6b2dbd33506e054ded9f76be6"
+      },
+      {
+        "path": "app/page.module.css",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a11c8f317488813491b465830a551b88562859b6",
+        "size": 2747,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/a11c8f317488813491b465830a551b88562859b6"
+      },
+      {
+        "path": "components",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "e99628d83e09def85fd1ae85181e0375c6632d9e",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/e99628d83e09def85fd1ae85181e0375c6632d9e"
+      },
+      {
+        "path": "components/ClassroomForm.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c001eaae7af4a7b037f498340fa7e49dd1c67691",
+        "size": 2672,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/c001eaae7af4a7b037f498340fa7e49dd1c67691"
+      },
+      {
+        "path": "components/ClassroomList.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "71e39cd67ebba04e28c8ea49e1ccdb7994a36b39",
+        "size": 2106,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/71e39cd67ebba04e28c8ea49e1ccdb7994a36b39"
+      },
+      {
+        "path": "components/CourseForm.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6007c0a723b32a54aac41259338cf52c4c336f68",
+        "size": 3894,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/6007c0a723b32a54aac41259338cf52c4c336f68"
+      },
+      {
+        "path": "components/CourseList.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "23dbaf27c7d7889d3473bd2d89eddf28921ac5ea",
+        "size": 2111,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/23dbaf27c7d7889d3473bd2d89eddf28921ac5ea"
+      },
+      {
+        "path": "components/CreateTimeTableClient.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e4ad15a3911230a8616c2161bf6544fb9b642de2",
+        "size": 9099,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/e4ad15a3911230a8616c2161bf6544fb9b642de2"
+      },
+      {
+        "path": "components/EditTimetable.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "26aa196ff45eb9f46ea31e6d013da1be179e8a9e",
+        "size": 20051,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/26aa196ff45eb9f46ea31e6d013da1be179e8a9e"
+      },
+      {
+        "path": "components/EditTimetableClient.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "343cb44edf7aa83b5230c3f8cf69d83fc0fbe8fb",
+        "size": 898,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/343cb44edf7aa83b5230c3f8cf69d83fc0fbe8fb"
+      },
+      {
+        "path": "components/ExportTimeTable.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "436b7b9bd8cbe5090fc7c122daa07515d01731a3",
+        "size": 3396,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/436b7b9bd8cbe5090fc7c122daa07515d01731a3"
+      },
+      {
+        "path": "components/ExportTimeTableClient.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a0acd91c4b4f21395f1d25aae421b1133265fa59",
+        "size": 1177,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/a0acd91c4b4f21395f1d25aae421b1133265fa59"
+      },
+      {
+        "path": "components/FacultyTimeTable.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "8e86bb0757f40786d7d3cdc9da0902864649009d",
+        "size": 5969,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/8e86bb0757f40786d7d3cdc9da0902864649009d"
+      },
+      {
+        "path": "components/Header.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "24af68f0b56d108af066602bb2abef376006690e",
+        "size": 5024,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/24af68f0b56d108af066602bb2abef376006690e"
+      },
+      {
+        "path": "components/Home.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "64dc4718778a5ef5e42304b1717ae763d24579e2",
+        "size": 252,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/64dc4718778a5ef5e42304b1717ae763d24579e2"
+      },
+      {
+        "path": "components/LoginForm.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "11f5d3c4eb0609aad40e0e59e4cc9eea4c25c8a2",
+        "size": 3399,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/11f5d3c4eb0609aad40e0e59e4cc9eea4c25c8a2"
+      },
+      {
+        "path": "components/RegisterForm.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6578272bac63e273caa76e0b361787f347222fa8",
+        "size": 4956,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/6578272bac63e273caa76e0b361787f347222fa8"
+      },
+      {
+        "path": "components/RoomTimeTable.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "94be8f5c8734133310c8af0dfde5493b81fd6cc5",
+        "size": 5612,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/94be8f5c8734133310c8af0dfde5493b81fd6cc5"
+      },
+      {
+        "path": "components/Sidebar.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "19faf04e17b2263598028ddcb67382e6543d3f5d",
+        "size": 4150,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/19faf04e17b2263598028ddcb67382e6543d3f5d"
+      },
+      {
+        "path": "components/TimetableView.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "553c9bda0cca8106fcf68613579e42afcc9126ab",
+        "size": 7439,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/553c9bda0cca8106fcf68613579e42afcc9126ab"
+      },
+      {
+        "path": "components/ViewTimeTable.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d5880cf8add34c08065fdc2c9e213723da83124f",
+        "size": 2743,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/d5880cf8add34c08065fdc2c9e213723da83124f"
+      },
+      {
+        "path": "components/ViewTimeTableClient.jsx",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c0b9a4404a977d62388f7ddbb95608f4f4551e98",
+        "size": 972,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/c0b9a4404a977d62388f7ddbb95608f4f4551e98"
+      },
+      {
+        "path": "jsconfig.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2a2e4b3bf8ba1c86d96fc2f5786597ad77a0e5e9",
+        "size": 73,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/2a2e4b3bf8ba1c86d96fc2f5786597ad77a0e5e9"
+      },
+      {
+        "path": "middleware.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e0c613bdec462c076074af1e3916e5179e2b88b7",
+        "size": 732,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/e0c613bdec462c076074af1e3916e5179e2b88b7"
+      },
+      {
+        "path": "models",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "5241f28fc7629664887956f6961035575abf1020",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/5241f28fc7629664887956f6961035575abf1020"
+      },
+      {
+        "path": "models/Course.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e3dfdc7932ee139547ec8c91aa4d21a2c6e93ede",
+        "size": 711,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/e3dfdc7932ee139547ec8c91aa4d21a2c6e93ede"
+      },
+      {
+        "path": "models/Department.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4202ca08c3d4d40602ca5267e0384df15c4f9054",
+        "size": 395,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/4202ca08c3d4d40602ca5267e0384df15c4f9054"
+      },
+      {
+        "path": "models/Room.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "fbd02f1e312cbdeff4f28071386331f881fb6528",
+        "size": 479,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/fbd02f1e312cbdeff4f28071386331f881fb6528"
+      },
+      {
+        "path": "models/User.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "85416ba359919e86fcb9a5a20e9a367eda7cc9ef",
+        "size": 324,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/85416ba359919e86fcb9a5a20e9a367eda7cc9ef"
+      },
+      {
+        "path": "models/roomCombination.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "88f0b9376a3b53b5629210af679303c72aceb5e0",
+        "size": 685,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/88f0b9376a3b53b5629210af679303c72aceb5e0"
+      },
+      {
+        "path": "models/timetable.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "018e09015d785cf7ce833f5b3c75d4a5d94c6935",
+        "size": 464,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/018e09015d785cf7ce833f5b3c75d4a5d94c6935"
+      },
+      {
+        "path": "next.config.mjs",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4678774e6d606704bce1897a5dab960cd798bf66",
+        "size": 92,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/4678774e6d606704bce1897a5dab960cd798bf66"
+      },
+      {
+        "path": "package-lock.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "0ff42dcc40f61a7c8a4e00db6054d4f2df4e6728",
+        "size": 75777,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/0ff42dcc40f61a7c8a4e00db6054d4f2df4e6728"
+      },
+      {
+        "path": "package.json",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c58453c0d1e06bde2365aac1dab7ef1650f4eab1",
+        "size": 632,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/c58453c0d1e06bde2365aac1dab7ef1650f4eab1"
+      },
+      {
+        "path": "public",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "c88f389de09f418da376598c42e8788d4fb6d172",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/c88f389de09f418da376598c42e8788d4fb6d172"
+      },
+      {
+        "path": "public/file.svg",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "004145cddf3f9db91b57b9cb596683c8eb420862",
+        "size": 391,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/004145cddf3f9db91b57b9cb596683c8eb420862"
+      },
+      {
+        "path": "public/globe.svg",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "567f17b0d7c7fb662c16d4357dd74830caf2dccb",
+        "size": 1035,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/567f17b0d7c7fb662c16d4357dd74830caf2dccb"
+      },
+      {
+        "path": "public/next.svg",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "5174b28c565c285e3e312ec5178be64fbeca8398",
+        "size": 1375,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/5174b28c565c285e3e312ec5178be64fbeca8398"
+      },
+      {
+        "path": "public/vercel.svg",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "77053960334e2e34dc584dea8019925c3b4ccca9",
+        "size": 128,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/77053960334e2e34dc584dea8019925c3b4ccca9"
+      },
+      {
+        "path": "public/window.svg",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "b2b2a44f6ebc70c450043c05a002e7a93ba5d651",
+        "size": 385,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/b2b2a44f6ebc70c450043c05a002e7a93ba5d651"
+      },
+      {
+        "path": "utils",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "928b4a3902dceb7b7f72591a003484ec06db946c",
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/trees/928b4a3902dceb7b7f72591a003484ec06db946c"
+      },
+      {
+        "path": "utils/algo.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c918a01d9923e2a3c26fb550abb983c9e3252691",
+        "size": 4414,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/c918a01d9923e2a3c26fb550abb983c9e3252691"
+      },
+      {
+        "path": "utils/connectDB.js",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6c0c5fce9bb82fbb7774b6bb70a5b40684eaccfd",
+        "size": 266,
+        "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/6c0c5fce9bb82fbb7774b6bb70a5b40684eaccfd"
+      }
+    ],
+    "truncated": false
+  }
+}
