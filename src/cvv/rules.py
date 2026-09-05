@@ -17,6 +17,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Protocol, cast
 
+from cvv.filters import is_aggregate
 from cvv.ids import finding_id
 from cvv.intervals import Rel, bounds, gap_between, max_span, merge_non_overlapping, overlap
 from cvv.models import (
@@ -408,6 +409,167 @@ class P3ProblemsSolved:
                     f"{cf.problems_solved} distinct accepted problems for {cf.handle!r}."
                 ),
             )
+
+
+@register
+@dataclass(frozen=True)
+class P4LeetCodeStatistics:
+    """Claimed LeetCode counts and rating against the platform's own record.
+
+    Decisive on problems solved, for the same reason P1 is decisive on rating: the
+    platform is the authority on its own numbers, and no innocent reading makes 800
+    accepted problems out of 300.
+
+    The direction asymmetry from P1 applies here too — solving MORE than claimed is
+    never a finding — and one addition specific to LeetCode. It publishes a live
+    contest rating and no peak, so a CV recording a rating that has since fallen is
+    reporting something that was true when written. Rating therefore gets a band, and
+    a small overstatement is `attention`, never a contradiction.
+    """
+
+    rule_id: str = "P4"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
+    band: int = 100  # LeetCode contest ratings move by this much in a single contest
+    scoring: bool = True
+    summary: str = "Claimed LeetCode statistics vs. the platform's own record"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        solved = _achievements(ctx, Platform.LEETCODE, "problems_solved")
+        rated = _achievements(ctx, Platform.LEETCODE, "max_rating")
+        if not solved and not rated:
+            raise Abstain("No LeetCode statistic is claimed.")
+        lc = ctx.platform(Platform.LEETCODE)
+
+        checked = False
+        for c in solved:
+            claimed = int(c.value) if isinstance(c.value, int | float) else None
+            if claimed is None:
+                continue
+            if is_aggregate(c.provenance.verbatim):
+                continue  # the number belongs to several platforms; P3 says so
+            if lc.problems_solved is None:
+                continue
+            checked = True
+            if lc.problems_solved >= claimed:
+                continue  # solving more than claimed is never a finding
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [c.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.HIGH,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[c.claim_id],
+                evidence_refs=["leetcode.matchedUser.submitStatsGlobal"],
+                params={
+                    "claimed": claimed,
+                    "actual": lc.problems_solved,
+                    "overstated_by": claimed - lc.problems_solved,
+                    "handle": lc.handle,
+                },
+                explanation=(
+                    f"The CV claims {claimed} problems solved on LeetCode. The account "
+                    f"{lc.handle!r} has {lc.problems_solved} accepted."
+                ),
+            )
+
+        for c in rated:
+            claimed = int(c.value) if isinstance(c.value, int | float) else None
+            if claimed is None or lc.current_rating is None:
+                continue
+            checked = True
+            if lc.current_rating >= claimed:
+                continue
+            overstated = claimed - lc.current_rating
+            soft = overstated <= self.band
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [c.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.soft_tier if soft else self.tier,
+                severity=Severity.INFO if soft else Severity.HIGH,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[c.claim_id],
+                evidence_refs=["leetcode.userContestRanking"],
+                params={
+                    "claimed": claimed,
+                    "actual": lc.current_rating,
+                    "overstated_by": overstated,
+                    "handle": lc.handle,
+                },
+                explanation=(
+                    f"The CV claims a LeetCode contest rating of {claimed}. The platform "
+                    f"reports {lc.current_rating} for {lc.handle!r} right now."
+                ),
+                innocent_explanation=(
+                    "LeetCode publishes a live rating and no peak, so a CV written when "
+                    "the rating was higher is reporting something that was true then. "
+                    "A single contest moves a rating by this much."
+                )
+                if soft
+                else None,
+            )
+
+        if not checked:
+            raise Abstain("LeetCode returned no statistic matching what the CV claims.")
+
+
+@register
+@dataclass(frozen=True)
+class P6CrossPlatformHandle:
+    """The same handle across platforms, as corroboration of one public identity.
+
+    Corroboration only, and the catalogue's "handles inconsistent across platforms"
+    is not a check this system can fairly run. People pick different names on
+    different sites for a hundred reasons — the one they wanted was taken, they made
+    the account eight years apart, they changed how they present their name. Nothing
+    about that is evidence of anything, and a finding there would penalise a habit
+    rather than a claim.
+
+    Reusing one handle IS mildly informative: each platform independently confirms an
+    account under that name, so the accounts corroborate each other, and a reviewer
+    tracing the candidate elsewhere has a name that works.
+    """
+
+    rule_id: str = "P6"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False  # a naming habit is not evidence about a person
+    summary: str = "One handle reused across platforms (displayed, never scored)"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        found = [p for p in ctx.bundle.platforms if p.found]
+        if len(found) < 2:
+            raise Abstain(
+                "Fewer than two platforms resolved, so there is no cross-platform "
+                "identity to observe."
+            )
+
+        by_handle: dict[str, list[str]] = {}
+        for p in found:
+            by_handle.setdefault(p.handle.lower(), []).append(p.platform.value)
+
+        shared = {h: ps for h, ps in by_handle.items() if len(ps) > 1}
+        if not shared:
+            raise Abstain(
+                "Each platform uses a different handle, which is ordinary and is not "
+                "a finding: the name someone wanted was taken, or the accounts are "
+                "years apart. Nothing is concluded from it."
+            )
+        raise Corroborated(
+            "One public identity across platforms — "
+            + "; ".join(
+                f"{handle!r} resolves on {' and '.join(sorted(ps))}"
+                for handle, ps in sorted(shared.items())
+            )
+        )
+        yield  # pragma: no cover - unreachable; keeps the generator signature
 
 
 # --------------------------------------------------------------------------- #

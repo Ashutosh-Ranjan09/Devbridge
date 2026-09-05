@@ -1346,3 +1346,112 @@ class TestD7TechnologyAnachronism:
         graph = make_graph([project("Portal", "2011")], DOCUMENT)
         result = outcome(assemble(graph, bundle(graph)), "D7")
         assert result.status is RuleStatus.ABSTAINED
+
+
+def leetcode(*, solved: int | None = 412, rating: int | None = None,
+             handle: str = "AR009") -> PlatformEvidence:
+    return PlatformEvidence(
+        platform=Platform.LEETCODE,
+        handle=handle,
+        found=True,
+        problems_solved=solved,
+        # A live rating and no peak — see the connector.
+        current_rating=rating,
+        max_rating=None,
+    )
+
+
+def lc_claim(verbatim: str, **fields: object) -> object:
+    return make_claim(verbatim, DOCUMENT, claim_id="clc001", platform="leetcode", **fields)
+
+
+class TestP4LeetCodeStatistics:
+    def test_fires_when_the_platform_records_fewer_solved(self) -> None:
+        claim = lc_claim(CF_RATING, metric="problems_solved", value=800)
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[leetcode(solved=412)]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P4")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.params == {
+            "claimed": 800, "actual": 412, "overstated_by": 388, "handle": "AR009",
+        }
+
+    def test_solving_more_than_claimed_is_never_a_finding(self) -> None:
+        claim = lc_claim(CF_RATING, metric="problems_solved", value=300)
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[leetcode(solved=412)]))
+        assert outcome(report, "P4").status is RuleStatus.CLEAN
+
+    def test_an_aggregate_claim_is_left_to_p3(self) -> None:
+        """"500+ across LeetCode, Codeforces and GeeksforGeeks" is not a LeetCode
+        number, and comparing it to one would contradict an honest sentence."""
+        claim = lc_claim(AGGREGATE, metric="problems_solved", value=500)
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[leetcode(solved=412)]))
+        assert not [f for f in report.discrepancies if f.rule_id == "P4"]
+
+    def test_a_small_rating_drop_is_attention_not_a_contradiction(self) -> None:
+        """LeetCode publishes a live rating and no peak, so a CV written when the
+        rating was higher was true when written."""
+        claim = lc_claim(CF_RATING, metric="max_rating", value=1750)
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[leetcode(rating=1687)]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P4")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.innocent_explanation is not None
+        assert finding.finding_id in report.buckets.needs_context
+
+    def test_a_large_rating_gap_stays_decisive(self) -> None:
+        claim = lc_claim(CF_RATING, metric="max_rating", value=2400)
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[leetcode(rating=1687)]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P4")
+        assert finding.tier is Tier.DECISIVE
+
+    def test_abstains_when_nothing_leetcode_is_claimed(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[leetcode()]))
+        assert outcome(report, "P4").status is RuleStatus.ABSTAINED
+
+    def test_abstains_with_the_gaps_reason_when_the_account_is_missing(self) -> None:
+        claim = lc_claim(CF_RATING, metric="problems_solved", value=800)
+        graph = make_graph([claim], DOCUMENT)
+        gap = Gap(source="leetcode", reason=GapReason.NOT_FOUND,
+                  detail="No LeetCode account exists at leetcode.com/u/ar009.")
+        report = assemble(graph, bundle(graph, gaps=[gap]))
+        result = outcome(report, "P4")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "No LeetCode account" in (result.reason or "")
+
+
+class TestP6CrossPlatformHandle:
+    def test_one_handle_on_two_platforms_is_corroboration(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(
+            graph, bundle(graph, platforms=[codeforces(), leetcode(handle="ar009")])
+        )
+        result = outcome(report, "P6")
+        assert result.status is RuleStatus.CLEAN
+        assert result.note is not None and "'ar009'" in result.note
+        assert result.note in report.buckets.verified
+
+    def test_different_handles_are_ordinary_and_never_a_finding(self) -> None:
+        """The catalogue's "handles inconsistent across platforms" is not a check
+        this system can fairly run. The name someone wanted was taken, or the
+        accounts are eight years apart. A habit is not evidence."""
+        graph = make_graph([], DOCUMENT)
+        report = assemble(
+            graph, bundle(graph, platforms=[codeforces(), leetcode(handle="ranjan_a")])
+        )
+        result = outcome(report, "P6")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "is not a finding" in (result.reason or "")
+        assert not [f for f in report.discrepancies if f.rule_id == "P6"]
+
+    def test_it_never_scores(self) -> None:
+        assert next(r for r in REGISTRY if r.rule_id == "P6").scoring is False
+
+    def test_abstains_with_one_platform(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces()]))
+        assert outcome(report, "P6").status is RuleStatus.ABSTAINED
