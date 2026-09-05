@@ -51,6 +51,7 @@ from cvv.models.findings import (
     FindingsReport,
     RuleOutcome,
     SectionConfidence,
+    VerificationCoverage,
 )
 
 __all__ = [
@@ -98,4 +99,5 @@ __all__ = [
     "SpanProvenance",
     "Tier",
     "Url",
+    "VerificationCoverage",
 ]

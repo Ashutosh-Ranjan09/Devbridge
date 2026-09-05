@@ -76,6 +76,20 @@ class Buckets(Model):
     out_of_scope: list[str]  # the static exclusion list; always present
 
 
+class VerificationCoverage(Model):
+    """A composite confidence about the VERIFICATION, not about the person.
+
+    A high number means "we checked thoroughly", never "they are good" — so it cannot
+    become a hiring threshold. That distinction is the whole reason this exists
+    separately from anything resembling a score.
+    """
+
+    rules_total: int = Field(ge=0)
+    rules_evaluated: int = Field(ge=0)
+    rules_abstained: int = Field(ge=0)
+    coverage: Confidence
+
+
 class FindingsReport(Frozen):
     report_id: Id
     graph_id: Id

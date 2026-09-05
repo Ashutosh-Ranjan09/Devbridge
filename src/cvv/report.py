@@ -18,6 +18,7 @@ from cvv.models import (
     FindingsReport,
     RuleStatus,
     Tier,
+    VerificationCoverage,
 )
 from cvv.rules import REGISTRY, Context, run_all
 
@@ -82,6 +83,53 @@ def assemble(
     )
 
 
+def coverage(report: FindingsReport) -> VerificationCoverage:
+    """How much of the catalogue actually ran.
+
+    A composite confidence about the VERIFICATION, not about the person. A high number
+    means "we checked thoroughly", never "they are good" — so it cannot become a
+    hiring threshold.
+
+    This is also where a check that ran cleanly but raised nothing becomes visible.
+    The `verified` bucket holds decisive passes only, by design, so an attention rule
+    coming back clean lands in no bucket at all — and silence there reads as "not
+    checked" rather than "checked, nothing found", which understates the work done.
+    """
+    evaluated = sum(
+        1
+        for o in report.rule_outcomes
+        if o.status in (RuleStatus.FIRED, RuleStatus.CLEAN, RuleStatus.NOT_APPLICABLE)
+    )
+    abstained = sum(
+        1 for o in report.rule_outcomes if o.status in (RuleStatus.ABSTAINED, RuleStatus.ERROR)
+    )
+    total = len(report.rule_outcomes)
+    return VerificationCoverage(
+        rules_total=total,
+        rules_evaluated=evaluated,
+        rules_abstained=abstained,
+        coverage=round(evaluated / total, 2) if total else 0.0,
+    )
+
+
+def quietly_clean(report: FindingsReport) -> list[str]:
+    """Checks that ran, found nothing, and appear in no bucket.
+
+    An attention-tier rule coming back clean is a real result — "portfolio
+    composition: looked, nothing to raise" — but `verified` is decisive-only by
+    design, so it would otherwise vanish. A reader must be able to tell the
+    difference between a check that passed and one that never ran.
+    """
+    by_id = {r.rule_id: r for r in REGISTRY}
+    return [
+        f"{by_id[o.rule_id].summary} — checked, nothing raised"
+        for o in report.rule_outcomes
+        if o.status is RuleStatus.CLEAN
+        and o.rule_id in by_id
+        and by_id[o.rule_id].tier is not Tier.DECISIVE
+    ]
+
+
 def render(report: FindingsReport, graph: ClaimGraph, bundle: EvidenceBundle) -> str:
     """What the CLI prints."""
     findings = {f.finding_id: f for f in report.discrepancies}
@@ -96,6 +144,12 @@ def render(report: FindingsReport, graph: ClaimGraph, bundle: EvidenceBundle) ->
     out.append(f"  document {graph.source.document_id}   ·   {len(graph.claims)} claims extracted")
     out.append(f"  model {graph.extraction_meta.model_id}   ·   "
                f"{graph.extraction_meta.span_failures} claims dropped at grounding")
+    cov = coverage(report)
+    out.append(
+        f"  {cov.rules_total} checks registered   ·   {cov.rules_evaluated} evaluated"
+        f"   ·   {cov.rules_abstained} could not run   ·   coverage {cov.coverage:.0%}"
+    )
+    out.append("  Coverage describes the VERIFICATION, not the candidate.")
     head("=")
 
     head("-", "✓ VERIFIED")
@@ -103,6 +157,10 @@ def render(report: FindingsReport, graph: ClaimGraph, bundle: EvidenceBundle) ->
         out.extend(f"    {v}" for v in report.buckets.verified)
     else:
         out.append("    (nothing)")
+    if also := quietly_clean(report):
+        out.append("")
+        out.append("    also checked, nothing raised — weaker than the above, not decisive:")
+        out.extend(f"      {line}" for line in also)
 
     head("-", "✗ CONTRADICTED")
     if report.buckets.contradicted:
