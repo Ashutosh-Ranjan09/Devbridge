@@ -133,13 +133,32 @@ def _achievements(ctx: Context, platform: Platform, metric: str) -> list:  # typ
 @register
 @dataclass(frozen=True)
 class P1CodeforcesRating:
-    """Codeforces is the authority on its own ratings, which is what makes this
-    decisive. Handle ownership is irrelevant: the handle resolved, and the platform's
-    own record settles the question."""
+    """Claimed peak rating against the API's max.
+
+    Two asymmetries, both deliberate.
+
+    **Direction.** `max_rating` is a peak and only ever rises, so a CV written six
+    months ago saying 1495 will disagree with an API now reporting 1550 — and the
+    candidate UNDERSTATED. That is never a finding. Understating is not penalised
+    anywhere in this design: the reference event batch records a candidate who claimed
+    "familiar" with TypeScript while having shipped 335 KB as corroboration exceeding
+    the claim.
+
+    **Bandwidth, on the firing side only.** Codeforces rerates contests after cheat
+    removals, days later, so a rating recorded shortly after a contest can shift by
+    tens of points. A small overstatement is consistent with a stale snapshot; a large
+    one is not. The band picks the TIER, never whether to report — suppressing a
+    factual mismatch would be the system deciding what is significant, which is the
+    reviewer's job.
+
+    `band` is a documented prior to be swept in the evaluation, not a fitted constant.
+    """
 
     rule_id: str = "P1"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
+    band: int = 30  # rating points; rejudging moves a rating by tens, not hundreds
     scoring: bool = True
     summary: str = "Claimed Codeforces rating vs. the API's max rating"
 
@@ -153,24 +172,39 @@ class P1CodeforcesRating:
 
         for c in claims:
             claimed = int(c.value) if isinstance(c.value, int | float) else None
-            if claimed is None or claimed == cf.max_rating:
-                continue
+            if claimed is None or cf.max_rating >= claimed:
+                continue  # the record is at least as good as the claim
+
+            overstated = claimed - cf.max_rating
+            soft = overstated <= self.band
             yield Discrepancy(
                 finding_id=finding_id(ctx.report_id, self.rule_id, [c.claim_id]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
-                tier=self.tier,
-                severity=Severity.MEDIUM if abs(claimed - cf.max_rating) < 200 else Severity.HIGH,
+                tier=self.soft_tier if soft else self.tier,
+                severity=Severity.INFO if soft else Severity.HIGH,
                 confidence=1.0,
                 scoring=self.scoring,
                 claim_refs=[c.claim_id],
                 evidence_refs=["codeforces.user.info"],
-                params={"claimed": claimed, "actual": cf.max_rating, "handle": cf.handle},
+                params={
+                    "claimed": claimed,
+                    "actual": cf.max_rating,
+                    "overstated_by": overstated,
+                    "handle": cf.handle,
+                },
                 explanation=(
-                    f"The CV claims a peak Codeforces rating of {claimed}. The Codeforces "
-                    f"API reports a maximum rating of {cf.max_rating} for handle "
-                    f"{cf.handle!r}."
+                    f"The CV claims a peak Codeforces rating of {claimed}. The API "
+                    f"reports a maximum of {cf.max_rating} for {cf.handle!r} — "
+                    f"{overstated} points lower."
                 ),
+                innocent_explanation=(
+                    "Codeforces rerates contests after cheat removals, sometimes days "
+                    "later, so a rating copied shortly after a contest can be a few "
+                    "points above the settled value."
+                )
+                if soft
+                else None,
             )
 
 
@@ -193,8 +227,10 @@ class P2ContestRank:
     """
 
     rule_id: str = "P2"
-    rule_version: str = "2.0"
+    rule_version: str = "3.0"
     tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
+    band: float = 0.02  # relative; three places matters at rank 4, not at rank 1100
     scoring: bool = True
     summary: str = "Claimed contest rank vs. the contest history"
 
@@ -242,23 +278,23 @@ class P2ContestRank:
                 )
                 continue
 
-            if match.rank == claimed:
+            # Lower is better. A recorded rank at least as good as the claim is not
+            # a finding — the candidate understated, or the standings improved after
+            # rejudging.
+            if match.rank <= claimed:
                 continue
 
-            delta = abs(match.rank - claimed)
+            delta = match.rank - claimed
             relative = delta / max(match.rank, 1)
+            soft = relative <= self.band
             severity = (
-                Severity.INFO
-                if relative < 0.02
-                else Severity.MEDIUM
-                if relative < 0.25
-                else Severity.HIGH
+                Severity.INFO if soft else Severity.MEDIUM if relative < 0.25 else Severity.HIGH
             )
             yield Discrepancy(
                 finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
-                tier=self.tier,
+                tier=self.soft_tier if soft else self.tier,
                 severity=severity,
                 confidence=1.0,
                 scoring=self.scoring,
@@ -272,17 +308,15 @@ class P2ContestRank:
                 },
                 explanation=(
                     f"The CV claims rank {claimed} in {match.name}. The Codeforces API "
-                    f"records rank {match.rank} for {cf.handle!r} in that contest — a "
-                    f"difference of {delta} "
-                    + ("place." if delta == 1 else "places.")
-                    + (
-                        " Ranks shift after system testing and after cheat removals, so a"
-                        " small difference is consistent with a CV written from the live"
-                        " standings."
-                        if relative < 0.02
-                        else ""
-                    )
+                    f"records rank {match.rank} for {cf.handle!r} in that contest — "
+                    f"{delta} " + ("place" if delta == 1 else "places") + " lower."
                 ),
+                innocent_explanation=(
+                    "Ranks shift after system testing and after cheat removals, so a CV "
+                    "written from the live standings can be a few places out."
+                )
+                if soft
+                else None,
             )
 
 

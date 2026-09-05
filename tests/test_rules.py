@@ -81,7 +81,12 @@ class TestP1CodeforcesRating:
         report = assemble(graph, bundle(graph, platforms=[codeforces(max_rating=1180)]))
         finding = next(f for f in report.discrepancies if f.rule_id == "P1")
         assert finding.tier is Tier.DECISIVE
-        assert finding.params == {"claimed": 1495, "actual": 1180, "handle": "AR009"}
+        assert finding.params == {
+            "claimed": 1495,
+            "actual": 1180,
+            "overstated_by": 315,
+            "handle": "AR009",
+        }
         assert finding.finding_id in report.buckets.contradicted
         assert claim.claim_id in finding.claim_refs, "a finding must cite its claim"
 
@@ -106,6 +111,33 @@ class TestP1CodeforcesRating:
         report = assemble(graph, bundle(graph, platforms=[codeforces()]))
         assert outcome(report, "P1").status is RuleStatus.ABSTAINED
 
+    def test_understating_is_never_a_finding(self) -> None:
+        """max_rating is a peak and only rises, so a CV written six months ago
+        disagrees with a better API value — and the candidate understated. Nothing in
+        this design penalises that."""
+        claim = make_claim(
+            CF_RATING, DOCUMENT, platform="codeforces", metric="max_rating", value=1495
+        )
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces(max_rating=1700)]))
+        assert outcome(report, "P1").status is RuleStatus.CLEAN
+        assert report.discrepancies == []
+
+    def test_a_small_overstatement_is_attention_not_contradicted(self) -> None:
+        """Codeforces rerates contests after cheat removals, so a rating copied
+        shortly after a contest can sit a few points above the settled value. The fact
+        is still reported — only the tier changes."""
+        claim = make_claim(
+            CF_RATING, DOCUMENT, platform="codeforces", metric="max_rating", value=1495
+        )
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces(max_rating=1480)]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P1")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.innocent_explanation, "an attention finding must carry one"
+        assert finding.finding_id in report.buckets.needs_context
+        assert finding.finding_id not in report.buckets.contradicted
+
 
 class TestP2ContestRank:
     def test_clean_when_the_rank_is_in_the_history(self) -> None:
@@ -123,6 +155,39 @@ class TestP2ContestRank:
         graph = make_graph([claim], DOCUMENT)
         report = assemble(graph, bundle(graph, platforms=[codeforces(ranks=(2431, 3980))]))
         assert outcome(report, "P2").status is RuleStatus.FIRED
+
+    def test_a_better_recorded_rank_is_never_a_finding(self) -> None:
+        """Lower is better. A record at least as good as the claim means the candidate
+        understated, or the standings improved after rejudging."""
+        claim = make_claim(
+            CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank", value=1106
+        )
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces(ranks=(1050,))]))
+        assert outcome(report, "P2").status is RuleStatus.CLEAN
+
+    def test_a_few_places_out_is_attention_not_contradicted(self) -> None:
+        """The real case: a CV claiming 1106 in Round 998 where the API records 1109.
+        Three places on 1100 is a standings-timing artefact, not a fabrication."""
+        claim = make_claim(
+            CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank", value=1106
+        )
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces(ranks=(1109,))]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P2")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.innocent_explanation
+        assert finding.finding_id in report.buckets.needs_context
+
+    def test_a_large_overstatement_stays_decisive(self) -> None:
+        claim = make_claim(
+            CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank", value=100
+        )
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces(ranks=(5000,))]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P2")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.finding_id in report.buckets.contradicted
 
 
 class TestP3ProblemsSolved:
