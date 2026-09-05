@@ -29,6 +29,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from cvv.dates import parse_interval
 from cvv.filters import apply as apply_filters
 from cvv.ids import claim_id
 from cvv.ingest import Document, line_at, section_text
@@ -420,6 +421,15 @@ def ground(
                 "serial": int(m.group(3)),
             }
 
+        # The model returned the date TEXT; our parser reads it. An unrecognised
+        # format drops the INTERVAL and keeps the claim: a project with an unreadable
+        # date is still a project — the repository exists, the deployment is still
+        # reachable — and the date-dependent rules abstain with that flag as the
+        # reason. Dropping the claim would lose its artefacts and shrink coverage
+        # silently, which reads as a pass.
+        interval = parse_interval(p.date_text) if p.date_text else None
+        flags = ["date_unparsed"] if p.date_text and interval is None else []
+
         context = {"categories": p.categories} if p.categories else None
         discriminator = handle or (p.skill_refs[0] if p.skill_refs else "") or (p.metric or "")
         cid = claim_id(graph_id, span.char_start, p.kind, discriminator)
@@ -448,9 +458,10 @@ def ground(
                 skill_refs=p.skill_refs,
                 proficiency=p.proficiency,
                 context=context,
+                interval=interval,
                 parsed=parsed,
                 artefacts=[_artefact(u) for u in urls],
-                flags=["date_unparsed"] if p.date_text else [],
+                flags=flags,
             )
         )
 

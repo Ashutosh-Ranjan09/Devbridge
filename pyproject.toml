@@ -50,6 +50,12 @@ extend-exclude = ["*.md"]   # ruff formats python blocks inside markdown; docs a
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+# En and em dashes are the DATA here, not a typo: real PDFs write "2019–23" and
+# "2021 – present", and the parser exists to read them.
+"tests/test_dates.py" = ["RUF001"]
+"src/cvv/dates.py" = ["RUF001"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
