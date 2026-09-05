@@ -1,0 +1,22 @@
+{
+  "fetched_at": 1788634617.244573,
+  "key": "/repos/Ashutosh-Ranjan09/ATMA-Final/contents/package.json",
+  "body": {
+    "name": "package.json",
+    "path": "package.json",
+    "sha": "c58453c0d1e06bde2365aac1dab7ef1650f4eab1",
+    "size": 632,
+    "url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/contents/package.json?ref=main",
+    "html_url": "https://github.com/Ashutosh-Ranjan09/ATMA-Final/blob/main/package.json",
+    "git_url": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/c58453c0d1e06bde2365aac1dab7ef1650f4eab1",
+    "download_url": "https://raw.githubusercontent.com/Ashutosh-Ranjan09/ATMA-Final/main/package.json",
+    "type": "file",
+    "content": "ewogICJuYW1lIjogImF0bWEiLAogICJ2ZXJzaW9uIjogIjAuMS4wIiwKICAi\ncHJpdmF0ZSI6IHRydWUsCiAgInNjcmlwdHMiOiB7CiAgICAiZGV2IjogIm5l\neHQgZGV2IC0tdHVyYm9wYWNrIiwKICAgICJidWlsZCI6ICJuZXh0IGJ1aWxk\nIiwKICAgICJzdGFydCI6ICJuZXh0IHN0YXJ0IiwKICAgICJsaW50IjogIm5l\neHQgbGludCIKICB9LAogICJkZXBlbmRlbmNpZXMiOiB7CiAgICAiYXhpb3Mi\nOiAiXjEuMTAuMCIsCiAgICAiYmNyeXB0anMiOiAiXjMuMC4yIiwKICAgICJi\nb290c3RyYXAiOiAiXjUuMy43IiwKICAgICJib290c3RyYXAtaWNvbnMiOiAi\nXjEuMTMuMSIsCiAgICAiaHRtbDJjYW52YXMiOiAiXjEuNC4xIiwKICAgICJq\nb3NlIjogIl42LjAuMTEiLAogICAgImpzb253ZWJ0b2tlbiI6ICJeOS4wLjIi\nLAogICAgImpzcGRmIjogIl4zLjAuMSIsCiAgICAiand0LWRlY29kZSI6ICJe\nNC4wLjAiLAogICAgImx1Y2lkZS1yZWFjdCI6ICJeMC41MTguMCIsCiAgICAi\nbW9uZ29vc2UiOiAiXjguMTYuMCIsCiAgICAibmV4dCI6ICJeMTUuMy40IiwK\nICAgICJyZWFjdCI6ICJeMTkuMS4wIiwKICAgICJyZWFjdC1ib290c3RyYXAi\nOiAiXjIuMTAuMTAiLAogICAgInJlYWN0LWRvbSI6ICJeMTkuMS4wIgogIH0K\nfQo=\n",
+    "encoding": "base64",
+    "_links": {
+      "self": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/contents/package.json?ref=main",
+      "git": "https://api.github.com/repos/Ashutosh-Ranjan09/ATMA-Final/git/blobs/c58453c0d1e06bde2365aac1dab7ef1650f4eab1",
+      "html": "https://github.com/Ashutosh-Ranjan09/ATMA-Final/blob/main/package.json"
+    }
+  }
+}

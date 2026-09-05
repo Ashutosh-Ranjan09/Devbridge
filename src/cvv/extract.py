@@ -283,15 +283,17 @@ def regex_claims(text: str) -> list[ProposedClaim]:
     for m in ROLL_NUMBER.finditer(text):
         out.append(ProposedClaim(kind=ClaimKind.IDENTIFIER, verbatim=m.group(0)))
 
-    owners: set[str] = set()
+    # One entry per owner, keeping the FIRST URL that names them. The previous
+    # version re-searched from the start of the document for every owner, so with two
+    # owners both profile claims cited the first owner's URL — a verbatim that does
+    # not contain the handle it carries. One owner hid it.
+    first_url_by_owner: dict[str, str] = {}
     for m in GITHUB_REPO.finditer(text):
-        owners.add(m.group(1))
-    for owner in sorted(owners):
-        m = GITHUB_REPO.search(text)
-        assert m is not None
+        first_url_by_owner.setdefault(m.group(1), m.group(0))
+    for owner, url in sorted(first_url_by_owner.items()):
         out.append(
             ProposedClaim(
-                kind=ClaimKind.PROFILE, verbatim=m.group(0), platform="github", handle=owner
+                kind=ClaimKind.PROFILE, verbatim=url, platform="github", handle=owner
             )
         )
 

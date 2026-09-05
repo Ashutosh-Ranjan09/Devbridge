@@ -61,6 +61,9 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["src/cvv"]
+# An unused ignore is a comment that has stopped being true. Left unchecked they
+# accumulate and each one is a small lie about what the type checker is doing.
+warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"

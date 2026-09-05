@@ -13,6 +13,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pymupdf
 
@@ -160,17 +161,20 @@ def line_at(doc: Document, offset: int) -> tuple[int, int]:
 
 def read_pdf(path: Path) -> Document:
     """PyMuPDF, one page at a time so page boundaries stay visible."""
-    doc = pymupdf.open(path)
-    raw = "\n".join(page.get_text() for page in doc)
+    # pymupdf.open IS Document.__init__ and ships no type information, so mypy
+    # resolves it against OUR Document and calls it neither callable nor iterable.
+    # Scoped to this one line rather than relaxing the setting for the module.
+    pdf: Any = pymupdf.open(path)  # type: ignore[no-untyped-call]
+    raw = "\n".join(page.get_text() for page in pdf)
     text, imap = normalise(raw)
-    meta = doc.metadata or {}
+    meta = pdf.metadata or {}
 
     return Document(
         document_id="doc_" + hashlib.sha256(path.read_bytes()).hexdigest()[:12],
         text=text,
         index_map=imap,
         raw=raw,
-        pages=len(doc),
+        pages=len(pdf),
         ingest_method=IngestMethod.PDF_TEXT,
         # An institutional generator is itself a provenance signal — rule D4.
         producer=meta.get("producer") or None,

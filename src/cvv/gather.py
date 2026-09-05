@@ -186,11 +186,11 @@ def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
         # different people, which is a claim about collaboration rather than
         # ownership — out of scope for now.
         owner = sorted(owners)[0]
-        result = gather_github(owner, named)
-        if isinstance(result, Gap):
-            gaps.append(result)
+        gh = gather_github(owner, named)
+        if isinstance(gh, Gap):
+            gaps.append(gh)
         else:
-            github = result
+            github = gh
     else:
         gaps.append(
             Gap(

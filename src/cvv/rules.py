@@ -15,11 +15,12 @@ import itertools
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, cast
 
 from cvv.ids import finding_id
 from cvv.intervals import Rel, bounds, overlap
 from cvv.models import (
+    Claim,
     ClaimGraph,
     ClaimKind,
     Discrepancy,
@@ -53,7 +54,7 @@ class Context:
     report_id: str
     today: datetime.date = field(default_factory=lambda: datetime.date.today())
 
-    def claims(self, kind: ClaimKind) -> list:  # type: ignore[type-arg]
+    def claims(self, kind: ClaimKind) -> list[Claim]:
         return [c for c in self.graph.claims if c.kind is kind]
 
     def platform(self, platform: Platform) -> PlatformEvidence:
@@ -96,7 +97,7 @@ class Rule(Protocol):
 REGISTRY: list[Rule] = []
 
 
-def register(rule: type[Rule]) -> type[Rule]:
+def register[R](rule: type[R]) -> type[R]:
     """Registers an INSTANCE and returns the class.
 
     Appending the class instead of an instance leaves `evaluate` unbound, which fails
@@ -104,7 +105,7 @@ def register(rule: type[Rule]) -> type[Rule]:
     as `status="error"` with the reason attached — the report still rendered, which is
     what rule isolation is for.
     """
-    REGISTRY.append(rule())
+    REGISTRY.append(cast("Rule", rule()))
     return rule
 
 
@@ -121,7 +122,7 @@ def _round_number(text: str) -> int | None:
     return int(m[1]) if m else None
 
 
-def _achievements(ctx: Context, platform: Platform, metric: str) -> list:  # type: ignore[type-arg]
+def _achievements(ctx: Context, platform: Platform, metric: str) -> list[Claim]:
     return [
         c
         for c in ctx.claims(ClaimKind.ACHIEVEMENT)
@@ -566,7 +567,7 @@ class G4RepoExistsOwnedNotFork:
                         f"The repository {repo.name!r} named on the CV does not exist at "
                         f"github.com/{gh.handle}/{repo.name}."
                     ),
-                    **common,  # type: ignore[arg-type]
+                    **common,
                 )
             elif repo.is_fork:
                 yield Discrepancy(
@@ -576,7 +577,7 @@ class G4RepoExistsOwnedNotFork:
                     explanation=(
                         f"{repo.name!r} is a fork of another repository, not original work."
                     ),
-                    **common,  # type: ignore[arg-type]
+                    **common,
                 )
             elif repo.owner_matches is False:
                 yield Discrepancy(
@@ -584,7 +585,7 @@ class G4RepoExistsOwnedNotFork:
                     severity=Severity.MEDIUM,
                     params={"repo": repo.name},
                     explanation=f"{repo.name!r} is not owned by {gh.handle!r}.",
-                    **common,  # type: ignore[arg-type]
+                    **common,
                 )
 
 
@@ -818,7 +819,7 @@ class D9RollNumberStructure:
 
             # Departments the CV actually names, searched across each education
             # claim's degree, institution and its own span — the document's words.
-            named = {
+            named: dict[str, Claim] = {
                 dept: d
                 for d in degrees
                 for dept in scheme.get("departments", {})
@@ -919,7 +920,7 @@ class D9RollNumberStructure:
             raise Abstain(reason)
 
 
-def _degree_at(scheme: dict[str, object], degrees: list) -> object | None:  # type: ignore[type-arg]
+def _degree_at(scheme: dict[str, object], degrees: list[Claim]) -> Claim | None:
     """The degree awarded by the scheme's own institution, if the CV names it."""
     institutions = scheme.get("institutions", [])
     assert isinstance(institutions, list)
@@ -1026,13 +1027,17 @@ class D5IntervalOverlap:
     summary: str = "Two roles held at the same time under every reading of the dates"
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
-        roles = [c for c in ctx.claims(ClaimKind.EMPLOYMENT) if c.interval]
+        roles = [
+            (c, c.interval)
+            for c in ctx.claims(ClaimKind.EMPLOYMENT)
+            if c.interval is not None
+        ]
         if len(roles) < 2:
             raise Abstain(
                 "Fewer than two dated roles are claimed; there is nothing to overlap."
             )
 
-        for a, b in itertools.combinations(roles, 2):
+        for (a, a_interval), (b, b_interval) in itertools.combinations(roles, 2):
             # Concurrency is normal for anything but two full-time roles. Not a
             # tolerance — a genuine statement that these combinations are not
             # contradictions.
@@ -1044,7 +1049,7 @@ class D5IntervalOverlap:
             if {a.employment_type, b.employment_type} & concurrent_is_normal:
                 continue
 
-            relation, fraction = overlap(a.interval, b.interval, today=ctx.today)
+            relation, fraction = overlap(a_interval, b_interval, today=ctx.today)
             if relation is not Rel.DEFINITE:
                 continue
 
