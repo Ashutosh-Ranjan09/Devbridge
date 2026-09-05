@@ -78,6 +78,13 @@ def test_offline_verify_abstains_everywhere_with_reasons() -> None:
     A CV verified with no external source at all still produces a complete report:
     every check that needed a source abstains, each with its reason attached, and
     nothing goes silent. The document-only path is a real path, not a failure mode.
+
+    "Accounted for" is the assertion, and it has two forms. A rule that FIRED shows
+    its finding, cited as `[D2]`; a rule that did not shows its summary, under
+    verified, "nothing raised", or "not evaluated" with the reason. Requiring the
+    summary in both cases was the earlier version of this test, and it failed the
+    moment a document-intrinsic rule started firing on the reference CV — which is
+    the rule working, not the report losing it.
     """
     result = runner.invoke(app, ["verify", str(CV), "--offline"])
     assert result.exit_code == 0
@@ -86,4 +93,5 @@ def test_offline_verify_abstains_everywhere_with_reasons() -> None:
     assert "OUT OF SCOPE" in result.stdout
     assert "No overall score is produced" in result.stdout
     for rule in REGISTRY:
-        assert rule.summary in result.stdout, f"{rule.rule_id} vanished from the report"
+        accounted = f"[{rule.rule_id}]" in result.stdout or rule.summary in result.stdout
+        assert accounted, f"{rule.rule_id} vanished from the report"
