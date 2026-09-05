@@ -39,6 +39,7 @@ from cvv.models import (
     Claim,
     ClaimGraph,
     ClaimKind,
+    EmploymentType,
     ExtractionMeta,
     Platform,
     Proficiency,
@@ -79,6 +80,7 @@ class ProposedClaim(BaseModel):
     qualifier: str | None = None
     skill_refs: list[str] = Field(default_factory=list)
     proficiency: Proficiency | None = None
+    employment_type: EmploymentType | None = None
     date_text: str | None = None
     urls: list[str] = Field(default_factory=list)
     # skills pass only — one item per technology, grouped into a claim per line
@@ -173,6 +175,36 @@ PASSES: list[Pass] = [
             "org": _STR,
         },
         required=["verbatim", "title"],
+    ),
+    Pass(
+        name="employment",
+        # Headings vary more here than anywhere else on a CV. Missing the section is
+        # not fatal — section_text falls back to the whole document, just with a
+        # wider window and worse precision.
+        sections=("EXPERIENCE", "EMPLOYMENT", "WORK", "INTERNSHIP", "PROFESSIONAL"),
+        kind=ClaimKind.EMPLOYMENT,
+        instruction=(
+            "Extract every job, internship or professional role from this CV.\n"
+            "  org              the employer\n"
+            "  title            the role title, as written\n"
+            "  employment_type  full_time | part_time | internship | freelance\n"
+            "  date_text        the date range exactly as written, e.g. "
+            '"Jun 2024 - Aug 2024"\n'
+            "\n"
+            "A university is an employer only for a paid role there. A degree is not a "
+            "job, and a course project is not an internship."
+        ),
+        properties={
+            "verbatim": _STR,
+            "org": _STR,
+            "title": _STR,
+            "employment_type": {
+                "type": "string",
+                "enum": ["full_time", "part_time", "internship", "freelance"],
+            },
+            "date_text": _STR,
+        },
+        required=["verbatim", "org", "title"],
     ),
     Pass(
         name="education",
@@ -450,6 +482,7 @@ def ground(
                 org=p.org,
                 title=p.title,
                 degree=p.degree,
+                employment_type=p.employment_type or EmploymentType.UNSTATED,
                 platform=p.platform,
                 handle=handle,
                 metric=p.metric,

@@ -11,20 +11,23 @@ Four checks for now: P1, P2, P3, W1. The remaining 37 in docs/plan.md.
 from __future__ import annotations
 
 import datetime
+import itertools
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Protocol
 
 from cvv.ids import finding_id
-from cvv.intervals import bounds
+from cvv.intervals import Rel, bounds, overlap
 from cvv.models import (
     ClaimGraph,
     ClaimKind,
     Discrepancy,
+    EmploymentType,
     EvidenceBundle,
     GapReason,
     GitHubEvidence,
+    Ownership,
     Platform,
     PlatformEvidence,
     RuleOutcome,
@@ -925,3 +928,156 @@ def _degree_at(scheme: dict[str, object], degrees: list) -> object | None:  # ty
         if any(name in org for name in institutions):
             return d
     return None
+
+
+@register
+@dataclass(frozen=True)
+class G3OwnershipProof:
+    """Reports whether the GitHub account was ever proven to be the candidate's.
+
+    It verifies nothing, and cannot. Public GitHub data says an account exists and
+    what it did; nothing in it links an account to a specific human, and no number of
+    additional calls would change that. Anyone can print any handle on a CV.
+
+    So this is a caveat rendered as a finding, so that a reviewer reading five green
+    GitHub rows understands what they rest on. `scoring=false`: it is context for
+    reading the other findings, not a finding about the candidate.
+
+    The asymmetry it exists to explain: a self-claimed account that CONTRADICTS the CV
+    is strong evidence, because nobody lists a handle that undermines them. One that
+    CORROBORATES is weak, because it could be anyone's. So `claimed_unverified` caps
+    evidence in one direction only.
+
+    Moving off `claimed_unverified` needs the candidate to act — an OAuth grant, or a
+    gist containing a nonce we issued. Neither can be a prerequisite: the invariant is
+    that a candidate who never cooperates still gets a complete, honest report.
+    """
+
+    rule_id: str = "G3"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    # The first non-scoring rule in the system. It describes how to READ the other
+    # GitHub findings; letting it move a number would double-count them.
+    scoring: bool = False
+    summary: str = "Whether control of the GitHub account was proven"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        if gh.ownership in (Ownership.VERIFIED_OAUTH, Ownership.VERIFIED_CHALLENGE):
+            return  # proven; nothing to caveat
+
+        profiles = [
+            c.claim_id
+            for c in ctx.claims(ClaimKind.PROFILE)
+            if (c.platform or "").lower() == "github"
+        ]
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, profiles),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.LOW,
+            confidence=0.55,
+            scoring=self.scoring,
+            claim_refs=profiles,
+            evidence_refs=["github.ownership"],
+            params={"ownership": gh.ownership.value, "handle": gh.handle},
+            explanation=(
+                f"The GitHub account {gh.handle!r} was inferred from repository URLs "
+                "printed on the CV; control of it has not been proven."
+            ),
+            innocent_explanation=(
+                "Most candidates never complete an ownership challenge, and nothing "
+                "about this is a mark against them. Its effect is one-directional: "
+                "evidence from this account that CORROBORATES the CV is weighted down, "
+                "while evidence that CONTRADICTS it is not — nobody prints a handle "
+                "that undermines them. Proving control raises the weight of the "
+                "supporting findings; it never creates new ones."
+            ),
+        )
+
+
+@register
+@dataclass(frozen=True)
+class D5IntervalOverlap:
+    """Two roles held at the same time, under every reading of the dates.
+
+    Document-intrinsic: no network, no account, no cooperation. This and D9 are what
+    the invariant rests on.
+
+    **Only DEFINITE overlap.** Most Indian CVs give year precision only, and a
+    single-point interval has an empty core, so "2023" against "2023" resolves as
+    POSSIBLE and is never scored. Scoring POSSIBLE turns every clean CV into six
+    contradictions.
+
+    **Employment type decides the tier, and sometimes decides nothing fires at all.**
+    Two full-time roles at once is a contradiction. An internship, a part-time job or
+    freelance work concurrent with anything is ordinary life — students work while
+    studying, and a rule that flags that penalises the people most likely to have to.
+    Where the CV does not state a type, the overlap is real but its significance is
+    not, so it is posed as a question rather than asserted as a fact.
+    """
+
+    rule_id: str = "D5"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Two roles held at the same time under every reading of the dates"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        roles = [c for c in ctx.claims(ClaimKind.EMPLOYMENT) if c.interval]
+        if len(roles) < 2:
+            raise Abstain(
+                "Fewer than two dated roles are claimed; there is nothing to overlap."
+            )
+
+        for a, b in itertools.combinations(roles, 2):
+            # Concurrency is normal for anything but two full-time roles. Not a
+            # tolerance — a genuine statement that these combinations are not
+            # contradictions.
+            concurrent_is_normal = {
+                EmploymentType.INTERNSHIP,
+                EmploymentType.PART_TIME,
+                EmploymentType.FREELANCE,
+            }
+            if {a.employment_type, b.employment_type} & concurrent_is_normal:
+                continue
+
+            relation, fraction = overlap(a.interval, b.interval, today=ctx.today)
+            if relation is not Rel.DEFINITE:
+                continue
+
+            both_full_time = (
+                a.employment_type is EmploymentType.FULL_TIME
+                and b.employment_type is EmploymentType.FULL_TIME
+            )
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [a.claim_id, b.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier if both_full_time else self.soft_tier,
+                severity=Severity.HIGH if both_full_time else Severity.LOW,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[a.claim_id, b.claim_id],
+                evidence_refs=[],
+                params={
+                    "a": a.org,
+                    "b": b.org,
+                    "overlap_fraction": round(fraction, 2),
+                    "a_type": a.employment_type.value,
+                    "b_type": b.employment_type.value,
+                },
+                explanation=(
+                    f"{a.org!r} and {b.org!r} overlap by {fraction:.0%} of the shorter "
+                    "role under every consistent reading of the dates."
+                ),
+                innocent_explanation=(
+                    None
+                    if both_full_time
+                    else "Neither role states whether it was full-time. Concurrent "
+                    "part-time, contract, notice-period or advisory work is ordinary, "
+                    "and the dates alone cannot distinguish it from a contradiction."
+                ),
+            )

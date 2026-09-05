@@ -19,6 +19,7 @@ from cvv.models import (
     ClaimKind,
     ContestResult,
     DeploymentEvidence,
+    EmploymentType,
     EvidenceBundle,
     Gap,
     GapReason,
@@ -630,3 +631,129 @@ class TestD9RollNumberStructure:
         result = outcome(assemble(graph, bundle(make_graph([], DOCUMENT))), "D9")
         assert result.status is RuleStatus.ABSTAINED
         assert "identifier" in (result.reason or "")
+
+
+def role(
+    org: str,
+    dates: str,
+    kind: EmploymentType = EmploymentType.UNSTATED,
+    claim_id: str = "",
+) -> object:
+    interval = parse_interval(dates)
+    assert interval is not None, dates
+    return make_claim(
+        CF_RANK,
+        DOCUMENT,
+        claim_id=claim_id or "c" + org[:6].lower().replace(" ", ""),
+        kind=ClaimKind.EMPLOYMENT,
+        org=org,
+        title="Engineer",
+        employment_type=kind,
+        interval=interval,
+    )
+
+
+class TestD5IntervalOverlap:
+    """Document-intrinsic: no network, no account, no cooperation."""
+
+    def test_two_full_time_roles_at_once_is_decisive(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Mar 2021 - Aug 2023", EmploymentType.FULL_TIME, "c001"),
+                role("Globex", "Jan 2022 - Dec 2022", EmploymentType.FULL_TIME, "c002"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D5")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.finding_id in report.buckets.contradicted
+
+    def test_year_precision_alone_never_scores(self) -> None:
+        """THE HARD-CONSTRAINT REGRESSION, at the report level.
+
+        "2023" against "2023" is POSSIBLE, not DEFINITE — the two roles could have run
+        Jan-Jun and Jul-Dec. Most Indian CVs give year precision only, so scoring this
+        turns every clean CV into a contradiction.
+        """
+        graph = make_graph(
+            [
+                role("Acme", "2023", EmploymentType.FULL_TIME, "c001"),
+                role("Globex", "2023", EmploymentType.FULL_TIME, "c002"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D5").status is RuleStatus.CLEAN
+        assert not [f for f in report.discrepancies if f.rule_id == "D5"]
+
+    def test_an_internship_concurrent_with_anything_is_not_a_finding(self) -> None:
+        """Students work while studying, and a summer internship overlapping a
+        part-time role is ordinary life. A rule that flags it penalises the people
+        most likely to need both."""
+        graph = make_graph(
+            [
+                role("Acme", "May 2024 - Aug 2024", EmploymentType.INTERNSHIP, "c001"),
+                role("Globex", "Jan 2024 - Dec 2024", EmploymentType.FULL_TIME, "c002"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D5").status is RuleStatus.CLEAN
+
+    def test_an_unstated_type_is_a_question_not_a_fact(self) -> None:
+        """Most CVs never say "full-time". The overlap is real; its significance is
+        not, so it is posed rather than asserted."""
+        graph = make_graph(
+            [
+                role("Acme", "Mar 2021 - Aug 2023", claim_id="c001"),
+                role("Globex", "Jan 2022 - Dec 2022", claim_id="c002"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D5")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.innocent_explanation
+        assert finding.finding_id in report.buckets.needs_context
+
+    def test_abstains_with_fewer_than_two_dated_roles(self) -> None:
+        graph = make_graph([role("Acme", "2023")], DOCUMENT)
+        result = outcome(assemble(graph, bundle(graph)), "D5")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "nothing to overlap" in (result.reason or "")
+
+
+class TestG3OwnershipProof:
+    """It verifies nothing, and cannot. Public GitHub data says an account exists and
+    what it did; nothing links an account to a specific human."""
+
+    def test_reports_the_unproven_state_and_never_scores(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github()))
+        finding = next(f for f in report.discrepancies if f.rule_id == "G3")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.scoring is False, (
+            "G3 describes how to READ the other GitHub findings; letting it move a "
+            "number would double-count them"
+        )
+        assert finding.params["ownership"] == "claimed_unverified"
+        assert "CORROBORATES" in (finding.innocent_explanation or "")
+
+    def test_says_nothing_once_control_is_proven(self) -> None:
+        gh = github()
+        proven = gh.model_copy(update={"ownership": Ownership.VERIFIED_CHALLENGE})
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=proven))
+        assert outcome(report, "G3").status is RuleStatus.CLEAN
+
+    def test_abstains_without_a_github_account(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        gap = Gap(
+            source="github",
+            reason=GapReason.NO_HANDLE_IN_CV,
+            detail="No GitHub repository URL found in the document.",
+        )
+        assert outcome(assemble(graph, bundle(graph, gaps=[gap])), "G3").status is (
+            RuleStatus.ABSTAINED
+        )
