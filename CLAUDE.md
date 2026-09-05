@@ -23,10 +23,15 @@ Built: `models/` · `ingest` (PDF, NFKC + index map, section detection) · `span
 section-scoped model passes) · `filters` (the deterministic gate) · `gather`
 (Codeforces + liveness) · `rules` (P1 P2 P3 W1 + isolation runner) · `report`.
 
-Not built: skills extraction (bands are lost — the `Proficient - C | C++` pattern is
-regular and wants a regex), the date parser (every project claim carries
-`date_unparsed`, which blocks D5–D8 and G5), the GitHub connector (4 repos sit unused
-in the graph), and 37 of the 41 checks.
+Not built: the date parser (every project claim carries `date_unparsed`, which blocks
+D5–D8 and G5), the GitHub connector (4 repos sit unused in the graph), and 37 of the
+41 checks.
+
+**Reproducibility is measured, not assumed.** Same document and seed gives a
+byte-identical claim set, including across a forced model reload. The one variable is
+the GPU/CPU layer split, which Ollama picks from free VRAM at load time and which
+moves the model's raw proposal count; pin `CVV_NUM_GPU` to remove it. The filters
+absorbed that variance in every observed case — 18 proposals or 22, same findings.
 
 Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 
@@ -122,6 +127,13 @@ someone and one you would not.
    faster. The window is a *boundary*, not a hint — a claim whose text is not in its
    pass's own section does not belong to that pass, and must not be rescued by a
    document-wide search.
+
+   Ask the right question, too. The skills pass returned the CV's own category
+   headings as skills — `programming languages`, `utilities` — and the plan was an
+   ontology lookup to filter them. Not needed: asking *"what category is each item"*
+   instead of *"list the skills"* made both models exclude the headings by themselves,
+   because a heading has no plausible category. Junk output is often a task-framing
+   problem before it is a capability one.
 
 9. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
    JEE ranks, returned them anyway — and `qwen3:1.7b` returned them relabelled as
