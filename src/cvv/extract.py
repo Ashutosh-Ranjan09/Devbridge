@@ -80,6 +80,7 @@ class ProposedClaim(BaseModel):
     qualifier: str | None = None
     skill_refs: list[str] = Field(default_factory=list)
     proficiency: Proficiency | None = None
+    stated_years: int | float | None = None
     employment_type: EmploymentType | None = None
     date_text: str | None = None
     urls: list[str] = Field(default_factory=list)
@@ -165,7 +166,13 @@ PASSES: list[Pass] = [
             "  title      the project name\n"
             "  urls       every URL belonging to the project, copied exactly\n"
             "  date_text  the date range exactly as written, e.g. \"Mar '25 - Apr '25\"\n"
-            "  org        the institution, if the project names one"
+            "  org        the institution, if the project names one\n"
+            "  skill_refs every technology the project's bullets name — languages,\n"
+            "             frameworks, libraries, databases — each copied exactly\n"
+            "\n"
+            "A feature is not a technology. 'Edge editing', 'real-time validation' and\n"
+            "'path highlighting' are things the project DOES; React, Postgres and\n"
+            "Docker are things it is BUILT WITH. Name only the second kind."
         ),
         properties={
             "verbatim": _STR,
@@ -173,8 +180,12 @@ PASSES: list[Pass] = [
             "urls": {"type": "array", "items": _STR},
             "date_text": _STR,
             "org": _STR,
+            "skill_refs": {"type": "array", "items": _STR},
         },
-        required=["verbatim", "title"],
+        # skill_refs is required so the key is always emitted — an optional field is
+        # one a small model skips. An empty list is a legitimate answer; a missing
+        # key is a silently unchecked stack.
+        required=["verbatim", "title", "skill_refs"],
     ),
     Pass(
         name="employment",
@@ -376,12 +387,28 @@ def group_skills(
             verbatim=doc.text[start:end],
             skill_refs=sorted(categories),
             categories=categories,
+            stated_years=_years_on(doc.text[start:end]),
             window_start=start,
             window_end=end,
         )
         for (start, end), categories in lines.items()
         if categories
     ]
+
+
+_YEARS = re.compile(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\b", re.I)
+
+
+def _years_on(line: str) -> float | None:
+    """Stated experience, read off the line rather than asked for.
+
+    Two figures on one line — "Python (5 years) | Go (2 years)" — cannot be assigned,
+    because the claim is per LINE and the figures are per technology. Ambiguity drops
+    the field; the claim survives without it and G9 abstains, which is the honest
+    outcome rather than attaching one number to the wrong language.
+    """
+    found = {m.group(1) for m in _YEARS.finditer(line)}
+    return float(next(iter(found))) if len(found) == 1 else None
 
 
 def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], dict[str, int]]:
@@ -420,6 +447,39 @@ def _artefact(url: str) -> Artefact:
     )
 
 
+def scope_technologies(
+    claims: list[Claim], windows: dict[str, tuple[int, int]], doc: Document
+) -> list[Claim]:
+    """Guardrail 7 for a project's stack, where "its own span" is bigger than a line.
+
+    A project's technologies live in its bullets, not in the title the model quoted
+    as the verbatim — so the region that must contain them is the project BLOCK: from
+    this project's span to the next project's span, bounded by the section. Anything
+    the model names outside that block is dropped, which stops the skills section at
+    the bottom of the CV corroborating a stack the project never claimed.
+    """
+    projects = sorted(
+        (c for c in claims if c.kind is ClaimKind.PROJECT),
+        key=lambda c: c.provenance.char_start,
+    )
+    if not projects:
+        return claims
+
+    lowered = doc.text.lower()
+    starts = [p.provenance.char_start for p in projects]
+    scoped: dict[str, list[str]] = {}
+    for i, project in enumerate(projects):
+        section_end = windows.get(project.claim_id, (0, len(doc.text)))[1]
+        end = starts[i + 1] if i + 1 < len(starts) else section_end
+        block = lowered[project.provenance.char_start : max(end, project.provenance.char_end)]
+        scoped[project.claim_id] = [t for t in project.skill_refs if t.lower() in block]
+
+    return [
+        c.model_copy(update={"skill_refs": scoped[c.claim_id]}) if c.claim_id in scoped else c
+        for c in claims
+    ]
+
+
 def ground(
     proposed: list[ProposedClaim], doc: Document, *, model_id: str, graph_id: str
 ) -> ClaimGraph:
@@ -429,6 +489,7 @@ def ground(
     then re-read from the document rather than taken from the model.
     """
     claims: list[Claim] = []
+    windows: dict[str, tuple[int, int]] = {}
     span_failures = 0
     seen: set[str] = set()
 
@@ -470,6 +531,7 @@ def ground(
         if cid in seen:
             continue  # the model repeats itself; one span+kind+discriminator is one claim
         seen.add(cid)
+        windows[cid] = (p.window_start, p.window_end or len(doc.text))
 
         claims.append(
             Claim(
@@ -492,6 +554,7 @@ def ground(
                 qualifier=p.qualifier,
                 skill_refs=p.skill_refs,
                 proficiency=p.proficiency,
+                stated_years=p.stated_years,
                 context=context,
                 interval=interval,
                 parsed=parsed,
@@ -500,6 +563,7 @@ def ground(
             )
         )
 
+    claims = scope_technologies(claims, windows, doc)
     claims, dropped = apply_filters(claims)
     span_failures += sum(dropped.values())
 

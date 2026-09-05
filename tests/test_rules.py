@@ -43,6 +43,7 @@ from tests.cvdata import (
     DISCLAIMER,
     DOCUMENT,
     ROLL,
+    SKILLS_LINE,
     make_claim,
     make_graph,
 )
@@ -335,6 +336,8 @@ def repo(
     owner_matches: bool = True,
     readme_only: bool = False,
     created: str = "2025-06-24",
+    languages: tuple[str, ...] = (),
+    frameworks: tuple[str, ...] = (),
 ) -> RepoEvidence:
     return RepoEvidence(
         name=name,
@@ -342,6 +345,8 @@ def repo(
         is_fork=is_fork,
         owner_matches=owner_matches,
         is_readme_only=readme_only,
+        languages=dict.fromkeys(languages, 1),
+        frameworks=list(frameworks),
         created_at=datetime.date.fromisoformat(created),
         first_commit=None,  # no trustworthy server-side value exists
     )
@@ -353,11 +358,16 @@ def github(
     public: tuple[RepoEvidence, ...] = (),
     windows: tuple[tuple[str, int], ...] = (),
     orgs: tuple[str, ...] = (),
+    created: str = "2024-06-29",
+    first_seen: dict[str, str] | None = None,
 ) -> GitHubEvidence:
     return GitHubEvidence(
         handle="Ashutosh-Ranjan09",
         ownership=Ownership.CLAIMED_UNVERIFIED,
-        account_created=datetime.date(2024, 6, 29),
+        account_created=datetime.date.fromisoformat(created),
+        first_commit_by_language={
+            k: datetime.date.fromisoformat(v) for k, v in (first_seen or {}).items()
+        },
         repos=list(repos),
         public_repos=list(public or repos),
         public_repo_count=len(public or repos),
@@ -374,7 +384,7 @@ def github(
     )
 
 
-def project(title: str, dates: str, repo_url: str = "") -> object:
+def project(title: str, dates: str, repo_url: str = "", tech: tuple[str, ...] = ()) -> object:
     interval = parse_interval(dates)
     assert interval is not None, dates
     return make_claim(
@@ -384,6 +394,7 @@ def project(title: str, dates: str, repo_url: str = "") -> object:
         kind=ClaimKind.PROJECT,
         title=title,
         interval=interval,
+        skill_refs=list(tech),
         artefacts=[Artefact(type=ArtefactType.REPO, url=repo_url)] if repo_url else [],
     )
 
@@ -1136,3 +1147,116 @@ class TestG11OrgMembership:
         assert not _same_org("IT", "kgp-it-society")
         assert _same_org("Vercel", "vercel")
         assert _same_org("Acme Corporation", "acme-corporation")
+
+
+URL = "https://github.com/Ashutosh-Ranjan09/{}"
+
+
+class TestG6StackVsRepository:
+    def test_clean_when_one_named_technology_is_in_the_repository(self) -> None:
+        """A Next.js application reports to GitHub as TypeScript, so the language
+        census alone contradicts every React project ever written. Manifests are read
+        alongside it, and one match anywhere settles the claim."""
+        graph = make_graph(
+            [project("CF-Connect", "May '25 - Jun '25", URL.format("cf-connect"),
+                     tech=("Next.js", "MongoDB", "Tailwind CSS"))],
+            DOCUMENT,
+        )
+        gh = github(repos=(repo("cf-connect", languages=("TypeScript", "CSS"),
+                                frameworks=("next", "react", "tailwindcss")),))
+        report = assemble(graph, bundle(graph, github=gh))
+        assert outcome(report, "G6").status is RuleStatus.CLEAN
+
+    def test_fires_only_when_the_repository_contains_none_of_it(self) -> None:
+        graph = make_graph(
+            [project("Cache", "May '25 - Jun '25", URL.format("cache"),
+                     tech=("Go", "Redis"))],
+            DOCUMENT,
+        )
+        gh = github(repos=(repo("cache", languages=("TypeScript",), frameworks=("next",)),))
+        report = assemble(graph, bundle(graph, github=gh))
+        finding = next(f for f in report.discrepancies if f.rule_id == "G6")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.params["claimed"] == ["Go", "Redis"]
+        assert finding.params["observed"] == ["TypeScript"]
+        assert finding.finding_id in report.buckets.contradicted
+
+    def test_a_database_the_manifest_cannot_show_is_never_the_finding(self) -> None:
+        """The unfair version of this rule. MongoDB is not a language and is not an
+        npm package, so "one technology is missing" would fire on an honest CV."""
+        graph = make_graph(
+            [project("ATMA", "Mar '25 - Apr '25", URL.format("ATMA-Final"),
+                     tech=("React", "MongoDB", "JWT"))],
+            DOCUMENT,
+        )
+        gh = github(repos=(repo("ATMA-Final", languages=("JavaScript", "CSS"),
+                                frameworks=("react", "jsonwebtoken")),))
+        report = assemble(graph, bundle(graph, github=gh))
+        assert not [f for f in report.discrepancies if f.rule_id == "G6"]
+
+    def test_abstains_when_no_language_census_was_gathered(self) -> None:
+        """An empty language map means the census was not fetched, never that the
+        repository is empty. Conflating them would contradict every project."""
+        graph = make_graph(
+            [project("Cache", "May '25 - Jun '25", URL.format("cache"), tech=("Go",))],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph, github=github(repos=(repo("cache"),))))
+        assert outcome(report, "G6").status is RuleStatus.ABSTAINED
+
+    def test_abstains_when_no_project_names_a_stack(self) -> None:
+        graph = make_graph([project("Cache", "May '25", URL.format("cache"))], DOCUMENT)
+        gh = github(repos=(repo("cache", languages=("Go",)),))
+        assert outcome(assemble(graph, bundle(graph, github=gh)), "G6").status is (
+            RuleStatus.ABSTAINED
+        )
+
+
+def skill_years(years: float, *techs: str) -> object:
+    return make_claim(
+        SKILLS_LINE, DOCUMENT, claim_id="cskl01", kind=ClaimKind.SKILL,
+        skill_refs=list(techs), stated_years=years,
+    )
+
+
+class TestG9LanguageTenure:
+    def test_fires_when_an_older_account_shows_the_language_only_late(self) -> None:
+        graph = make_graph([skill_years(8, "Python")], DOCUMENT)
+        gh = github(created="2015-01-01", first_seen={"Python": "2024-03-01"})
+        report = assemble(graph, bundle(graph, github=gh))
+        finding = next(f for f in report.discrepancies if f.rule_id == "G9")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.params["first_evidence"] == 2024
+        assert "lower bound on EVIDENCE" in finding.innocent_explanation
+
+    def test_an_account_younger_than_the_claim_is_not_a_witness(self) -> None:
+        """The fairness guard, and the whole reason this rule is safe to ship. Eight
+        years of Python against a three-year-old account says when they joined
+        GitHub, not when they learned Python."""
+        graph = make_graph([skill_years(8, "Python")], DOCUMENT)
+        gh = github(created="2023-01-01", first_seen={"Python": "2024-03-01"})
+        report = assemble(graph, bundle(graph, github=gh))
+        result = outcome(report, "G9")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "younger than the claim" in (result.reason or "")
+
+    def test_evidence_matching_the_claim_is_clean(self) -> None:
+        graph = make_graph([skill_years(8, "Python")], DOCUMENT)
+        gh = github(created="2015-01-01", first_seen={"Python": "2017-03-01"})
+        report = assemble(graph, bundle(graph, github=gh))
+        assert outcome(report, "G9").status is RuleStatus.CLEAN
+
+    def test_a_language_never_observed_abstains_rather_than_firing(self) -> None:
+        """Guardrail 4. Work code is private and coursework lives elsewhere, so a
+        language with no public artefact produces no finding."""
+        graph = make_graph([skill_years(8, "Rust")], DOCUMENT)
+        gh = github(created="2015-01-01", first_seen={"Python": "2024-03-01"})
+        report = assemble(graph, bundle(graph, github=gh))
+        assert outcome(report, "G9").status is RuleStatus.ABSTAINED
+
+    def test_abstains_when_no_skill_states_years(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        gh = github(created="2015-01-01", first_seen={"Python": "2017-03-01"})
+        result = outcome(assemble(graph, bundle(graph, github=gh)), "G9")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "how many years" in (result.reason or "")

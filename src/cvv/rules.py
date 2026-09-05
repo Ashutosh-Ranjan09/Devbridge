@@ -20,6 +20,7 @@ from typing import Protocol, cast
 from cvv.ids import finding_id
 from cvv.intervals import Rel, bounds, gap_between, overlap
 from cvv.models import (
+    ArtefactType,
     Claim,
     ClaimGraph,
     ClaimKind,
@@ -900,6 +901,180 @@ class G11OrgMembership:
         yield  # pragma: no cover - unreachable; keeps the generator signature
 
 
+@register
+@dataclass(frozen=True)
+class G6StackVsRepository:
+    """A project's claimed stack against the repository the CV itself links.
+
+    Fires on ONE thing: the repository contains NOTHING the project says it is built
+    with. Not "one technology is missing" — that version would be technically correct
+    and unfair, because a CV names databases, protocols and services that no language
+    census and no dependency manifest will ever show. MongoDB is not a language and
+    is not an npm package.
+
+    Comparing against languages ALONE would be worse still: a Next.js application
+    reports as TypeScript, so every React project on every honest CV would contradict
+    itself. Languages and dependency manifests are read together, and one match
+    anywhere is enough to settle it.
+    """
+
+    rule_id: str = "G6"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "A project's claimed stack against the repository it links"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        by_name = {r.name.lower(): r for r in gh.repos if r.exists}
+        checked = False
+
+        for claim in ctx.claims(ClaimKind.PROJECT):
+            if not claim.skill_refs:
+                continue
+            for artefact in claim.artefacts:
+                if artefact.type is not ArtefactType.REPO:
+                    continue
+                repo = by_name.get(artefact.url.rstrip("/").split("/")[-1].lower())
+                # Empty languages means the census was not gathered, not that the
+                # repository is empty. Never conflate them.
+                if repo is None or not repo.languages:
+                    continue
+                checked = True
+
+                observed = [_norm(x) for x in (*repo.languages, *repo.frameworks)]
+                if any(_matches(_norm(tech), observed) for tech in claim.skill_refs):
+                    continue
+
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.HIGH,
+                    confidence=0.8,
+                    scoring=self.scoring,
+                    claim_refs=[claim.claim_id],
+                    evidence_refs=[f"github.repos.{repo.name}.languages"],
+                    params={
+                        "project": claim.title,
+                        "repo": repo.name,
+                        "claimed": claim.skill_refs,
+                        "observed": sorted(repo.languages),
+                    },
+                    explanation=(
+                        f"{claim.title!r} is described as {', '.join(claim.skill_refs)}, "
+                        f"and the repository the CV links for it — {repo.name} — contains "
+                        f"none of that. GitHub reports {', '.join(sorted(repo.languages))}, "
+                        "and its dependency manifests name nothing from the claimed stack "
+                        "either."
+                    ),
+                )
+
+        if not checked:
+            raise Abstain(
+                "No project both names a stack and links a repository whose language "
+                "census was gathered."
+            )
+
+
+@register
+@dataclass(frozen=True)
+class G9LanguageTenure:
+    """Claimed years with a language against the earliest public evidence of it.
+
+    The fairness lives in the ABSTENTION, not in the finding. `first_commit_by_language`
+    is a lower bound on evidence — the earliest repository using the language — and
+    the account is usually younger than the claim it is being asked about. Someone
+    claiming eight years of Python whose GitHub is three years old is not contradicted
+    by that account; the account simply is not a witness, and a finding there would
+    report when they joined GitHub while appearing to report when they learned Python.
+
+    So it abstains unless the account PREDATES the claimed start. Only then does its
+    silence carry information, and even then only as a question.
+    """
+
+    rule_id: str = "G9"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Claimed years with a language against the earliest public evidence"
+    slack_years: int = 1
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        gh = ctx.github()
+        stated = [c for c in ctx.claims(ClaimKind.SKILL) if c.stated_years]
+        if not stated:
+            raise Abstain("No skill on the CV states how many years it has been used.")
+        if not gh.first_commit_by_language:
+            raise Abstain(
+                "No language could be dated from the account, so there is nothing to "
+                "compare a claimed tenure against."
+            )
+        if gh.account_created is None:
+            raise Abstain("The account's creation date was not gathered.")
+
+        checked = False
+        for claim in stated:
+            assert claim.stated_years is not None
+            claimed_start = ctx.today.replace(
+                year=ctx.today.year - int(claim.stated_years)
+            )
+            if gh.account_created > claimed_start:
+                continue  # younger than the claim; it cannot witness it either way
+
+            for tech in claim.skill_refs:
+                first = next(
+                    (
+                        date
+                        for language, date in gh.first_commit_by_language.items()
+                        if _matches(_norm(tech), [_norm(language)])
+                    ),
+                    None,
+                )
+                if first is None:
+                    continue  # never observed at all — absence abstains, guardrail 4
+                checked = True
+                if first.year <= claimed_start.year + self.slack_years:
+                    continue
+
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.LOW,
+                    confidence=0.4,
+                    scoring=self.scoring,
+                    claim_refs=[claim.claim_id],
+                    evidence_refs=["github.first_commit_by_language"],
+                    params={
+                        "technology": tech,
+                        "stated_years": claim.stated_years,
+                        "claimed_since": claimed_start.year,
+                        "first_evidence": first.year,
+                    },
+                    explanation=(
+                        f"{claim.stated_years:g} years of {tech} implies use since about "
+                        f"{claimed_start.year}. The earliest public repository of "
+                        f"{gh.handle!r} using it was created in {first.year}, and the "
+                        f"account itself dates from {gh.account_created.year}."
+                    ),
+                    innocent_explanation=(
+                        "The earliest repository using a language is a lower bound on "
+                        "EVIDENCE, never a start date. Work before this account, work "
+                        "in a private or institutional repository, coursework, a job, "
+                        "and a repository since deleted all leave nothing here."
+                    ),
+                )
+
+        if not checked:
+            raise Abstain(
+                "No stated tenure could be compared: either the account is younger "
+                "than the claim, or the language was never observed in it."
+            )
+
+
 # --------------------------------------------------------------------------- #
 # D · document-intrinsic — no network, ever
 # --------------------------------------------------------------------------- #
@@ -1649,6 +1824,27 @@ class D12TitleProgression:
                     "total."
                 ),
             )
+
+
+def _norm(name: str) -> str:
+    """A technology name reduced to what is comparable across sources.
+
+    `+` and `#` survive: dropping them collapses C, C++ and C# onto each other, and
+    those are three different claims.
+    """
+    return re.sub(r"[^a-z0-9+#]", "", name.lower())
+
+
+def _matches(tech: str, observed: list[str]) -> bool:
+    """Containment either way, so "next.js" meets the npm package `next`.
+
+    Two characters minimum, or "go" matches "django" and "c" matches everything.
+    Substrings are checked at a word boundary of the normalised form instead: the
+    shorter string must be a prefix or the whole of the longer one.
+    """
+    if len(tech) < 2:
+        return tech in observed
+    return any(o == tech or o.startswith(tech) or tech.startswith(o) for o in observed if o)
 
 
 def _same_org(claimed: str, org_login: str) -> bool:
