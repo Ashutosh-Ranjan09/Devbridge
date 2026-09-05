@@ -66,7 +66,9 @@ files = ["src/cvv"]
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-q --strict-markers --import-mode=importlib"
+# `not live` by default: a test run must need no Ollama daemon, no token and no
+# network. Run the excluded ones explicitly with `pytest -m live`.
+addopts = "-q --strict-markers --import-mode=importlib -m 'not live'"
 markers = [
     "live: hits a real model or a real external API; excluded by default",
 ]
