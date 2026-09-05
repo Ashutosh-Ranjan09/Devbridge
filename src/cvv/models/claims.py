@@ -16,6 +16,7 @@ from cvv.models.enums import (
     ClaimKind,
     DeclarationEffect,
     EmploymentType,
+    IngestMethod,
     Precision,
     Proficiency,
     Recovery,
@@ -171,6 +172,23 @@ class Claim(Model):
 class SourceInfo(Model):
     document_id: str
     normalised_text: str  # the exact string every char offset indexes into
+
+
+class DocumentInfo(Model):
+    """Provenance of the file itself — what `SourceInfo` deliberately does not carry.
+
+    An institutional generator is itself a signal: a CV produced by a placement cell's
+    template went through that cell, which is trust-INCREASING and the opposite of a
+    finding. A modification long after creation is the signal that warrants a question.
+    """
+
+    document_id: str
+    pages: int = Field(ge=1)
+    ingest_method: IngestMethod
+    ocr_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    producer: str | None = None
+    created_at: str | None = None
+    modified_at: str | None = None
 
 
 class ExtractionMeta(Model):

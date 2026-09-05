@@ -14,6 +14,7 @@ import datetime
 from cvv.models import (
     Buckets,
     ClaimGraph,
+    DocumentInfo,
     EvidenceBundle,
     FindingsReport,
     RuleStatus,
@@ -33,9 +34,13 @@ OUT_OF_SCOPE = [
 
 
 def assemble(
-    graph: ClaimGraph, bundle: EvidenceBundle, *, report_id: str = "fr_001"
+    graph: ClaimGraph,
+    bundle: EvidenceBundle,
+    *,
+    report_id: str = "fr_001",
+    document: DocumentInfo | None = None,
 ) -> FindingsReport:
-    ctx = Context(graph=graph, bundle=bundle, report_id=report_id)
+    ctx = Context(graph=graph, bundle=bundle, report_id=report_id, document=document)
     findings, outcomes = run_all(ctx)
     by_id = {r.rule_id: r for r in REGISTRY}
 

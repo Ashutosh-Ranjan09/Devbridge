@@ -62,7 +62,12 @@ SKILLS_LINE = (
 HEADER = "ASHUTOSH RANJAN | 23CS10004 B.Tech.(Hons.) in COMPUTER SCIENCE AND ENGINEERING"
 ROLL = "23CS10004"
 
-DOCUMENT = HEADER + " " + ACHIEVEMENTS + " " + SKILLS_LINE
+# The CDC template's own footer. The institution is stating which parts of the
+# document it did not itself check — rule D3 inherits that boundary rather than
+# re-deriving it, and it is a mark against nobody.
+DISCLAIMER = "Self declared by the student, CDC could not verify the relevant documents"
+
+DOCUMENT = HEADER + " " + ACHIEVEMENTS + " " + SKILLS_LINE + " " + DISCLAIMER
 
 
 def make_claim(
@@ -89,7 +94,13 @@ def make_claim(
     )
 
 
-def make_graph(claims: list[Claim], document: str, *, graph_id: str = "cg_test") -> ClaimGraph:
+def make_graph(
+    claims: list[Claim],
+    document: str,
+    *,
+    graph_id: str = "cg_test",
+    span_failures: int = 0,
+) -> ClaimGraph:
     return ClaimGraph(
         graph_id=graph_id,
         source=SourceInfo(document_id="doc_test", normalised_text=document),
@@ -99,5 +110,6 @@ def make_graph(claims: list[Claim], document: str, *, graph_id: str = "cg_test")
             prompt_version="test/v1",
             input_hash="sha256:test",
             extracted_at=datetime.datetime.now(datetime.UTC),
+            span_failures=span_failures,
         ),
     )

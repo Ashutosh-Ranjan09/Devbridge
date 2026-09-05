@@ -19,16 +19,19 @@ from cvv.models import (
     ClaimKind,
     ContestResult,
     DeploymentEvidence,
+    DocumentInfo,
     EmploymentType,
     EvidenceBundle,
     Gap,
     GapReason,
     GitHubEvidence,
+    IngestMethod,
     Ownership,
     Platform,
     PlatformEvidence,
     RepoEvidence,
     RuleStatus,
+    Severity,
     Tier,
 )
 from cvv.report import assemble
@@ -37,6 +40,7 @@ from tests.cvdata import (
     AGGREGATE,
     CF_RANK,
     CF_RATING,
+    DISCLAIMER,
     DOCUMENT,
     ROLL,
     make_claim,
@@ -638,6 +642,7 @@ def role(
     dates: str,
     kind: EmploymentType = EmploymentType.UNSTATED,
     claim_id: str = "",
+    title: str = "Engineer",
 ) -> object:
     interval = parse_interval(dates)
     assert interval is not None, dates
@@ -647,7 +652,7 @@ def role(
         claim_id=claim_id or "c" + org[:6].lower().replace(" ", ""),
         kind=ClaimKind.EMPLOYMENT,
         org=org,
-        title="Engineer",
+        title=title,
         employment_type=kind,
         interval=interval,
     )
@@ -757,3 +762,290 @@ class TestG3OwnershipProof:
         assert outcome(assemble(graph, bundle(graph, gaps=[gap])), "G3").status is (
             RuleStatus.ABSTAINED
         )
+
+
+# ---------------------------------------------------------------------------
+# The document-intrinsic group: no network, no account, no cooperation. These are
+# the checks the invariant rests on — a CV naming nothing still gets a real report.
+# ---------------------------------------------------------------------------
+
+
+def document_info(
+    *, created: str | None = "D:20250704194743+05'30'", modified: str | None = None,
+    producer: str | None = "iText 2.1.7 by 1T3XT",
+) -> DocumentInfo:
+    return DocumentInfo(
+        document_id="doc_test",
+        pages=1,
+        ingest_method=IngestMethod.PDF_TEXT,
+        producer=producer,
+        created_at=created,
+        modified_at=modified if modified is not None else created,
+    )
+
+
+class TestD2SpanGrounding:
+    """A finding about the EXTRACTOR, not about the candidate.
+
+    Dropping a claim whose text is not in the document is the guardrail working. The
+    cost is coverage, and stating that openly is the whole point of the rule: a report
+    that silently checks less than it appears to is worse than one that says so.
+    """
+
+    def test_reports_what_was_dropped_and_never_scores(self) -> None:
+        graph = make_graph([roll()], DOCUMENT, span_failures=2)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D2")
+        assert finding.params == {"dropped": 2, "kept": 1, "proposed": 3}
+        assert finding.scoring is False
+        assert finding.claim_refs == [], "no claim survived to be cited"
+        assert finding.finding_id in report.buckets.needs_context
+
+    def test_losing_more_than_was_kept_is_a_louder_finding(self) -> None:
+        graph = make_graph([roll()], DOCUMENT, span_failures=9)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D2")
+        assert finding.severity is Severity.HIGH
+
+    def test_silent_when_every_proposal_grounded(self) -> None:
+        graph = make_graph([roll()], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D2").status is RuleStatus.CLEAN
+        assert not [f for f in report.discrepancies if f.rule_id == "D2"]
+
+
+class TestD3SelfDeclarationMarkers:
+    """The document telling you its own trust boundary.
+
+    A reader who does not see "CDC could not verify the relevant documents" may take
+    the whole page as institutionally attested. Inheriting the disclaimer is more
+    honest than ignoring it and more honest than re-deriving it.
+    """
+
+    def marker(self) -> object:
+        return make_claim(
+            DISCLAIMER, DOCUMENT, claim_id="cdecl1", kind=ClaimKind.DECLARATION_MARKER
+        )
+
+    def test_quotes_the_disclaimer_and_never_scores(self) -> None:
+        graph = make_graph([self.marker()], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D3")
+        assert finding.params["marker"] == DISCLAIMER
+        assert finding.scoring is False
+        assert finding.tier is Tier.ATTENTION
+        assert "the candidate" in finding.innocent_explanation
+
+    def test_is_never_a_mark_against_the_candidate(self) -> None:
+        """It lands in needs_context, never in contradicted — the institution wrote
+        it, and a candidate cannot be faulted for their own CDC's template."""
+        graph = make_graph([self.marker()], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D3")
+        assert finding.finding_id in report.buckets.needs_context
+        assert finding.finding_id not in report.buckets.contradicted
+
+    def test_abstains_on_a_document_that_disclaims_nothing(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D3").status is RuleStatus.ABSTAINED
+
+
+class TestD4DocumentProvenance:
+    def test_fires_on_an_edit_long_after_generation(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(
+            graph,
+            bundle(graph),
+            document=document_info(modified="D:20250810120000+05'30'"),
+        )
+        finding = next(f for f in report.discrepancies if f.rule_id == "D4")
+        assert finding.params == {
+            "created": "2025-07-04",
+            "modified": "2025-08-10",
+            "gap_days": 37,
+        }
+        assert finding.scoring is False
+
+    def test_an_institutional_producer_is_never_itself_a_finding(self) -> None:
+        """The trap this rule was written around. A CV produced by a placement cell's
+        template went THROUGH that cell, which is trust-increasing; firing on the
+        producer string would invert the meaning of the evidence."""
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph), document=document_info())
+        assert outcome(report, "D4").status is RuleStatus.CLEAN
+        assert not [f for f in report.discrepancies if f.rule_id == "D4"]
+
+    def test_abstains_when_the_file_records_no_times(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph), document=document_info(created=None))
+        result = outcome(report, "D4")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "normal for many exporters" in (result.reason or "")
+
+    def test_abstains_when_no_metadata_reaches_the_rule(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D4").status is RuleStatus.ABSTAINED
+
+
+class TestD8DegreeDuration:
+    def test_a_four_year_btech_over_four_years_is_clean(self) -> None:
+        graph = make_graph([degree("B.Tech.(Hons.)", "IIT Kharagpur", "2022-26")], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        assert outcome(report, "D8").status is RuleStatus.CLEAN
+
+    def test_fires_when_the_span_is_not_the_standard_length(self) -> None:
+        graph = make_graph([degree("B.Tech.(Hons.)", "IIT Kharagpur", "2022-2028")], DOCUMENT)
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D8")
+        assert finding.tier is Tier.ATTENTION, "a long degree is a question, not a lie"
+        assert finding.params["claimed_years"] == 6
+        assert finding.params["standard_years"] == 4
+        assert "medical leave" in finding.innocent_explanation
+
+    def test_abstains_when_the_degree_carries_no_end_year(self) -> None:
+        graph = make_graph([degree("B.Tech.(Hons.)", "IIT Kharagpur", "2022")], DOCUMENT)
+        result = outcome(assemble(graph, bundle(graph)), "D8")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "start and an end" in (result.reason or "")
+
+    def test_abstains_on_a_programme_with_no_standard_length_on_record(self) -> None:
+        """Absence of a duration is not evidence of a wrong duration. An unrecognised
+        programme abstains rather than being measured against a guess."""
+        graph = make_graph([degree("Diplôme d'Ingénieur", "École X", "2022-26")], DOCUMENT)
+        result = outcome(assemble(graph, bundle(graph)), "D8")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "standard duration" in (result.reason or "")
+
+
+class TestD10InternalContradiction:
+    """Decisive without a network call, because the document contradicts ITSELF."""
+
+    def test_the_same_role_dated_two_incompatible_ways(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022 - Jun 2022", claim_id="ca1"),
+                role("Acme", "Jan 2024 - Jun 2024", claim_id="ca2"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D10")
+        assert finding.tier is Tier.DECISIVE
+        assert finding.finding_id in report.buckets.contradicted
+        assert {"ca1", "ca2"} == set(finding.claim_refs)
+
+    def test_two_mentions_that_can_both_be_true_are_not_a_contradiction(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022 - Dec 2022", claim_id="ca1"),
+                role("Acme", "2022", claim_id="ca2"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D10"]
+
+    def test_different_roles_are_never_compared(self) -> None:
+        """Two different jobs at different times is a career, not a contradiction."""
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022 - Jun 2022", claim_id="ca1"),
+                role("Globex", "Jan 2024 - Jun 2024", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D10"]
+
+    def test_abstains_with_fewer_than_two_dated_roles(self) -> None:
+        graph = make_graph([role("Acme", "2022")], DOCUMENT)
+        assert outcome(assemble(graph, bundle(graph)), "D10").status is RuleStatus.ABSTAINED
+
+
+class TestD11TimelineGap:
+    """Displayed, never scored — and the test asserts the never.
+
+    A gap can be illness, caregiving, a visa, a failed venture or a bad market. All of
+    them look identical here, so this measures career shape rather than evidence.
+    """
+
+    def test_a_long_gap_is_shown_and_barred_from_scoring(self) -> None:
+        graph = make_graph(
+            [role("Acme", "2020", claim_id="ca1"), role("Globex", "2023", claim_id="cb1")],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D11")
+        assert finding.scoring is False
+        assert finding.tier is Tier.ATTENTION
+        assert finding.params["gap_days"] > 365
+        assert finding.finding_id in report.buckets.needs_context
+        assert finding.finding_id not in report.buckets.contradicted
+
+    def test_a_normal_handover_between_roles_says_nothing(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022 - Jun 2022", claim_id="ca1"),
+                role("Globex", "Sep 2022 - Dec 2022", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D11"]
+
+    def test_abstains_with_one_role(self) -> None:
+        graph = make_graph([role("Acme", "2022")], DOCUMENT)
+        assert outcome(assemble(graph, bundle(graph)), "D11").status is RuleStatus.ABSTAINED
+
+
+class TestD12TitleProgression:
+    def test_a_jump_of_several_levels_in_months_is_shown_never_scored(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022", title="Intern", claim_id="ca1"),
+                role("Acme", "Jun 2022", title="VP of Engineering", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D12")
+        assert finding.scoring is False
+        assert finding.params["from"] == "Intern"
+        assert finding.finding_id in report.buckets.needs_context
+
+    def test_one_step_up_is_a_career_not_a_question(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022", title="Engineer", claim_id="ca1"),
+                role("Acme", "Jun 2022", title="Senior Engineer", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D12"]
+
+    def test_the_same_jump_over_years_is_not_a_question_either(self) -> None:
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2018", title="Intern", claim_id="ca1"),
+                role("Acme", "Jun 2024", title="VP of Engineering", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D12"]
+
+    def test_an_unrecognised_title_is_never_ranked(self) -> None:
+        """"Wizard" is not on the ladder, and inventing a level for it would be the
+        rule making up the very thing it claims to measure."""
+        graph = make_graph(
+            [
+                role("Acme", "Jan 2022", title="Wizard", claim_id="ca1"),
+                role("Acme", "Jun 2022", title="Chief Wizard", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D12"]

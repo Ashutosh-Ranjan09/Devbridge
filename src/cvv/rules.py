@@ -18,12 +18,13 @@ from dataclasses import dataclass, field
 from typing import Protocol, cast
 
 from cvv.ids import finding_id
-from cvv.intervals import Rel, bounds, overlap
+from cvv.intervals import Rel, bounds, gap_between, overlap
 from cvv.models import (
     Claim,
     ClaimGraph,
     ClaimKind,
     Discrepancy,
+    DocumentInfo,
     EmploymentType,
     EvidenceBundle,
     GapReason,
@@ -36,7 +37,7 @@ from cvv.models import (
     Severity,
     Tier,
 )
-from cvv.reference import department_matches, programme_years, scheme_for
+from cvv.reference import department_matches, programme_years, roll_schemes, scheme_for
 
 
 class Abstain(Exception):  # noqa: N818 - a control signal, not an error
@@ -52,6 +53,7 @@ class Context:
     graph: ClaimGraph
     bundle: EvidenceBundle
     report_id: str
+    document: DocumentInfo | None = None
     today: datetime.date = field(default_factory=lambda: datetime.date.today())
 
     def claims(self, kind: ClaimKind) -> list[Claim]:
@@ -1086,3 +1088,436 @@ class D5IntervalOverlap:
                     "and the dates alone cannot distinguish it from a contradiction."
                 ),
             )
+
+
+@register
+@dataclass(frozen=True)
+class D2SpanGrounding:
+    """Claims the extractor produced that the document does not contain.
+
+    Not a finding about the candidate — a finding about the extraction. A dropped
+    claim is one the model invented or garbled, and the honest consequence is lower
+    coverage, stated openly, rather than a report that looks complete while missing
+    things.
+    """
+
+    rule_id: str = "D2"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False  # about the extraction, not the person
+    summary: str = "Claims dropped because their text was not in the document"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        meta = ctx.graph.extraction_meta
+        kept = len(ctx.graph.claims)
+        if meta.span_failures == 0:
+            return
+        total = kept + meta.span_failures
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, []),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.HIGH if meta.span_failures > kept else Severity.LOW,
+            confidence=1.0,
+            scoring=self.scoring,
+            claim_refs=[],
+            evidence_refs=["claim_graph.extraction_meta"],
+            params={"dropped": meta.span_failures, "kept": kept, "proposed": total},
+            explanation=(
+                f"{meta.span_failures} of {total} proposed claims were dropped because "
+                "their quoted text could not be found in the document."
+            ),
+            innocent_explanation=(
+                "This describes the extractor, not the candidate. A dropped claim is "
+                "one the model invented or garbled, and dropping it is the guardrail "
+                "working. The cost is coverage: something the CV says may have gone "
+                "unchecked."
+            ),
+        )
+
+
+@register
+@dataclass(frozen=True)
+class D3SelfDeclarationMarkers:
+    """The document disclaiming itself.
+
+    An institutional CV that says "CDC could not verify the relevant documents" has
+    already told you the trust boundary. Inheriting it is more honest than re-deriving
+    it, and far more honest than ignoring it — a reader who does not see the
+    disclaimer may take the whole document as institutionally attested.
+
+    Never a mark against the candidate: the institution wrote it, not them.
+    """
+
+    rule_id: str = "D3"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False
+    summary: str = "The document's own disclaimer about what it could not verify"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        markers = ctx.claims(ClaimKind.DECLARATION_MARKER)
+        if not markers:
+            raise Abstain("The document carries no self-declaration marker.")
+
+        for marker in markers:
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [marker.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.INFO,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[marker.claim_id],
+                evidence_refs=[],
+                params={"marker": marker.provenance.verbatim},
+                explanation=(
+                    "The document disclaims part of its own content: "
+                    f"{marker.provenance.verbatim!r}"
+                ),
+                innocent_explanation=(
+                    "The institution wrote this, not the candidate, and it is a mark "
+                    "against neither. It says which parts of the document the issuer "
+                    "itself did not check, and those inherit that status here rather "
+                    "than being presented as attested."
+                ),
+            )
+
+
+@register
+@dataclass(frozen=True)
+class D4DocumentProvenance:
+    """How the file itself was produced.
+
+    Fires on ONE thing: a modification long after creation. An institutional producer
+    is the opposite of a finding — a CV generated by a placement cell's template went
+    through that cell — so it is reported as context inside the explanation, never as
+    a signal against the candidate.
+    """
+
+    rule_id: str = "D4"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False
+    summary: str = "Document provenance — producer, and edits after generation"
+    gap_days: int = 1
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        if ctx.document is None:
+            raise Abstain("No document metadata was supplied.")
+        created = _pdf_date(ctx.document.created_at)
+        modified = _pdf_date(ctx.document.modified_at)
+        if created is None or modified is None:
+            raise Abstain(
+                "The file records no creation or modification time, which is normal "
+                "for many exporters and says nothing either way."
+            )
+        gap = (modified - created).days
+        if gap < self.gap_days:
+            return
+
+        producer = ctx.document.producer
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, []),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.LOW,
+            confidence=0.4,
+            scoring=self.scoring,
+            claim_refs=[],
+            evidence_refs=["document.modified_at"],
+            params={"created": str(created), "modified": str(modified), "gap_days": gap},
+            explanation=(
+                f"The file was created on {created} and last modified {gap} days later"
+                + (f", by {producer!r}" if producer else "")
+                + "."
+            ),
+            innocent_explanation=(
+                "Editing a CV after generating it is the normal way a CV is written. "
+                "This is recorded so a reviewer knows the file is not byte-identical "
+                "to what its producer emitted, and for no stronger purpose."
+            ),
+        )
+
+
+@register
+@dataclass(frozen=True)
+class D8DegreeDuration:
+    """A programme's claimed span against its standard length.
+
+    Attention, never decisive. Real degrees run long and short for reasons a CV has no
+    obligation to explain — a year abroad, a medical leave, a backlog, an accelerated
+    track, a transfer. The check surfaces the arithmetic; it does not interpret it.
+    """
+
+    rule_id: str = "D8"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = True
+    summary: str = "Claimed degree span against the programme's standard length"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        degrees = [
+            c
+            for c in ctx.claims(ClaimKind.EDUCATION)
+            if c.degree and c.interval and c.interval.end
+        ]
+        if not degrees:
+            raise Abstain(
+                "No degree carries both a start and an end year, so no span can be "
+                "compared."
+            )
+
+        checked = False
+        for d in degrees:
+            assert d.interval is not None and d.interval.end is not None
+            scheme = next(
+                (s for s in roll_schemes().values() if programme_years(s, d.degree or "")),
+                None,
+            )
+            if scheme is None:
+                continue
+            standard = programme_years(scheme, d.degree or "")
+            if standard is None:
+                continue
+            checked = True
+            claimed = d.interval.end.year - d.interval.start.year
+            if claimed == standard:
+                continue
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [d.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.LOW,
+                confidence=0.6,
+                scoring=self.scoring,
+                claim_refs=[d.claim_id],
+                evidence_refs=["data/roll-schemes.json"],
+                params={
+                    "degree": d.degree,
+                    "claimed_years": claimed,
+                    "standard_years": standard,
+                },
+                explanation=(
+                    f"{d.degree!r} is claimed over {claimed} years; the standard "
+                    f"programme runs {standard}."
+                ),
+                innocent_explanation=(
+                    "Degrees run long and short for reasons a CV has no obligation to "
+                    "explain — a year abroad, medical leave, a backlog, an accelerated "
+                    "track, a transfer between institutions. The arithmetic is shown; "
+                    "what it means is not inferred."
+                ),
+            )
+
+        if not checked:
+            raise Abstain("No claimed degree has a standard duration on record.")
+
+
+@register
+@dataclass(frozen=True)
+class D10InternalContradiction:
+    """The same role given different dates in different places on the same page.
+
+    Decisive, and unusually so for a document-intrinsic check: the document contradicts
+    ITSELF, which needs no external source and admits no innocent reading about the
+    world. Only DEFINITE disagreement counts — two year-precision mentions of the same
+    role are not a contradiction.
+    """
+
+    rule_id: str = "D10"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.DECISIVE
+    scoring: bool = True
+    summary: str = "The same role dated differently in two places"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        dated = [
+            (c, c.interval)
+            for c in ctx.claims(ClaimKind.EMPLOYMENT)
+            if c.interval is not None and c.org
+        ]
+        if len(dated) < 2:
+            raise Abstain("Fewer than two dated roles are claimed.")
+
+        for (a, ia), (b, ib) in itertools.combinations(dated, 2):
+            same_role = (a.org or "").strip().lower() == (b.org or "").strip().lower() and (
+                (a.title or "").strip().lower() == (b.title or "").strip().lower()
+            )
+            if not same_role:
+                continue
+            # The same role, mentioned twice. If the two spans cannot both be true,
+            # the document disagrees with itself.
+            relation, _ = overlap(ia, ib, today=ctx.today)
+            if relation is not Rel.NONE:
+                continue
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [a.claim_id, b.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.HIGH,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[a.claim_id, b.claim_id],
+                evidence_refs=[],
+                params={"org": a.org, "title": a.title},
+                explanation=(
+                    f"{a.title!r} at {a.org!r} appears twice with dates that cannot "
+                    "both be true."
+                ),
+            )
+
+
+@register
+@dataclass(frozen=True)
+class D11TimelineGap:
+    """An unexplained gap between roles.
+
+    NON-SCORING, enforced here and structurally in the aggregator. A gap can be
+    illness, caregiving, a visa, a failed startup, a sabbatical, or a job market. It
+    measures career shape, which is not evidence of anything, and treating it as a
+    signal penalises exactly the people whose lives did not run in a straight line.
+
+    It is displayed so a reviewer can ask. It never moves a number.
+    """
+
+    rule_id: str = "D11"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False
+    summary: str = "Gap between claimed roles (displayed, never scored)"
+    threshold_days: int = 365
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        dated = [
+            (c, c.interval)
+            for c in ctx.claims(ClaimKind.EMPLOYMENT)
+            if c.interval is not None
+        ]
+        if len(dated) < 2:
+            raise Abstain("Fewer than two dated roles are claimed.")
+
+        ordered = sorted(dated, key=lambda pair: bounds(pair[1].start)[0])
+        for (a, ia), (b, ib) in itertools.pairwise(ordered):
+            days = gap_between(ia, ib, today=ctx.today)
+            if days is None or days < self.threshold_days:
+                continue
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [a.claim_id, b.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.INFO,
+                confidence=0.9,
+                scoring=self.scoring,
+                claim_refs=[a.claim_id, b.claim_id],
+                evidence_refs=[],
+                params={"gap_days": days, "after": a.org, "before": b.org},
+                explanation=(
+                    f"{days} days separate {a.org!r} from {b.org!r} under every reading "
+                    "of the dates."
+                ),
+                innocent_explanation=(
+                    "A gap is not evidence of anything. Illness, caregiving, a visa, a "
+                    "sabbatical, study, a failed venture and a bad job market all look "
+                    "identical here, and a CV is under no obligation to account for its "
+                    "own shape. This is shown so a reviewer may ask, and it is barred "
+                    "from contributing to any total."
+                ),
+            )
+
+
+@register
+@dataclass(frozen=True)
+class D12TitleProgression:
+    """Seniority moving faster than tenure.
+
+    NON-SCORING, for the same reason as D11 and more so. Titles are not comparable
+    across companies: a "Senior Engineer" at a four-person startup and at a bank are
+    different jobs with the same words. Promotion speed also tracks company size,
+    sector and luck far more than it tracks ability.
+    """
+
+    rule_id: str = "D12"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False
+    summary: str = "Seniority against tenure (displayed, never scored)"
+    fast_months: int = 18
+
+    _LADDER: tuple[tuple[str, ...], ...] = (
+        ("intern", "trainee"),
+        ("junior", "associate", "graduate"),
+        ("engineer", "developer", "analyst"),
+        ("senior",),
+        ("lead", "principal", "staff", "manager"),
+        ("head", "director", "vp", "vice president", "chief"),
+    )
+
+    def _rank(self, title: str) -> int | None:
+        lowered = title.lower()
+        for level in range(len(self._LADDER) - 1, -1, -1):
+            if any(word in lowered for word in self._LADDER[level]):
+                return level
+        return None
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        dated = [
+            (c, c.interval)
+            for c in ctx.claims(ClaimKind.EMPLOYMENT)
+            if c.interval is not None and c.title
+        ]
+        if len(dated) < 2:
+            raise Abstain("Fewer than two dated, titled roles are claimed.")
+
+        ordered = sorted(dated, key=lambda pair: bounds(pair[1].start)[0])
+        for (a, ia), (b, ib) in itertools.pairwise(ordered):
+            ra, rb = self._rank(a.title or ""), self._rank(b.title or "")
+            if ra is None or rb is None or rb - ra < 2:
+                continue
+            months = (bounds(ib.start)[0] - bounds(ia.start)[0]).days // 30
+            if months >= self.fast_months:
+                continue
+
+            yield Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [a.claim_id, b.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=Severity.INFO,
+                confidence=0.5,
+                scoring=self.scoring,
+                claim_refs=[a.claim_id, b.claim_id],
+                evidence_refs=[],
+                params={"from": a.title, "to": b.title, "months": months},
+                explanation=(
+                    f"{a.title!r} to {b.title!r} in about {months} months."
+                ),
+                innocent_explanation=(
+                    "Titles are not comparable across companies — a Senior Engineer at "
+                    "a four-person startup and at a bank are different jobs sharing a "
+                    "word. Promotion speed tracks company size, sector and timing far "
+                    "more than ability. Shown so a reviewer may ask; barred from any "
+                    "total."
+                ),
+            )
+
+
+def _pdf_date(value: str | None) -> datetime.date | None:
+    """PDF dates look like `D:20250704194743+05'30'`."""
+    if not value:
+        return None
+    digits = value.removeprefix("D:")[:8]
+    try:
+        return datetime.datetime.strptime(digits, "%Y%m%d").replace(
+            tzinfo=datetime.UTC
+        ).date()
+    except ValueError:
+        return None

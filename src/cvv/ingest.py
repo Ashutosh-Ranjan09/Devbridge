@@ -17,7 +17,7 @@ from typing import Any
 
 import pymupdf
 
-from cvv.models import IngestMethod
+from cvv.models import DocumentInfo, IngestMethod
 
 
 @dataclass(frozen=True)
@@ -180,6 +180,19 @@ def read_pdf(path: Path) -> Document:
         producer=meta.get("producer") or None,
         created_at=meta.get("creationDate") or None,
         modified_at=meta.get("modDate") or None,
+    )
+
+
+def document_info(doc: Document) -> DocumentInfo:
+    """The file's own provenance, for D4."""
+    return DocumentInfo(
+        document_id=doc.document_id,
+        pages=doc.pages,
+        ingest_method=doc.ingest_method,
+        ocr_confidence=doc.ocr_confidence,
+        producer=doc.producer,
+        created_at=doc.created_at,
+        modified_at=doc.modified_at,
     )
 
 

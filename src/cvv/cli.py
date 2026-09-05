@@ -17,7 +17,7 @@ from cvv import __version__
 from cvv.config import settings
 from cvv.extract import extract
 from cvv.gather import gather
-from cvv.ingest import read, sections
+from cvv.ingest import document_info, read, sections
 from cvv.providers import OllamaProvider
 from cvv.report import assemble, coverage, render
 from cvv.rules import REGISTRY
@@ -78,7 +78,12 @@ def verify(
     else:
         bundle = gather(graph, bundle_id=f"eb_{document.document_id[4:]}")
 
-    report = assemble(graph, bundle, report_id=f"fr_{document.document_id[4:]}")
+    report = assemble(
+        graph,
+        bundle,
+        report_id=f"fr_{document.document_id[4:]}",
+        document=document_info(document),
+    )
 
     if save:
         save.mkdir(parents=True, exist_ok=True)
