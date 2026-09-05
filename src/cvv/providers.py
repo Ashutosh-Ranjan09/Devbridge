@@ -16,9 +16,11 @@ from typing import Any, Protocol
 
 import httpx
 
+from cvv.config import settings
+
 # num_ctx defaults to 4096 in Ollama and truncates SILENTLY — claims from the bottom
 # of a CV vanish with no error. Set explicitly on every call.
-NUM_CTX = 8192
+NUM_CTX = settings.num_ctx
 CHARS_PER_TOKEN = 3.2  # conservative for English prose
 
 
@@ -47,18 +49,22 @@ class OllamaProvider:
 
     def __init__(
         self,
-        model_id: str = "qwen3:1.7b",
+        model_id: str | None = None,
         *,
-        url: str = "http://localhost:11434/api/chat",
-        seed: int = 7,
-        num_ctx: int = NUM_CTX,
-        timeout: float = 600.0,
+        url: str | None = None,
+        seed: int | None = None,
+        num_ctx: int | None = None,
+        num_gpu: int | None = None,
+        timeout: float | None = None,
     ) -> None:
-        self.model_id = model_id
-        self.url = url
-        self.seed = seed
-        self.num_ctx = num_ctx
-        self.timeout = timeout
+        self.model_id = model_id or settings.ollama_model
+        self.url = url or f"{settings.ollama_url}/api/chat"
+        self.seed = settings.seed if seed is None else seed
+        self.num_ctx = num_ctx or settings.num_ctx
+        # None lets Ollama pick the GPU/CPU layer split from whatever VRAM is free,
+        # which is the one measured source of non-determinism here. See config.py.
+        self.num_gpu = settings.num_gpu if num_gpu is None else num_gpu
+        self.timeout = timeout or settings.request_timeout
 
     def complete_json(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         estimated = int(len(prompt) / CHARS_PER_TOKEN)
@@ -81,6 +87,7 @@ class OllamaProvider:
                     "temperature": 0,
                     "seed": self.seed,
                     "num_ctx": self.num_ctx,
+                    **({"num_gpu": self.num_gpu} if self.num_gpu is not None else {}),
                 },
                 "messages": [{"role": "user", "content": prompt}],
             },
@@ -89,3 +96,23 @@ class OllamaProvider:
         content: str = response.json()["message"]["content"]
         parsed: dict[str, Any] = json.loads(content)
         return parsed
+
+    def loaded_split(self) -> str | None:
+        """How Ollama has actually placed the model right now, e.g. "11%/89% CPU/GPU".
+
+        Worth recording in a report's provenance: with num_gpu unpinned this is what
+        decides whether a re-run reproduces, and a stored report should say which
+        configuration produced it.
+        """
+        try:
+            base = self.url.rsplit("/api/", 1)[0]
+            models = httpx.get(f"{base}/api/ps", timeout=5.0).json().get("models", [])
+        except (httpx.HTTPError, KeyError, ValueError):
+            return None
+        for m in models:
+            if m.get("name") == self.model_id or m.get("model") == self.model_id:
+                total = m.get("size", 0)
+                gpu = m.get("size_vram", 0)
+                if total:
+                    return f"{round(100 * gpu / total)}% GPU ({gpu / 1e9:.1f} of {total / 1e9:.1f} GB)"
+        return None
