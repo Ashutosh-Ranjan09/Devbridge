@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # and refusing to start is the wrong answer for a tool nobody has configured yet.
     api_key: str | None = None
 
+    # Postgres DSN. Unset keeps verifications in memory, which loses them on restart
+    # and cannot be shared between processes — /healthz reports which is in use, so
+    # nobody has to assume. A DSN that is set and unreachable fails loudly.
+    database_url: str | None = None
+
     request_timeout: float = 600.0
 
 

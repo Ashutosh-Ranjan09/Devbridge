@@ -1,12 +1,16 @@
 """Where verifications live between the POST that starts one and the GET that reads it.
 
-In memory, behind a narrow interface, because Postgres is declared in the stack and
-unbuilt and nothing yet needs it to be. What that buys is the swap: a Postgres
-implementation has to satisfy these six methods and nothing in `api.py` changes.
+Two implementations behind one Protocol. `MemoryStore` needs nothing and loses
+everything on restart; `PostgresStore` survives one and can be shared by more than a
+single process. `CVV_DATABASE_URL` chooses, `GET /healthz` reports which by name, and
+`api.py` cannot tell the difference — the Protocol is what makes that true, and mypy
+checks both satisfy it rather than trusting that they do.
 
-What it costs is stated rather than hidden — a restart loses every verification, and
-two processes do not share one. Both are fine for a single-process research service
-and are wrong for anything else, so `GET /healthz` reports the backing store by name.
+The stored object is the VerificationReport itself, as JSONB. No ORM and no mapped
+tables, deliberately: the report is a deep pydantic tree that already round-trips
+through JSON by contract, and shredding it into columns would create a second schema
+to keep in step with the first. What the columns hold is what has to be QUERIED —
+the id, the status, the timestamps, the idempotency key.
 """
 
 from __future__ import annotations
@@ -14,7 +18,9 @@ from __future__ import annotations
 import datetime
 import threading
 from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
 
+from cvv.config import settings
 from cvv.models import VerificationReport, Webhook
 
 
@@ -30,6 +36,39 @@ class Pending:
     verification_id: str
     created_at: datetime.datetime
     idempotency_key: str | None = None
+
+
+class Duplicate(Exception):  # noqa: N818 - a settled race, not an error
+    """This idempotency key already started a verification, and here is its id.
+
+    Both stores raise it and the API turns it into the same 200 it returns from the
+    pre-check. Without it the two implementations disagreed under a race that the
+    pre-check cannot close: MemoryStore quietly rebound the key to a second
+    verification, and PostgresStore raised a UniqueViolation that reached the client
+    as a 500. The database is the only place that race can be settled, so the
+    exception is how it is reported.
+    """
+
+    def __init__(self, verification_id: str) -> None:
+        super().__init__(f"already started as {verification_id}")
+        self.verification_id = verification_id
+
+
+@runtime_checkable
+class Store(Protocol):
+    """Six methods. Anything satisfying these can back the HTTP surface."""
+
+    name: str
+    started: datetime.datetime
+
+    def accept(self, verification_id: str, *, idempotency_key: str | None = None) -> Pending: ...
+    def existing(self, idempotency_key: str) -> str | None: ...
+    def complete(self, report: VerificationReport) -> None: ...
+    def report(self, verification_id: str) -> VerificationReport | None: ...
+    def pending(self, verification_id: str) -> Pending | None: ...
+    def register(self, hook: Webhook) -> None: ...
+    def webhooks(self) -> list[Webhook]: ...
+    def counts(self) -> tuple[int, int, int]: ...
 
 
 @dataclass
@@ -53,6 +92,8 @@ class MemoryStore:
 
     def accept(self, verification_id: str, *, idempotency_key: str | None = None) -> Pending:
         with self._lock:
+            if idempotency_key and (known := self._by_key.get(idempotency_key)):
+                raise Duplicate(known)
             job = Pending(
                 verification_id=verification_id,
                 created_at=datetime.datetime.now(datetime.UTC),
@@ -89,6 +130,13 @@ class MemoryStore:
 
     def register(self, hook: Webhook) -> None:
         with self._lock:
+            # Deduplicated by id, matching the Postgres ON CONFLICT DO NOTHING. The
+            # unconditional append was a real divergence: registering the same hook
+            # twice made this store fire it twice per verification and Postgres fire
+            # it once. Same shape, different behaviour — which is why one suite runs
+            # against both.
+            if any(existing.webhook_id == hook.webhook_id for existing in self._webhooks):
+                return
             self._webhooks.append(hook)
 
     def webhooks(self) -> list[Webhook]:
@@ -103,4 +151,175 @@ class MemoryStore:
             return len(self._reports) + len(self._pending), len(completed), len(failed)
 
 
-STORE = MemoryStore()
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS verifications (
+    verification_id TEXT PRIMARY KEY,
+    status          TEXT NOT NULL,
+    idempotency_key TEXT,
+    created_at      TIMESTAMPTZ NOT NULL,
+    completed_at    TIMESTAMPTZ,
+    report          JSONB
+);
+-- Partial and UNIQUE: two concurrent retries of the same upload must not both start
+-- a verification, and the check-then-insert in `accept` cannot prevent that on its
+-- own. The database is the only place that race can be settled.
+CREATE UNIQUE INDEX IF NOT EXISTS verifications_idempotency
+    ON verifications (idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS verifications_status ON verifications (status);
+
+CREATE TABLE IF NOT EXISTS webhooks (
+    webhook_id TEXT PRIMARY KEY,
+    url        TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
+);
+"""
+
+PENDING = "pending"
+
+
+class PostgresStore:
+    """The same six methods, over psycopg 3 and plain SQL.
+
+    A pool rather than a connection: FastAPI runs sync handlers in a thread pool and
+    background tasks in another, and a single psycopg connection is not safe to share
+    across threads. The pool hands each thread its own.
+
+    The schema is applied at construction with `IF NOT EXISTS` rather than by a
+    migration tool — Alembic is in the stack's "not used" list, and one idempotent
+    DDL statement is the honest amount of machinery for two tables. When the schema
+    needs to CHANGE rather than exist, that is the moment to add a migration tool,
+    not before.
+    """
+
+    name = "postgres"
+
+    def __init__(self, dsn: str, *, min_size: int = 1, max_size: int = 8) -> None:
+        from psycopg_pool import ConnectionPool
+
+        self.started = datetime.datetime.now(datetime.UTC)
+        self.pool = ConnectionPool(dsn, min_size=min_size, max_size=max_size, open=True)
+        self.pool.wait(timeout=10.0)
+        with self.pool.connection() as conn:
+            conn.execute(SCHEMA)
+
+    def close(self) -> None:
+        self.pool.close()
+
+    def accept(self, verification_id: str, *, idempotency_key: str | None = None) -> Pending:
+        import psycopg
+
+        now = datetime.datetime.now(datetime.UTC)
+        try:
+            with self.pool.connection() as conn:
+                conn.execute(
+                    "INSERT INTO verifications "
+                    "(verification_id, status, idempotency_key, created_at) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (verification_id, PENDING, idempotency_key, now),
+                )
+        except psycopg.errors.UniqueViolation as exc:
+            # The race the pre-check cannot close: two retries of one upload arriving
+            # together. The unique index settles it and the loser gets the winner's id.
+            if idempotency_key and (known := self.existing(idempotency_key)):
+                raise Duplicate(known) from exc
+            raise
+        return Pending(
+            verification_id=verification_id, created_at=now, idempotency_key=idempotency_key
+        )
+
+    def existing(self, idempotency_key: str) -> str | None:
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "SELECT verification_id FROM verifications WHERE idempotency_key = %s",
+                (idempotency_key,),
+            ).fetchone()
+        return str(row[0]) if row else None
+
+    def complete(self, report: VerificationReport) -> None:
+        """One statement, so a report is never half-written.
+
+        `model_dump_json` rather than `model_dump`: the pydantic tree holds dates,
+        datetimes and enums that json.dumps cannot serialise, and the model already
+        knows how to render each of them exactly as the contract says.
+        """
+        with self.pool.connection() as conn:
+            conn.execute(
+                "UPDATE verifications SET status = %s, completed_at = %s, report = %s "
+                "WHERE verification_id = %s",
+                (
+                    report.status.value,
+                    report.completed_at,
+                    report.model_dump_json(),
+                    report.verification_id,
+                ),
+            )
+
+    def report(self, verification_id: str) -> VerificationReport | None:
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "SELECT report FROM verifications WHERE verification_id = %s",
+                (verification_id,),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return VerificationReport.model_validate(row[0])
+
+    def pending(self, verification_id: str) -> Pending | None:
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "SELECT created_at, idempotency_key FROM verifications "
+                "WHERE verification_id = %s AND report IS NULL",
+                (verification_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return Pending(
+            verification_id=verification_id, created_at=row[0], idempotency_key=row[1]
+        )
+
+    def register(self, hook: Webhook) -> None:
+        with self.pool.connection() as conn:
+            conn.execute(
+                "INSERT INTO webhooks (webhook_id, url, created_at) VALUES (%s, %s, %s) "
+                "ON CONFLICT (webhook_id) DO NOTHING",
+                (hook.webhook_id, str(hook.url), hook.created_at),
+            )
+
+    def webhooks(self) -> list[Webhook]:
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT webhook_id, url, created_at FROM webhooks ORDER BY created_at"
+            ).fetchall()
+        return [Webhook(webhook_id=r[0], url=r[1], created_at=r[2]) for r in rows]
+
+    def counts(self) -> tuple[int, int, int]:
+        """Counted in the database, not by loading every report into memory.
+
+        The naive version reads every stored VerificationReport — each one a whole
+        claim graph — to count three integers, and gets slower with every
+        verification the service has ever done.
+        """
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "SELECT count(*), "
+                "count(*) FILTER (WHERE status IN ('completed', 'completed_degraded')), "
+                "count(*) FILTER (WHERE status = 'failed') "
+                "FROM verifications"
+            ).fetchone()
+        assert row is not None
+        return int(row[0]), int(row[1]), int(row[2])
+
+
+def build(dsn: str | None) -> Store:
+    """Postgres when a DSN is configured, memory when it is not.
+
+    A DSN that is set and unreachable RAISES rather than falling back. Silently
+    serving from memory when someone asked for a database is how a service comes back
+    from a restart having lost everything while reporting itself healthy.
+    """
+    if not dsn:
+        return MemoryStore()
+    return PostgresStore(dsn)
+
+
+STORE: Store = build(settings.database_url)

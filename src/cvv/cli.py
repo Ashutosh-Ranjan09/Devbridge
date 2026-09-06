@@ -7,6 +7,7 @@ everything it does is equally reachable from a library call or an HTTP handler.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -244,7 +245,16 @@ def serve(
         typer.secho(
             "    Set CVV_API_KEY to keep it across restarts.\n", fg="yellow", err=True
         )
-    typer.secho(f"docs at http://{host}:{port}/docs", fg="green", err=True)
+    from cvv.store import STORE
+
+    if STORE.name == "memory":
+        typer.secho(
+            "Verifications are held IN MEMORY. A restart loses every one of them, and "
+            "a second process shares none. Set CVV_DATABASE_URL to persist.",
+            fg="yellow",
+            err=True,
+        )
+    typer.secho(f"store {STORE.name} · docs at http://{host}:{port}/docs", fg="green", err=True)
     uvicorn.run(api, host=host, port=port, log_level="info")
 
 
@@ -253,6 +263,10 @@ def config() -> None:
     """Effective settings, with secrets redacted."""
     values = settings.model_dump()
     values["github_token"] = "set" if values.get("github_token") else None
+    values["api_key"] = "set" if values.get("api_key") else None
+    # A DSN carries a password. Show the shape, never the credential.
+    if dsn := values.get("database_url"):
+        values["database_url"] = re.sub(r"//[^@]*@", "//***@", str(dsn))
     typer.echo(json.dumps(values, indent=2, default=str))
     provider = OllamaProvider()
     typer.echo(f"\nollama      {provider.loaded_split() or 'model not currently loaded'}")

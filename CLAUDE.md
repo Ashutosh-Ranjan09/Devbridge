@@ -11,7 +11,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 ## Current state
 
 **27 of the 41 catalogued checks are built and the pipeline runs end to end** on
-`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 306 tests, ~7,000 lines across 27
+`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 374 tests, ~8,900 lines across 30
 modules, ruff and `mypy --strict` clean.
 
 One of the 41 — G12 — is excluded by decision rather than pending, so the buildable
@@ -55,9 +55,13 @@ Four decisions worth not re-deriving:
 - **No queue.** `arq` and Redis are in "not used"; `BackgroundTasks` runs the job in
   this process. Honest for one process, and the first thing to replace when it stops
   being one.
-- **The store is in memory, behind six methods.** A restart loses everything and two
-  processes do not share one — so `/healthz` reports the backing store by name rather
-  than letting anyone assume. Postgres satisfies the same six methods.
+- **Two stores behind one Protocol**, chosen by `CVV_DATABASE_URL`. Memory needs
+  nothing and loses everything on restart; Postgres survives one and can be shared
+  between processes. A DSN that is set and unreachable RAISES rather than falling
+  back — silently serving from memory when someone asked for a database is how a
+  service comes back from a restart having lost everything while reporting itself
+  healthy. `/healthz` names which store is in use, `cvv serve` warns when it is
+  memory, and `cvv config` redacts the password out of the DSN.
 - **`completed_degraded` has to mean something.** "Any gap" was the first definition
   and it was useless: CodeChef publishes no API, so every run has a gap and every
   report was degraded. A missing connector is a permanent property of the system and
@@ -66,6 +70,30 @@ Four decisions worth not re-deriving:
 - **A failure is still a `VerificationReport`**, with empty claims and findings rather
   than absent ones, so a client never needs two shapes. A verification that vanishes
   leaves the client polling and with nothing to tell the person whose CV it was.
+
+**Persistence is JSONB, not an ORM.** The stored object is the `VerificationReport`
+itself — a deep pydantic tree that already round-trips through JSON by contract — so
+shredding it into mapped columns would create a second schema to keep in step with
+the first. Columns hold only what has to be QUERIED: id, status, timestamps, and the
+idempotency key under a partial UNIQUE index, because two concurrent retries of one
+upload cannot be settled by a check-then-insert and the database is the only place
+that race can be decided. Schema applied with `CREATE TABLE IF NOT EXISTS` at
+construction; Alembic is in "not used", and one idempotent DDL statement is the
+honest amount of machinery for two tables.
+
+```bash
+docker run -d --rm --name cvv-pg -e POSTGRES_PASSWORD=cvv -e POSTGRES_USER=cvv \
+    -e POSTGRES_DB=cvv -p 55432:5432 postgres:16-alpine
+export CVV_DATABASE_URL="postgresql://cvv:cvv@127.0.0.1:55432/cvv"
+```
+
+**One suite runs against both stores**, and that is not ceremony. The Protocol makes
+mypy check they have the same SHAPE; only `tests/test_store.py` checks they have the
+same BEHAVIOUR, and it caught two divergences on its first run. A duplicate
+idempotency key made memory quietly rebind the key to a second verification while
+Postgres raised a `UniqueViolation` that reached the client as a 500 — both now raise
+`Duplicate` carrying the first id. And registering one webhook twice made memory fire
+it twice per verification and Postgres fire it once.
 
 Ingest reads **PDF, DOCX and scanned PDF** (`uv sync --extra ocr`). A PDF whose text
 layer is thinner than 120 characters a page is a scan and goes to OCR automatically;
@@ -99,13 +127,12 @@ the GPU/CPU layer split, which Ollama picks from free VRAM at load time and whic
 moves the model's raw proposal count; pin `CVV_NUM_GPU` to remove it. The filters
 absorbed that variance in every observed case — 18 proposals or 22, same findings.
 
-**What is genuinely left**, all of it outside the check catalogue: an HTTP surface
-and Postgres persistence (declared in the stack, unbuilt — nothing needs them yet),
-and G6 tier 2, which would read targeted repository files to turn "the dependency is
-installed" into "the dependency is used for the thing claimed". That last one is the
-only remaining check improvement and it is deliberately deferred: it opens a
-prompt-injection surface the candidate chooses the contents of, for a gain the
-manifest check already approximates.
+**What is genuinely left** is G6 tier 2, which would read targeted repository files
+to turn "the dependency is installed" into "the dependency is used for the thing
+claimed" — the only remaining check improvement, and deliberately deferred: it opens
+a prompt-injection surface whose contents the candidate chooses, for a gain the
+manifest check already approximates. Everything else outstanding is data acquisition
+(C1–C4), a source that does not exist (P5), or human by design (H1–H6).
 
 Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 
@@ -353,7 +380,7 @@ three, and the four pipeline directories for the rest. Full annotated tree in
 core      python 3.12 · uv · pydantic v2 · pydantic-settings
 llm       pydantic-ai → ollama (qwen3:1.7b) · nomic-embed-text
 vectors   qdrant (local mode, no server)
-web       fastapi · typer · httpx
+web       fastapi · uvicorn · typer · httpx
 data      postgres 16 · psycopg 3 + psycopg_pool — JSONB, plain SQL, no ORM
 ingest    pymupdf · python-docx · rapidocr-onnxruntime [extra] · rapidfuzz
 scrape    selectolax

@@ -61,7 +61,7 @@ from cvv.narrative import PROMPT_VERSION, narrate
 from cvv.providers import OllamaProvider
 from cvv.report import assemble
 from cvv.rules import REGISTRY
-from cvv.store import STORE
+from cvv.store import STORE, Duplicate
 
 SNIPPET_MARGIN = 120
 
@@ -293,7 +293,17 @@ def create_verification(
         handle.write(payload)
         path = Path(handle.name)
 
-    STORE.accept(verification_id, idempotency_key=idempotency_key)
+    try:
+        STORE.accept(verification_id, idempotency_key=idempotency_key)
+    except Duplicate as clash:
+        # Two retries of the same upload arrived together and the store settled it.
+        # The loser gets the winner's id and starts nothing.
+        path.unlink(missing_ok=True)
+        response.status_code = status.HTTP_200_OK
+        return VerificationAccepted(
+            verification_id=clash.verification_id, status="known", estimated_seconds=0
+        )
+
     background.add_task(
         run_verification,
         verification_id,
