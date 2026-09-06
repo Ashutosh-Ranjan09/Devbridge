@@ -19,6 +19,7 @@ from cvv.config import settings
 from cvv.extract import extract
 from cvv.gather import gather
 from cvv.ingest import document_info, read, sections
+from cvv.logs import configure
 from cvv.models import ClaimGraph, EvidenceBundle
 from cvv.narrative import narrate
 from cvv.providers import OllamaProvider
@@ -283,7 +284,13 @@ def config() -> None:
 @app.callback(invoke_without_command=True)
 def main(
     version: Annotated[bool, typer.Option("--version", help="Print the version.")] = False,
+    log_level: Annotated[
+        str | None, typer.Option(help="error | warning | info | debug. Logs go to stderr.")
+    ] = None,
 ) -> None:
+    # stderr, so `cvv verify --json > report.json` stays a clean JSON file. Human
+    # format on a terminal, JSON when the output is a pipe.
+    configure(log_level or settings.log_level)
     if version:
         typer.echo(f"cvv {__version__}")
         raise typer.Exit

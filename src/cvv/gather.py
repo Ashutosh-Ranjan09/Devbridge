@@ -22,6 +22,7 @@ import httpx
 
 from cvv.github import gather_github
 from cvv.leetcode import gather_leetcode
+from cvv.logs import get
 from cvv.models import (
     ClaimGraph,
     ContestResult,
@@ -37,6 +38,8 @@ CODEFORCES_API = "https://codeforces.com/api"
 # Codeforces asks for no more than one request every two seconds.
 CF_MIN_INTERVAL = 2.1
 USER_AGENT = "cvv/0.1 (CV verification research; contact via repository)"
+
+log = get("cvv.gather")
 
 
 def _cf_get(client: httpx.Client, endpoint: str, **params: str) -> list[dict[str, object]]:
@@ -137,6 +140,7 @@ def probe(url: str, *, timeout: float = 15.0) -> DeploymentEvidence:
 
 def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
     """Everything the CV named, or a typed gap saying why not."""
+    began = time.monotonic()
     from cvv.extract import platform_handles  # local import: gather is imported by tests
 
     platforms: list[PlatformEvidence] = []
@@ -209,6 +213,16 @@ def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
             )
         )
 
+    log.info(
+        "gather.done",
+        bundle_id=bundle_id,
+        platforms=[p.platform.value for p in platforms],
+        repos=len(github.repos) if github else 0,
+        deployments=len(deployments),
+        # The REASONS, never the details — a gap detail can quote a URL or a handle.
+        gaps={gap.source: gap.reason.value for gap in gaps},
+        seconds=round(time.monotonic() - began, 1),
+    )
     return EvidenceBundle(
         bundle_id=bundle_id,
         graph_id=graph.graph_id,

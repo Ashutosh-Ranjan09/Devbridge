@@ -41,6 +41,7 @@ from cvv.extract import extract
 from cvv.gather import gather
 from cvv.ids import stable_id
 from cvv.ingest import document_info, read
+from cvv.logs import configure, get
 from cvv.models import (
     ApiError,
     ClaimGraph,
@@ -64,6 +65,11 @@ from cvv.rules import REGISTRY
 from cvv.store import STORE, Duplicate
 
 SNIPPET_MARGIN = 120
+
+# The API is imported rather than invoked through the CLI when a server runs it, so
+# it configures logging itself. `configure` is idempotent.
+configure(settings.log_level)
+log = get("cvv.api")
 
 app = FastAPI(
     title="cvv — CV Verification Engine",
@@ -135,6 +141,7 @@ def run_verification(
     has nothing to report to the person whose CV it was.
     """
     created = datetime.datetime.now(datetime.UTC)
+    log.info("verification.started", verification_id=verification_id, offline=offline)
     try:
         document = read(path)
         graph, _ = extract(
@@ -155,10 +162,23 @@ def run_verification(
         )
         narrative = _narrative(findings) if want_narrative else None
 
+        outcome = _status(graph, bundle)
+        log.info(
+            "verification.completed",
+            verification_id=verification_id,
+            status=outcome.value,
+            claims=len(graph.claims),
+            dropped=graph.extraction_meta.span_failures,
+            findings=len(findings.discrepancies),
+            gaps=len(bundle.gaps),
+            seconds=round(
+                (datetime.datetime.now(datetime.UTC) - created).total_seconds(), 1
+            ),
+        )
         STORE.complete(
             VerificationReport(
                 verification_id=verification_id,
-                status=_status(graph, bundle),
+                status=outcome,
                 claim_graph=graph,
                 findings=findings,
                 narrative=narrative,
@@ -167,6 +187,11 @@ def run_verification(
             )
         )
     except Exception as exc:
+        # The client sees `status: failed` and one line. Without this the stack that
+        # produced it is gone, and the task ran in a thread nobody was watching.
+        log.exception(
+            "verification.failed", verification_id=verification_id, error=type(exc).__name__
+        )
         STORE.complete(_failed(verification_id, created, f"{type(exc).__name__}: {exc}"))
     finally:
         path.unlink(missing_ok=True)
@@ -254,7 +279,10 @@ def _fire_webhooks(verification_id: str) -> None:
                 json={"verification_id": verification_id, "status": "completed"},
                 timeout=10.0,
             )
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
+            log.warning(
+                "webhook.failed", webhook_id=hook.webhook_id, error=type(exc).__name__
+            )
             continue
 
 

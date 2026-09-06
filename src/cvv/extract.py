@@ -24,6 +24,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,6 +34,7 @@ from cvv.dates import parse_interval
 from cvv.filters import apply as apply_filters
 from cvv.ids import claim_id
 from cvv.ingest import Document, Section, line_at, section_text, sections
+from cvv.logs import get
 from cvv.models import (
     Artefact,
     ArtefactType,
@@ -49,6 +51,8 @@ from cvv.models import (
 from cvv.providers import LLMProvider, OllamaProvider
 from cvv.reference import roll_patterns
 from cvv.spans import recover_span, recover_token
+
+log = get("cvv.extract")
 
 PROMPT_VERSION = "extract/v2-narrow"
 
@@ -677,9 +681,11 @@ def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], 
     # fallback rather than the mechanism.
     try:
         routed = route(doc, provider)
-    except Exception:  # routing is an optimisation; never let it fail a run
+    except Exception as exc:  # routing is an optimisation; never let it fail a run
+        log.warning("routing.failed", error=type(exc).__name__)
         routed = {}
     counts["routing"] = len(routed)
+    log.debug("routing.done", categories=sorted(routed))
 
     for p in PASSES:
         if windows := routed.get(p.routes_to):
@@ -694,6 +700,7 @@ def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], 
         else:
             windows = [(0, len(doc.text))]
 
+        began = time.monotonic()
         found: list[ProposedClaim] = []
         for offset, end in windows:
             batch = _call(p, doc.text[offset:end], offset, provider)
@@ -708,6 +715,14 @@ def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], 
             found.extend(batch)
 
         counts[p.name] = len(found)
+        log.debug(
+            "pass.done",
+            pass_name=p.name,
+            windows=len(windows),
+            chars=sum(end - start for start, end in windows),
+            proposed=len(found),
+            seconds=round(time.monotonic() - began, 1),
+        )
         proposed.extend(found)
     return proposed, counts
 
@@ -885,6 +900,14 @@ def ground(
     claims = scope_technologies(claims, windows, doc)
     claims, dropped = apply_filters(claims)
     span_failures += sum(dropped.values())
+    log.info(
+        "extraction.done",
+        graph_id=graph_id,
+        proposed=len(proposed),
+        claims=len(claims),
+        span_failures=span_failures,
+        filtered={k: v for k, v in dropped.items() if v},
+    )
 
     return ClaimGraph(
         graph_id=graph_id,

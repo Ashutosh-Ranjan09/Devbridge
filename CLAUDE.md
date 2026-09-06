@@ -71,6 +71,22 @@ Four decisions worth not re-deriving:
   than absent ones, so a client never needs two shapes. A verification that vanishes
   leaves the client polling and with nothing to tell the person whose CV it was.
 
+**Logging never carries the CV.** Everything this system touches is somebody's
+personal data, and a log line is the easiest place for it to escape — written to
+disk, shipped to an aggregator, tailed in a shared terminal, kept long after the
+verification it described was deleted. So events carry IDENTIFIERS AND COUNTS
+(`verification_id`, `rule_id`, `claims=19`, `seconds=21.3`) and never content. A
+convention is not an enforcement mechanism, so `logs.scrub` replaces the dangerous
+keys on the way out whatever a caller passed — `verbatim`, `handle`, `name`, `org`,
+`snippet`, `url`, `explanation` — and a test asserts it holds through the real
+processor chain. Output goes to **stderr**, so `cvv verify --json > report.json`
+stays a file that parses.
+
+The two places worth instrumenting first were the two where a failure is otherwise
+invisible: `run_all` turns a raising rule into `status: error` with a one-line reason
+and discards the traceback, and the API's verification runs in a background task
+nobody is watching. Both now log the stack.
+
 **Persistence is JSONB, not an ORM.** The stored object is the `VerificationReport`
 itself — a deep pydantic tree that already round-trips through JSON by contract — so
 shredding it into mapped columns would create a second schema to keep in step with
@@ -408,7 +424,7 @@ ingest    pymupdf · python-docx · rapidocr-onnxruntime [extra] · rapidfuzz
 scrape    selectolax
 test      pytest · pytest-asyncio · hypothesis · respx
 eval      pandas · matplotlib
-ops       structlog
+ops       structlog — stderr, JSON off a terminal
 quality   ruff · mypy --strict — installed, NOT gating
 ```
 

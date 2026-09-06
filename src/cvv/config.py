@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     # nobody has to assume. A DSN that is set and unreachable fails loudly.
     database_url: str | None = None
 
+    # Logging. `debug` adds per-pass extraction timings and per-request detail; it
+    # still logs no CV content, because that is enforced in logs.py rather than
+    # chosen per level.
+    log_level: str = "info"
+
     request_timeout: float = 600.0
 
 

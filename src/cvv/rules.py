@@ -22,6 +22,7 @@ from rapidfuzz import fuzz
 from cvv.filters import is_aggregate
 from cvv.ids import finding_id
 from cvv.intervals import Rel, bounds, gap_between, max_span, merge_non_overlapping, overlap
+from cvv.logs import get
 from cvv.models import (
     ArtefactType,
     Claim,
@@ -55,6 +56,8 @@ from cvv.reference import (
 # Contest names differ in punctuation and in how much of the title a CV bothers to
 # copy, never in their number — which the numeral guard above checks separately.
 CONTEST_THRESHOLD = 85
+
+log = get("cvv.rules")
 
 
 class Abstain(Exception):  # noqa: N818 - a control signal, not an error
@@ -789,6 +792,13 @@ def run_all(ctx: Context) -> tuple[list[Discrepancy], list[RuleOutcome]]:
             )
             continue
         except Exception as exc:
+            # Isolation keeps the report rendering, and that is right — but it also
+            # discards the traceback, so a rule broken by one malformed claim shows
+            # up as a single line in a bucket nobody reads twice. The log is the only
+            # place the stack survives.
+            log.exception(
+                "rule.error", rule_id=rule.rule_id, error=type(exc).__name__
+            )
             outcomes.append(
                 RuleOutcome(
                     rule_id=rule.rule_id,
@@ -809,6 +819,14 @@ def run_all(ctx: Context) -> tuple[list[Discrepancy], list[RuleOutcome]]:
         )
 
     assert len(outcomes) == len(REGISTRY), "every registered rule must be accounted for"
+    log.info(
+        "rules.evaluated",
+        fired=sum(1 for o in outcomes if o.status is RuleStatus.FIRED),
+        clean=sum(1 for o in outcomes if o.status is RuleStatus.CLEAN),
+        abstained=sum(1 for o in outcomes if o.status is RuleStatus.ABSTAINED),
+        errors=sum(1 for o in outcomes if o.status is RuleStatus.ERROR),
+        findings=len(findings),
+    )
     return findings, outcomes
 
 

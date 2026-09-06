@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from cvv.config import settings
+from cvv.logs import get
 from cvv.models import VerificationReport, Webhook
 
 
@@ -310,6 +311,9 @@ class PostgresStore:
         return int(row[0]), int(row[1]), int(row[2])
 
 
+log = get("cvv.store")
+
+
 def build(dsn: str | None) -> Store:
     """Postgres when a DSN is configured, memory when it is not.
 
@@ -318,8 +322,14 @@ def build(dsn: str | None) -> Store:
     from a restart having lost everything while reporting itself healthy.
     """
     if not dsn:
+        log.warning(
+            "store.memory",
+            detail="verifications are lost on restart and shared by no other process",
+        )
         return MemoryStore()
-    return PostgresStore(dsn)
+    store = PostgresStore(dsn)
+    log.info("store.postgres")  # never the DSN: it carries a password
+    return store
 
 
 STORE: Store = build(settings.database_url)
