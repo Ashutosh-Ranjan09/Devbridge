@@ -195,7 +195,15 @@ class ExtractionMeta(Model):
     model_id: str
     prompt_version: str
     input_hash: str
-    span_failures: int = Field(default=0, ge=0)  # ungroundable claims, dropped
+    # UNGROUNDABLE — the quoted text is not in the document. The model invented or
+    # garbled it, and dropping it is the guardrail working.
+    span_failures: int = Field(default=0, ge=0)
+    # FILTERED — the text was real and the claim was not usable: a field the span did
+    # not support, an excluded exam, a duplicate. Kept apart from `span_failures`
+    # because they mean opposite things about the model, and a report that says
+    # "the quoted text could not be found" about a claim whose text was found
+    # perfectly well is telling a reader something false.
+    filtered: dict[str, int] = Field(default_factory=dict)
     retries: int = Field(default=0, ge=0)
     extracted_at: datetime.datetime
     degraded: bool = False

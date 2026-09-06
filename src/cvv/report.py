@@ -248,8 +248,11 @@ def render(
     head("=")
     out.append("  CV VERIFICATION REPORT")
     out.append(f"  document {graph.source.document_id}   ·   {len(graph.claims)} claims extracted")
-    out.append(f"  model {graph.extraction_meta.model_id}   ·   "
-               f"{graph.extraction_meta.span_failures} claims dropped at grounding")
+    # Both causes, apart. Summing them and calling the total "dropped at grounding"
+    # told a reader that text the filters refused was not in their own CV.
+    meta = graph.extraction_meta
+    out.append(f"  model {meta.model_id}   ·   {meta.span_failures} dropped at grounding"
+               f"   ·   {sum(meta.filtered.values())} refused by filters")
     cov = coverage(report)
     out.append(
         f"  {cov.rules_total} checks registered   ·   {cov.rules_evaluated} evaluated"

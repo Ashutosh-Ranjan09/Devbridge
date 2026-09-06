@@ -979,10 +979,38 @@ class TestD2SpanGrounding:
         graph = make_graph([roll()], DOCUMENT, span_failures=2)
         report = assemble(graph, bundle(graph))
         finding = next(f for f in report.discrepancies if f.rule_id == "D2")
-        assert finding.params == {"dropped": 2, "kept": 1, "proposed": 3}
+        assert finding.params["dropped"] == 2
+        assert finding.params["ungroundable"] == 2
+        assert finding.params["kept"] == 1
         assert finding.scoring is False
         assert finding.claim_refs == [], "no claim survived to be cited"
         assert finding.finding_id in report.buckets.needs_context
+
+    def test_the_two_causes_are_never_added_together(self) -> None:
+        """They mean opposite things about the model. Version 1 summed them and
+        called the total "text that could not be found" — on a CV whose achievements
+        were patents and GitHub stars, the filters correctly refused six perfectly
+        real sentences and the report told the reader their text was not in their own
+        CV."""
+        graph = make_graph(
+            [roll()], DOCUMENT, span_failures=1, filtered={"excluded_exam": 3}
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D2")
+        assert finding.params["ungroundable"] == 1
+        assert finding.params["filtered"] == 3
+        assert finding.params["dropped"] == 4
+        assert "1 because the quoted text is not in the document" in finding.explanation
+        assert "excluded exam (3)" in finding.explanation
+
+    def test_filtering_alone_still_reports(self) -> None:
+        """A run where nothing was ungroundable and the filters refused four claims
+        is still a coverage loss the reader has to see."""
+        graph = make_graph([roll()], DOCUMENT, filtered={"value_not_in_span": 4})
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D2")
+        assert finding.params["ungroundable"] == 0
+        assert "quoted text is not in the document" not in finding.explanation
 
     def test_losing_more_than_was_kept_is_a_louder_finding(self) -> None:
         graph = make_graph([roll()], DOCUMENT, span_failures=9)

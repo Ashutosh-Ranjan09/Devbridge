@@ -1,0 +1,28 @@
+{
+  "fetched_at": 1788722514.5762072,
+  "key": "userProfile:f5f03115:pnara-dev",
+  "body": {
+    "errors": [
+      {
+        "message": "That user does not exist.",
+        "locations": [
+          {
+            "line": 3,
+            "column": 3
+          }
+        ],
+        "path": [
+          "matchedUser"
+        ],
+        "extensions": {
+          "handled": true,
+          "skip_sentry": true
+        }
+      }
+    ],
+    "data": {
+      "matchedUser": null,
+      "userContestRanking": null
+    }
+  }
+}

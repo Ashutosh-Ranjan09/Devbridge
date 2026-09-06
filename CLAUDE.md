@@ -102,6 +102,17 @@ nobody can see is filtering nobody can audit. Four decisions inside it:
   go out in an explicit `surface:` namespace with reduced relevance. M6 can map or
   reject them knowingly rather than storing something invented.
 
+**Two causes of a lost claim, never added together.** `span_failures` means the
+quoted text is not in the document — the model invented or garbled it.
+`extraction_meta.filtered` means the text was real and the claim was not usable: a
+field its own span did not support, an excluded exam, a duplicate. They say opposite
+things about the model, and version 1 of D2 summed them and called the total "text
+that could not be found". On a professional CV whose ACHIEVEMENTS section holds
+patents, GitHub stars and published books rather than contest ratings, the
+achievements pass returned six perfectly real sentences forced into a
+competitive-programming shape, the filters refused all six — correctly — and the
+report told the reader their text was not in their own CV.
+
 **Logging never carries the CV.** Everything this system touches is somebody's
 personal data, and a log line is the easiest place for it to escape — written to
 disk, shipped to an aggregator, tailed in a shared terminal, kept long after the
@@ -323,6 +334,7 @@ someone and one you would not.
    | G10 | no public commits during a claimed job | that is what a salaried job looks like from outside. Work code is private |
    | G11 | employer absent from public org memberships | org membership is private by default; most members never opt in |
    | D6 | stated total exceeds the dated roles | a CV need not list every role, and one page forces the choice |
+   | D5 | any DEFINITE overlap between two full-time roles | a thirteen-day overlap is a notice period. You start the new job while notice at the old one runs, or the last day is on the books after the next has begun |
 
    So: **state both numbers, not just the mismatch**; scale severity to the size of
    the gap; and where half a check can run and half cannot, say which — "could not

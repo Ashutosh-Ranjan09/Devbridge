@@ -100,6 +100,7 @@ def make_graph(
     *,
     graph_id: str = "cg_test",
     span_failures: int = 0,
+    filtered: dict[str, int] | None = None,
 ) -> ClaimGraph:
     return ClaimGraph(
         graph_id=graph_id,
@@ -111,5 +112,6 @@ def make_graph(
             input_hash="sha256:test",
             extracted_at=datetime.datetime.now(datetime.UTC),
             span_failures=span_failures,
+            filtered=filtered or {},
         ),
     )

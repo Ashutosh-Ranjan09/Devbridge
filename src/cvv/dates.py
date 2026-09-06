@@ -56,6 +56,11 @@ _MON_YEAR = re.compile(rf"^({_MON})\.?,?\s*'?(\d{{2,4}})$", re.I)
 _YEAR_MON = re.compile(rf"^({_YEAR})[-/](\d{{1,2}})$")
 _NUM_MON_YEAR = re.compile(rf"^(\d{{1,2}})[-/]({_YEAR})$")
 _SEASON_YEAR = re.compile(r"^(\w+)\s+'?(\d{2,4})$")
+
+# 02/05/2024. TWO fields, one of which is the month, and which one is a property of
+# where the CV was written rather than of the string. See `slash_convention`.
+_SLASH_EXACT = re.compile(r"^(\d{1,2})[/.](\d{1,2})[/.]'?(\d{2,4})$")
+_SLASH_ANY = re.compile(r"\b(\d{1,2})[/.](\d{1,2})[/.](\d{2,4})\b")
 # A two-digit year must carry its apostrophe. Bare "13" is not a year: it is the
 # tail of something that failed to parse, and reading it as 2013 turns a
 # malformed "2025-13" into a confident 2025..2013.
@@ -79,7 +84,43 @@ def expand_two_digit_year(value: int) -> int:
     return 2000 + value if value < 100 else value
 
 
-def parse_date(text: str) -> FuzzyDate | None:
+def slash_convention(document: str) -> str | None:
+    """Is this document's `02/05/2024` the 2nd of May, or the 5th of February?
+
+    Nothing in the string can answer it. What can answer it is the REST OF THE
+    DOCUMENT: a CV writing `01/26/2024` anywhere has shown its hand, because 26 is
+    not a month. So every slash date on the page is scanned and one decisive example
+    settles the convention for all of them.
+
+    Returns None when nothing is decisive, and None when the evidence CONFLICTS —
+    both `13/05/2020` and `05/13/2020` on one page means the document is not
+    internally consistent and no reading of it can be trusted. Callers then drop to
+    year precision, which is the honest answer: the year is certain and the month is
+    not.
+
+    This is the `dateutil` trap, avoided deliberately. dateutil picks a convention
+    from a locale setting and returns a confidently wrong month — and a month that is
+    wrong by three is worse than a month that is absent, because a date-precision
+    interval can raise a DEFINITE overlap and contradict somebody.
+    """
+    day_first = month_first = False
+    for m in _SLASH_ANY.finditer(document):
+        first, second = int(m[1]), int(m[2])
+        if first > 12 >= second:
+            day_first = True
+        elif second > 12 >= first:
+            month_first = True
+
+    if day_first and month_first:
+        return None  # the document contradicts itself; trust neither reading
+    if day_first:
+        return "dmy"
+    if month_first:
+        return "mdy"
+    return None
+
+
+def parse_date(text: str, *, slash_order: str | None = None) -> FuzzyDate | None:
     """One date. Returns None when the format is not recognised — visibly, so the
     caller can drop the interval and keep the claim."""
     token = text.strip().strip(",.[]()").strip()
@@ -94,6 +135,23 @@ def parse_date(text: str) -> FuzzyDate | None:
 
     if m := _MDY_EXACT.match(token):
         return _exact(expand_two_digit_year(int(m[3])), MONTHS[m[1].lower()], int(m[2]))
+
+    if m := _SLASH_EXACT.match(token):
+        first, second, year = int(m[1]), int(m[2]), expand_two_digit_year(int(m[3]))
+        # One field out of month range settles this date on its own, whatever the
+        # rest of the document does — 26 is not a month.
+        if first > 12 >= second:
+            return _exact(year, second, first)
+        if second > 12 >= first:
+            return _exact(year, first, second)
+        if slash_order == "dmy":
+            return _exact(year, second, first)
+        if slash_order == "mdy":
+            return _exact(year, first, second)
+        # Undecidable. The YEAR is certain and the month is a coin toss, so the year
+        # is what is returned — a wrong month can raise a DEFINITE overlap and
+        # contradict somebody, where a year-precision interval never can.
+        return _year(year)
 
     if m := _MON_YEAR.match(token):
         return _month(expand_two_digit_year(int(m[2])), MONTHS[m[1].lower()])
@@ -117,9 +175,15 @@ def parse_date(text: str) -> FuzzyDate | None:
     return None
 
 
-def parse_interval(text: str) -> Interval | None:
+def parse_interval(text: str, *, slash_order: str | None = None) -> Interval | None:
     """A date range as a CV writes it. `[Mar '25 - Apr '25]`, `2022-26`, `Jan 2020 -
-    Present`, or a single date, which is a point rather than an open range."""
+    Present`, `05/03/2023 - 01/26/2024`, or a single date, which is a point rather
+    than an open range.
+
+    `slash_order` comes from `slash_convention` over the whole document and is how a
+    numeric date gets a month at all. Without it those dates still parse — to the
+    YEAR, which is certain — rather than guessing.
+    """
     token = text.strip().strip("[](){}").strip()
     if not token:
         return None
@@ -137,7 +201,7 @@ def parse_interval(text: str) -> Interval | None:
     # The whole token as ONE date, before any splitting. "2025-06" is June 2025 and
     # "2025-03-15" is a day; splitting them on the hyphen first produced "2025 to
     # 2006" and a three-part failure respectively.
-    if single := parse_date(token):
+    if single := parse_date(token, slash_order=slash_order):
         # A single date is a POINT — a graduation year is a year, not "2027 onwards".
         return Interval(start=single)
 
@@ -146,14 +210,14 @@ def parse_interval(text: str) -> Interval | None:
         return None  # not a range this parser understands
 
     head, tail = parts
-    start = parse_date(head)
+    start = parse_date(head, slash_order=slash_order)
     if start is None:
         return None
 
     if tail.strip().lower() in ONGOING:
         return Interval(start=start, ongoing=True)
 
-    end = parse_date(tail)
+    end = parse_date(tail, slash_order=slash_order)
     if end is None:
         return None
     if (end.year, end.month or 1, end.day or 1) < (start.year, start.month or 1, start.day or 1):

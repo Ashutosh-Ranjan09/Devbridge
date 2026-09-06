@@ -30,7 +30,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from cvv.dates import parse_interval
+from cvv.dates import parse_interval, slash_convention
 from cvv.filters import apply as apply_filters
 from cvv.ids import claim_id
 from cvv.ingest import Document, Section, line_at, section_text, sections
@@ -822,6 +822,12 @@ def ground(
     span_failures = 0
     seen: set[str] = set()
 
+    # Whether this document writes 02/05/2024 as the 2nd of May or the 5th of
+    # February. Nothing in one date can answer it; the rest of the page can, because
+    # a CV writing 01/26/2024 anywhere has shown its hand. Computed once, over the
+    # whole document, and applied to every date in it.
+    slash_order = slash_convention(doc.text)
+
     for p in proposed:
         span = recover_span(
             p.verbatim, doc.text, window=(p.window_start, p.window_end or len(doc.text))
@@ -845,7 +851,9 @@ def ground(
         # reachable — and the date-dependent rules abstain with that flag as the
         # reason. Dropping the claim would lose its artefacts and shrink coverage
         # silently, which reads as a pass.
-        interval = parse_interval(p.date_text) if p.date_text else None
+        interval = (
+            parse_interval(p.date_text, slash_order=slash_order) if p.date_text else None
+        )
         flags = ["date_unparsed"] if p.date_text and interval is None else []
 
         context: dict[str, Any] | None = None
@@ -899,7 +907,6 @@ def ground(
 
     claims = scope_technologies(claims, windows, doc)
     claims, dropped = apply_filters(claims)
-    span_failures += sum(dropped.values())
     log.info(
         "extraction.done",
         graph_id=graph_id,
@@ -918,8 +925,9 @@ def ground(
             prompt_version=PROMPT_VERSION,
             input_hash="sha256:" + hashlib.sha256(doc.text.encode()).hexdigest()[:32],
             span_failures=span_failures,
+            filtered={k: v for k, v in dropped.items() if v},
             extracted_at=datetime.datetime.now(datetime.UTC),
-            degraded=span_failures > len(claims),
+            degraded=span_failures + sum(dropped.values()) > len(claims),
         ),
     )
 

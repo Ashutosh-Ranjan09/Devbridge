@@ -119,10 +119,10 @@ uv run cvv evaluate cv.pdf --save-baseline out/
 takes a real document, corrupts exactly one fact, and asks whether the check
 responsible notices.
 
-| | real CV | second CV |
-|---|---|---|
-| **detection** | 15/15 | 7/7 of applicable |
-| **collateral** | 0 | 1 (correct) |
+| | student CV | synthetic CV | professional CV |
+|---|---|---|---|
+| **detection** | 15/15 | 7/7 of applicable | 2/2 of applicable |
+| **collateral** | 0 | 1 (correct) | 0 |
 
 **Collateral** — rules firing on a mutation they had no business noticing — is the
 number that matters. It started at 2, and both were real bugs: one would have
@@ -232,9 +232,11 @@ whatever a caller passes.
 
 Every phase is complete for what is reachable. What remains is honest to state:
 
-- **Measured against two documents**, one of them synthetic. A third real CV from a
-  different institution is the highest-value thing this project could be given — the
-  second one found a section-routing bug within minutes.
+- **Measured against three documents**, one of them synthetic. Each new one has found
+  a real bug within minutes: the second, a section-routing failure; the third, a date
+  format that silently disabled every employment check and a decisive finding fired on
+  a thirteen-day notice period. More CVs is still the highest-value thing this project
+  could be given.
 - **No gold set.** Extraction *accuracy* is unmeasured; only rule detection is.
 - **`qwen3:1.7b` is a small model.** Several failures documented in `CLAUDE.md` are
   its limits, not the design's, and a larger model is the intended upgrade path.

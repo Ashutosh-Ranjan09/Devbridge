@@ -21,7 +21,15 @@ from rapidfuzz import fuzz
 
 from cvv.filters import is_aggregate
 from cvv.ids import finding_id
-from cvv.intervals import Rel, bounds, gap_between, max_span, merge_non_overlapping, overlap
+from cvv.intervals import (
+    Rel,
+    bounds,
+    core_span,
+    gap_between,
+    max_span,
+    merge_non_overlapping,
+    overlap,
+)
 from cvv.logs import get
 from cvv.models import (
     ArtefactType,
@@ -1827,12 +1835,28 @@ class D5IntervalOverlap:
     studying, and a rule that flags that penalises the people most likely to have to.
     Where the CV does not state a type, the overlap is real but its significance is
     not, so it is posed as a question rather than asserted as a fact.
+
+    **And a SHORT overlap is a handover, not a second job.** Version 1 had exact
+    dates for the first time on a third CV and called a twelve-day overlap between
+    one role ending and the next beginning a decisive contradiction between two
+    full-time jobs. That is how changing jobs works: you start the new one while
+    notice at the old one is still running, or your last day is on the books after
+    you have already begun. Below `handover_days` the overlap is posed as a question
+    with that reading attached; above it, two months of dual full-time employment is
+    not a notice period.
+
+    Absolute days, not the fraction — a two-week handover between two one-month
+    contracts is 50% of the shorter role and still a handover.
     """
 
     rule_id: str = "D5"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
     soft_tier: Tier = Tier.ATTENTION
+    # Long enough to cover a notice period and a late final payroll date, short
+    # enough that two months of concurrent full-time work is not called one. A
+    # documented prior, swept in the evaluation rather than fitted.
+    handover_days: int = 45
     scoring: bool = True
     summary: str = "Two roles held at the same time under every reading of the dates"
 
@@ -1863,16 +1887,25 @@ class D5IntervalOverlap:
             if relation is not Rel.DEFINITE:
                 continue
 
+            # The overlap the CORE spans share — what is true under every reading.
+            a_core = core_span(a_interval, today=ctx.today)
+            b_core = core_span(b_interval, today=ctx.today)
+            days = (
+                min(a_core[1], b_core[1]) - max(a_core[0], b_core[0])
+            ).days + 1
+
+            handover = days <= self.handover_days
             both_full_time = (
                 a.employment_type is EmploymentType.FULL_TIME
                 and b.employment_type is EmploymentType.FULL_TIME
             )
+            decisive = both_full_time and not handover
             yield Discrepancy(
                 finding_id=finding_id(ctx.report_id, self.rule_id, [a.claim_id, b.claim_id]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
-                tier=self.tier if both_full_time else self.soft_tier,
-                severity=Severity.HIGH if both_full_time else Severity.LOW,
+                tier=self.tier if decisive else self.soft_tier,
+                severity=Severity.HIGH if decisive else Severity.LOW,
                 confidence=1.0,
                 scoring=self.scoring,
                 claim_refs=[a.claim_id, b.claim_id],
@@ -1880,17 +1913,22 @@ class D5IntervalOverlap:
                 params={
                     "a": a.org,
                     "b": b.org,
+                    "overlap_days": days,
                     "overlap_fraction": round(fraction, 2),
                     "a_type": a.employment_type.value,
                     "b_type": b.employment_type.value,
                 },
                 explanation=(
-                    f"{a.org!r} and {b.org!r} overlap by {fraction:.0%} of the shorter "
-                    "role under every consistent reading of the dates."
+                    f"{a.org!r} and {b.org!r} overlap by {days} day(s), {fraction:.0%} "
+                    "of the shorter role, under every consistent reading of the dates."
                 ),
                 innocent_explanation=(
                     None
-                    if both_full_time
+                    if decisive
+                    else "A short overlap is how changing jobs works: the new role "
+                    "starts while notice at the old one is still running, or the last "
+                    "day is on the books after the next has begun."
+                    if handover
                     else "Neither role states whether it was full-time. Concurrent "
                     "part-time, contract, notice-period or advisory work is ordinary, "
                     "and the dates alone cannot distinguish it from a contradiction."
@@ -1901,16 +1939,27 @@ class D5IntervalOverlap:
 @register
 @dataclass(frozen=True)
 class D2SpanGrounding:
-    """Claims the extractor produced that the document does not contain.
+    """Claims the extractor produced and this system refused to keep.
 
-    Not a finding about the candidate — a finding about the extraction. A dropped
-    claim is one the model invented or garbled, and the honest consequence is lower
-    coverage, stated openly, rather than a report that looks complete while missing
-    things.
+    Not a finding about the candidate — a finding about the extraction. The honest
+    consequence is lower coverage, stated openly, rather than a report that looks
+    complete while missing things.
+
+    TWO CAUSES, reported apart, because they mean opposite things about the model.
+    *Ungroundable* means the quoted text is not in the document: the model invented or
+    garbled it. *Filtered* means the text was real and the claim was not usable — a
+    field the span did not support, an excluded exam, a duplicate.
+
+    Version 1 added them together and called the total "text that could not be found".
+    On a professional CV whose ACHIEVEMENTS section holds patents, GitHub stars and
+    published books rather than contest ratings, the achievements pass returned six
+    perfectly real sentences forced into a competitive-programming shape, the filters
+    refused all six — correctly — and the report told a reader their text was not in
+    their own CV.
     """
 
     rule_id: str = "D2"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.ATTENTION
     scoring: bool = False  # about the extraction, not the person
     summary: str = "Claims dropped because their text was not in the document"
@@ -1918,29 +1967,48 @@ class D2SpanGrounding:
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
         meta = ctx.graph.extraction_meta
         kept = len(ctx.graph.claims)
-        if meta.span_failures == 0:
+        filtered = sum(meta.filtered.values())
+        dropped = meta.span_failures + filtered
+        if dropped == 0:
             return
-        total = kept + meta.span_failures
+        total = kept + dropped
+
+        causes = []
+        if meta.span_failures:
+            causes.append(
+                f"{meta.span_failures} because the quoted text is not in the document"
+            )
+        if filtered:
+            named = ", ".join(f"{k.replace('_', ' ')} ({v})" for k, v in sorted(meta.filtered.items()))
+            causes.append(f"{filtered} refused by the extraction filters — {named}")
         yield Discrepancy(
             finding_id=finding_id(ctx.report_id, self.rule_id, []),
             rule_id=self.rule_id,
             rule_version=self.rule_version,
             tier=self.tier,
-            severity=Severity.HIGH if meta.span_failures > kept else Severity.LOW,
+            severity=Severity.HIGH if dropped > kept else Severity.LOW,
             confidence=1.0,
             scoring=self.scoring,
             claim_refs=[],
             evidence_refs=["claim_graph.extraction_meta"],
-            params={"dropped": meta.span_failures, "kept": kept, "proposed": total},
+            params={
+                "dropped": dropped,
+                "ungroundable": meta.span_failures,
+                "filtered": filtered,
+                "filters": dict(meta.filtered),
+                "kept": kept,
+                "proposed": total,
+            },
             explanation=(
-                f"{meta.span_failures} of {total} proposed claims were dropped because "
-                "their quoted text could not be found in the document."
+                f"{dropped} of {total} proposed claims were dropped: " + "; ".join(causes) + "."
             ),
             innocent_explanation=(
-                "This describes the extractor, not the candidate. A dropped claim is "
-                "one the model invented or garbled, and dropping it is the guardrail "
-                "working. The cost is coverage: something the CV says may have gone "
-                "unchecked."
+                "This describes the extractor, not the candidate. Text that is not in "
+                "the document was invented or garbled by the model; a filtered claim "
+                "had real text this system could not use — a field its own sentence "
+                "did not support, or a category the design excludes. Both are the "
+                "guardrails working. The cost is coverage: something the CV says may "
+                "have gone unchecked."
             ),
         )
 
