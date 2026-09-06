@@ -98,3 +98,63 @@ class TestGatherLeetCode:
         result = gather_leetcode("ar009")
         assert isinstance(result, Gap)
         assert result.reason is GapReason.UNREACHABLE
+
+
+class TestCaching:
+    """Seven days, like every other source. The cache is isolated per test by an
+    autouse fixture in conftest — see the note there about what happened without it.
+    """
+
+    @respx.mock
+    def test_a_second_call_makes_no_request(self) -> None:
+        route = respx.post(ENDPOINT).mock(
+            return_value=httpx.Response(200, json=body(USER, {"rating": 1687.0}))
+        )
+        first = gather_leetcode("ar009")
+        second = gather_leetcode("ar009")
+        assert route.call_count == 1, "the second call must be served from disk"
+        assert isinstance(first, PlatformEvidence) and isinstance(second, PlatformEvidence)
+        assert first.problems_solved == second.problems_solved == 412
+
+    @respx.mock
+    def test_a_missing_account_is_cached_too(self) -> None:
+        """An account that does not exist today will not exist in an hour, and the
+        gap it produces is as reusable as any other body."""
+        route = respx.post(ENDPOINT).mock(return_value=httpx.Response(200, json=body(None)))
+        assert isinstance(gather_leetcode("nobody"), Gap)
+        assert isinstance(gather_leetcode("nobody"), Gap)
+        assert route.call_count == 1
+
+    @respx.mock
+    def test_a_throttle_is_never_cached(self) -> None:
+        """A 403 is a moment, not a fact. Storing it for seven days would turn one
+        bad minute into a week of false gaps."""
+        route = respx.post(ENDPOINT).mock(return_value=httpx.Response(403))
+        gather_leetcode("ar009")
+        gather_leetcode("ar009")
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_two_handles_never_share_an_entry(self) -> None:
+        """LeetCode treats usernames as distinct, so folding case in the key would
+        serve one account's numbers under another's name."""
+        respx.post(ENDPOINT).mock(
+            return_value=httpx.Response(200, json=body(USER, {"rating": 1687.0}))
+        )
+        gather_leetcode("ar009")
+        assert respx.calls.call_count == 1
+        gather_leetcode("AR009")
+        assert respx.calls.call_count == 2
+
+    def test_the_key_changes_when_the_query_does(self) -> None:
+        """Without this, editing QUERY would serve bodies shaped by the old one for
+        the rest of the TTL — the right answer to a question nobody asked any more."""
+        from cvv import leetcode
+
+        before = leetcode._cache_key("ar009")
+        original = leetcode.QUERY
+        try:
+            leetcode.QUERY = original + "\n# changed"
+            assert leetcode._cache_key("ar009") != before
+        finally:
+            leetcode.QUERY = original

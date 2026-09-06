@@ -11,10 +11,12 @@ problem and is unsolvable from public data on any platform.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import httpx
 
+from cvv import cache
 from cvv.models import Gap, GapReason, Platform, PlatformEvidence
 
 ENDPOINT = "https://leetcode.com/graphql"
@@ -44,23 +46,29 @@ query cvvUserProfile($username: String!) {
 """
 
 
-def _accepted(matched: dict[str, Any]) -> int | None:
-    """The "All" bucket of acSubmissionNum — distinct problems accepted.
+def _cache_key(handle: str) -> str:
+    """The handle, and a fingerprint of the query that produced the body.
 
-    LeetCode returns one row per difficulty plus an "All" total. Summing the
-    difficulty rows would double-count it, which would inflate the observed number
-    and make an honest claim look understated.
+    Without the fingerprint, changing QUERY would silently serve responses shaped by
+    the old one for the rest of the TTL — a cache returning the right answer to a
+    question nobody asked any more. The handle keeps its casing: LeetCode treats
+    usernames as distinct, and folding them here would serve one account's numbers
+    under another's name.
     """
-    stats = (matched.get("submitStatsGlobal") or {}).get("acSubmissionNum") or []
-    for row in stats:
-        if row.get("difficulty") == "All":
-            count = row.get("count")
-            return int(count) if count is not None else None
-    return None
+    digest = hashlib.sha256(QUERY.encode()).hexdigest()[:8]
+    return f"userProfile:{digest}:{handle}"
 
 
-def gather_leetcode(handle: str) -> PlatformEvidence | Gap:
-    """One POST. A missing user comes back as `matchedUser: null`, not as a 404."""
+def _fetch(handle: str) -> Any | Gap:
+    """The cached body, or one request. Failures are never cached.
+
+    A 403 is a throttle and a timeout is a network, and storing either for seven days
+    would turn a momentary problem into a week of false gaps.
+    """
+    key = _cache_key(handle)
+    if (hit := cache.get(SOURCE, key)) is not None:
+        return hit
+
     try:
         response = httpx.post(
             ENDPOINT,
@@ -80,6 +88,37 @@ def gather_leetcode(handle: str) -> PlatformEvidence | Gap:
         return Gap(source=SOURCE, reason=reason, detail=str(exc))
     except (httpx.HTTPError, ValueError) as exc:
         return Gap(source=SOURCE, reason=GapReason.UNREACHABLE, detail=str(exc))
+
+    # A missing account comes back as a 200 with `matchedUser: null`, so it is a
+    # legitimate body and is cached like any other — an account that does not exist
+    # today will not exist in an hour either.
+    cache.put(SOURCE, key, body)
+    return body
+
+
+def _accepted(matched: dict[str, Any]) -> int | None:
+    """The "All" bucket of acSubmissionNum — distinct problems accepted.
+
+    LeetCode returns one row per difficulty plus an "All" total. Summing the
+    difficulty rows would double-count it, which would inflate the observed number
+    and make an honest claim look understated.
+    """
+    stats = (matched.get("submitStatsGlobal") or {}).get("acSubmissionNum") or []
+    for row in stats:
+        if row.get("difficulty") == "All":
+            count = row.get("count")
+            return int(count) if count is not None else None
+    return None
+
+
+def gather_leetcode(handle: str) -> PlatformEvidence | Gap:
+    """One POST, cached for seven days like every other source here.
+
+    A missing user comes back as `matchedUser: null` with HTTP 200, not as a 404.
+    """
+    body = _fetch(handle)
+    if isinstance(body, Gap):
+        return body
 
     data = body.get("data") or {}
     matched = data.get("matchedUser")
