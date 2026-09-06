@@ -233,6 +233,21 @@ class TestP3ProblemsSolved:
         assert result.status is RuleStatus.ABSTAINED
         assert "aggregates 3 platforms" in (result.reason or "")
 
+    def test_a_leetcode_count_is_never_measured_against_codeforces(self) -> None:
+        """The bug the mutation harness found. P3 took EVERY problems_solved claim
+        and compared it to Codeforces, so "800 solved on LeetCode" on an honest CV
+        was decisively contradicted by a Codeforces count of 412 — precisely the
+        failure P3's own docstring warned about."""
+        claim = make_claim(
+            CF_RATING, DOCUMENT, platform="leetcode", metric="problems_solved", value=800
+        )
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codeforces(solved=412)]))
+        result = outcome(report, "P3")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "belongs to its own platform" in (result.reason or "")
+        assert not [f for f in report.discrepancies if f.rule_id == "P3"]
+
     def test_solving_more_than_claimed_is_not_a_contradiction(self) -> None:
         """"500+" is a floor. Understating is never penalised."""
         claim = make_claim(
@@ -1141,6 +1156,20 @@ class TestD11TimelineGap:
         )
         report = assemble(graph, bundle(graph))
         assert not [f for f in report.discrepancies if f.rule_id == "D11"]
+
+    def test_one_role_mentioned_twice_is_not_a_career_gap(self) -> None:
+        """D10's finding, and reporting a gap alongside it describes one corruption
+        twice. A document that contradicts itself does not also have a gap."""
+        graph = make_graph(
+            [
+                role("Acme", "2020", claim_id="ca1"),
+                role("Acme", "2023", claim_id="cb1"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D11"]
+        assert any(f.rule_id == "D10" for f in report.discrepancies)
 
     def test_abstains_with_one_role(self) -> None:
         graph = make_graph([role("Acme", "2022")], DOCUMENT)

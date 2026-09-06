@@ -18,6 +18,7 @@ from cvv.config import settings
 from cvv.extract import extract
 from cvv.gather import gather
 from cvv.ingest import document_info, read, sections
+from cvv.models import ClaimGraph, EvidenceBundle
 from cvv.narrative import narrate
 from cvv.providers import OllamaProvider
 from cvv.report import assemble, coverage, render
@@ -129,6 +130,53 @@ def verify(
                 fg="yellow",
             )
     typer.echo(render(report, graph, bundle))
+
+
+@app.command()
+def evaluate(
+    path: Annotated[Path, typer.Argument(help="The CV to evaluate against.")],
+    baseline: Annotated[
+        Path | None,
+        typer.Option(help="Reuse a saved baseline directory instead of re-running the model."),
+    ] = None,
+    save_baseline: Annotated[
+        Path | None, typer.Option(help="Write the baseline graph and bundle here.")
+    ] = None,
+    model: Annotated[str | None, typer.Option(help="Ollama model id.")] = None,
+) -> None:
+    """Corrupt one fact at a time and measure what the system notices.
+
+    The unit tests prove each rule does what its author intended; they cannot prove
+    the system detects a falsified CV, because every fixture in them was built to
+    exercise the rule it feeds. This runs a real document, corrupts one fact, and
+    asks whether the check responsible notices — and what else fires that should not.
+    """
+    from cvv.evaluate import render_evaluation, run
+
+    if baseline is not None:
+        graph = ClaimGraph.model_validate_json((baseline / "claim-graph.json").read_text())
+        bundle = EvidenceBundle.model_validate_json(
+            (baseline / "evidence-bundle.json").read_text()
+        )
+    else:
+        if not path.is_file():
+            typer.secho(f"no such file: {path}", fg="red", err=True)
+            raise typer.Exit(2)
+        document = read(path)
+        graph, _ = extract(
+            document,
+            provider=OllamaProvider(model),
+            graph_id=f"cg_{document.document_id[4:]}",
+        )
+        bundle = gather(graph, bundle_id=f"eb_{document.document_id[4:]}")
+
+    if save_baseline:
+        save_baseline.mkdir(parents=True, exist_ok=True)
+        (save_baseline / "claim-graph.json").write_text(graph.model_dump_json(indent=2))
+        (save_baseline / "evidence-bundle.json").write_text(bundle.model_dump_json(indent=2))
+        typer.secho(f"baseline written to {save_baseline}/", fg="green", err=True)
+
+    typer.echo(render_evaluation(*run(graph, bundle)))
 
 
 @app.command()

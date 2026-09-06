@@ -352,15 +352,25 @@ class P2ContestRank:
 @register
 @dataclass(frozen=True)
 class P3ProblemsSolved:
-    """Abstains on an aggregate claim rather than comparing it to one source.
+    """Codeforces' problem count, and nothing else's.
 
-    "500+ problems across LeetCode, Codeforces and GeeksforGeeks" is a real claim
-    about three platforms. Comparing it to Codeforces alone compares the wrong
-    things, and would report a contradiction that does not exist.
+    Abstains on an aggregate claim rather than comparing it to one source: "500+
+    problems across LeetCode, Codeforces and GeeksforGeeks" is a real claim about
+    three platforms, and comparing it to Codeforces alone compares the wrong things.
+
+    Version 1 then did precisely that in a way its own docstring had warned about. It
+    took EVERY `problems_solved` claim, whatever platform it named, and measured it
+    against Codeforces — so "Solved 800 problems on LeetCode" on an honest CV was
+    contradicted, decisively, by a Codeforces count of 412. The mutation harness found
+    it: a LeetCode mutation aimed at P4 fired P3 as collateral, and collateral is
+    exactly the signal it exists to surface.
+
+    A count naming another platform now belongs to that platform's check, and P3
+    abstains rather than reaching for the only connector it happens to have.
     """
 
     rule_id: str = "P3"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
     scoring: bool = True
     summary: str = "Claimed problems solved vs. distinct accepted submissions"
@@ -383,11 +393,25 @@ class P3ProblemsSolved:
                 "connected."
             )
 
+        # Guardrail 7, one level up: a claim is compared against the platform it
+        # NAMES, never against the platform we happen to have a connector for.
+        mine = [
+            c
+            for c in claims
+            if (c.platform or "").lower() == Platform.CODEFORCES.value and c not in aggregates
+        ]
+        if not mine:
+            named = sorted({(c.platform or "unattributed") for c in claims})
+            raise Abstain(
+                "No problem count is attributed to Codeforces — the CV names "
+                f"{', '.join(named)}. A count belongs to its own platform's check."
+            )
+
         cf = ctx.platform(Platform.CODEFORCES)
         if cf.problems_solved is None:
             raise Abstain("Codeforces returned no submission history for this handle.")
 
-        for c in claims:
+        for c in mine:
             claimed = int(c.value) if isinstance(c.value, int | float) else None
             # "500+" is a floor, not an equality. Only a claim ABOVE what the platform
             # records is a contradiction; solving more than you claimed is not.
@@ -2137,6 +2161,13 @@ class D11TimelineGap:
 
         ordered = sorted(dated, key=lambda pair: bounds(pair[1].start)[0])
         for (a, ia), (b, ib) in itertools.pairwise(ordered):
+            # The SAME role mentioned twice with incompatible dates is D10's finding,
+            # and a document that contradicts itself does not also have a career gap.
+            # Reporting both describes one corruption twice.
+            if (a.org or "").strip().lower() == (b.org or "").strip().lower() and (
+                (a.title or "").strip().lower() == (b.title or "").strip().lower()
+            ):
+                continue
             days = gap_between(ia, ib, today=ctx.today)
             if days is None or days < self.threshold_days:
                 continue
