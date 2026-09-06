@@ -1,5 +1,17 @@
 """The contract. Every stage of the pipeline speaks these types and nothing else."""
 
+from cvv.models.api import (
+    ApiError,
+    ExternalSignals,
+    Narrative,
+    ProvenanceView,
+    Usage,
+    VerificationAccepted,
+    VerificationOptions,
+    VerificationReport,
+    VerificationRequest,
+    Webhook,
+)
 from cvv.models.claims import (
     Artefact,
     Claim,
@@ -57,6 +69,7 @@ from cvv.models.findings import (
 
 __all__ = [
     "ActivityWindow",
+    "ApiError",
     "Artefact",
     "ArtefactType",
     "AssertedBy",
@@ -72,6 +85,7 @@ __all__ = [
     "DocumentInfo",
     "EmploymentType",
     "EvidenceBundle",
+    "ExternalSignals",
     "ExtractionMeta",
     "FindingsReport",
     "Frozen",
@@ -83,11 +97,13 @@ __all__ = [
     "IngestMethod",
     "Interval",
     "Model",
+    "Narrative",
     "Ownership",
     "Platform",
     "PlatformEvidence",
     "Precision",
     "Proficiency",
+    "ProvenanceView",
     "Recovery",
     "RepoEvidence",
     "ReportStatus",
@@ -101,5 +117,11 @@ __all__ = [
     "SpanProvenance",
     "Tier",
     "Url",
+    "Usage",
+    "VerificationAccepted",
     "VerificationCoverage",
+    "VerificationOptions",
+    "VerificationReport",
+    "VerificationRequest",
+    "Webhook",
 ]

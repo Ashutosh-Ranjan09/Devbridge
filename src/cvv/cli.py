@@ -221,6 +221,34 @@ def inspect(path: Annotated[Path, typer.Argument(help="The CV to read.")]) -> No
 
 
 @app.command()
+def serve(
+    host: Annotated[str, typer.Option(help="Bind address.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="Port.")] = 8000,
+) -> None:
+    """Run the HTTP surface — the integration spec's endpoints, in one process.
+
+    Binds to localhost by default. A verification handles a real person's CV and the
+    reports it stores name them, so exposing it needs a deliberate `--host 0.0.0.0`
+    rather than a default nobody noticed.
+    """
+    import uvicorn
+
+    from cvv.api import API_KEY
+    from cvv.api import app as api
+
+    if settings.api_key is None:
+        typer.secho(
+            "CVV_API_KEY is unset, so one was generated for this run:", fg="yellow", err=True
+        )
+        typer.secho(f"    {API_KEY}", fg="yellow", bold=True, err=True)
+        typer.secho(
+            "    Set CVV_API_KEY to keep it across restarts.\n", fg="yellow", err=True
+        )
+    typer.secho(f"docs at http://{host}:{port}/docs", fg="green", err=True)
+    uvicorn.run(api, host=host, port=port, log_level="info")
+
+
+@app.command()
 def config() -> None:
     """Effective settings, with secrets redacted."""
     values = settings.model_dump()

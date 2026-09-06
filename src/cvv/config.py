@@ -47,6 +47,11 @@ class Settings(BaseSettings):
 
     github_token: str | None = None  # a PAT is enough; App auth is not needed yet
 
+    # The HTTP surface's bearer token. Unset generates one at startup and prints it:
+    # a verification handles personal data, so open-by-default is the wrong default,
+    # and refusing to start is the wrong answer for a tool nobody has configured yet.
+    api_key: str | None = None
+
     request_timeout: float = 600.0
 
 

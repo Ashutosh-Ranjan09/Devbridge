@@ -22,6 +22,12 @@ def _digest(*parts: str) -> str:
     ).hexdigest()[:_DIGEST_CHARS]
 
 
+def stable_id(*parts: str) -> str:
+    """A short, stable id from any parts. Used where the caller owns the meaning —
+    a verification id from a uuid, a webhook id from its URL."""
+    return _digest(*parts)
+
+
 def claim_id(graph_id: str, char_start: int, kind: str, discriminator: str = "") -> str:
     """Identity is (position, kind, discriminator).
 

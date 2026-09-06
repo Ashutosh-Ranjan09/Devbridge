@@ -29,8 +29,43 @@ cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
 
 cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save DIR]
 cvv evaluate cv.pdf [--baseline DIR] [--save-baseline DIR]
+cvv serve [--host] [--port]        # the HTTP surface, docs at /docs
 cvv rules | inspect | config
 ```
+
+**The HTTP surface is §05 of the integration spec, in one process.** The spec draws
+three services; this system collapsed them by an explicit decision, so the route
+groups live together and call functions instead of each other. The two BOUNDARIES the
+split existed to enforce survive, and they are the reason the split was drawn:
+`/v1/narrate` accepts only a `FindingsReport` and `/v1/evaluate` only a `ClaimGraph`,
+so neither can reach the document. That holds whether the call crosses a network or a
+stack frame.
+
+```
+POST /v1/verifications              202 · Idempotency-Key honoured
+GET  /v1/verifications/{id}         200 report · 202 while running · 404 unknown
+GET  /v1/verifications/{id}/claims/{claim_id}/provenance
+POST /v1/webhooks · GET /v1/usage · GET /healthz /readyz
+POST /v1/extract /narrate /evaluate · GET /v1/rules
+POST /v1/resolve /attest            501, with the reason
+```
+
+Four decisions worth not re-deriving:
+
+- **No queue.** `arq` and Redis are in "not used"; `BackgroundTasks` runs the job in
+  this process. Honest for one process, and the first thing to replace when it stops
+  being one.
+- **The store is in memory, behind six methods.** A restart loses everything and two
+  processes do not share one — so `/healthz` reports the backing store by name rather
+  than letting anyone assume. Postgres satisfies the same six methods.
+- **`completed_degraded` has to mean something.** "Any gap" was the first definition
+  and it was useless: CodeChef publishes no API, so every run has a gap and every
+  report was degraded. A missing connector is a permanent property of the system and
+  a NOT_FOUND account is a FINDING (G2). Degraded means something TRANSIENT stopped a
+  check that could otherwise have run — re-running may return more.
+- **A failure is still a `VerificationReport`**, with empty claims and findings rather
+  than absent ones, so a client never needs two shapes. A verification that vanishes
+  leaves the client polling and with nothing to tell the person whose CV it was.
 
 Ingest reads **PDF, DOCX and scanned PDF** (`uv sync --extra ocr`). A PDF whose text
 layer is thinner than 120 characters a page is a scan and goes to OCR automatically;
