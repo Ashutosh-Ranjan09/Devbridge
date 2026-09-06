@@ -188,6 +188,9 @@ def _repo_evidence(
         # null and the dependent rules open a gap rather than guessing.
         "first_commit": None,
         "size_kb": data.get("size"),
+        # Declared by the owner or written by a deployment integration. Either way
+        # it is GitHub's record, not the CV's — which is what makes it evidence.
+        "homepage": (data.get("homepage") or "").strip() or None,
     }
     if not deep:
         primary = data.get("language")

@@ -74,6 +74,10 @@ class RepoEvidence(Model):
     # appear as TypeScript. Framework detection parses dependency manifests instead.
     languages: dict[str, int] = Field(default_factory=dict)
     frameworks: list[str] = Field(default_factory=list)
+    # The repository's own declared homepage. Server-side, set by the owner or by a
+    # deployment integration, and the only cheap way to tie a live URL to a repo —
+    # W1 otherwise proves a URL responds without proving whose it is.
+    homepage: str | None = None
 
 
 class ActivityWindow(Model):

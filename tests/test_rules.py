@@ -272,6 +272,88 @@ class TestW1DeploymentLiveness:
         assert outcome(report, "W1").status is RuleStatus.CLEAN
 
 
+class TestW1DeploymentRepoLinkage:
+    """Liveness alone proves a site exists at an address, not whose it is. Any URL
+    beside any repository passed the old check."""
+
+    def deployed(self, url: str = "https://atma-ar.vercel.app") -> object:
+        return make_claim(
+            CF_RATING, DOCUMENT, claim_id="cprj01", kind=ClaimKind.PROJECT, title="ATMA",
+            artefacts=[Artefact(type=ArtefactType.DEPLOYMENT, url=url)],
+        )
+
+    def test_the_repository_declaring_the_url_is_corroboration(self) -> None:
+        graph = make_graph([self.deployed()], DOCUMENT)
+        gh = github(repos=(repo("ATMA-Final", homepage="https://atma-ar.vercel.app/"),))
+        report = assemble(
+            graph,
+            bundle(
+                graph,
+                github=gh,
+                deployments=[DeploymentEvidence(
+                    url="https://atma-ar.vercel.app", reachable=True, status_code=200
+                )],
+            ),
+        )
+        result = outcome(report, "W1")
+        assert result.status is RuleStatus.CLEAN
+        assert result.note is not None and "ATMA-Final declares" in result.note
+        assert result.note in report.buckets.verified
+
+    def test_an_unset_homepage_is_the_ordinary_case_not_a_finding(self) -> None:
+        """Most people never fill that field in. Absence is not evidence."""
+        graph = make_graph([self.deployed()], DOCUMENT)
+        report = assemble(
+            graph,
+            bundle(
+                graph,
+                github=github(repos=(repo("ATMA-Final"),)),
+                deployments=[DeploymentEvidence(
+                    url="https://atma-ar.vercel.app", reachable=True, status_code=200
+                )],
+            ),
+        )
+        result = outcome(report, "W1")
+        assert result.status is RuleStatus.CLEAN
+        assert result.note is None
+        assert not [f for f in report.discrepancies if f.rule_id == "W1"]
+
+    def test_a_dead_url_still_fires_and_suppresses_the_corroboration(self) -> None:
+        graph = make_graph([self.deployed()], DOCUMENT)
+        gh = github(repos=(repo("ATMA-Final", homepage="https://atma-ar.vercel.app"),))
+        report = assemble(
+            graph,
+            bundle(
+                graph,
+                github=gh,
+                deployments=[DeploymentEvidence(
+                    url="https://atma-ar.vercel.app", reachable=False, status_code=404
+                )],
+            ),
+        )
+        result = outcome(report, "W1")
+        assert result.status is RuleStatus.FIRED
+        assert result.note is None
+        assert any(f.rule_id == "W1" for f in report.discrepancies)
+
+    def test_the_path_is_compared_not_only_the_host(self) -> None:
+        """Two GitHub Pages projects on one account share a host and differ only in
+        the path. Matching on host would tie a deployment to the wrong repository."""
+        graph = make_graph([self.deployed("https://ar009.github.io/atma")], DOCUMENT)
+        gh = github(repos=(repo("other", homepage="https://ar009.github.io/dijkstra"),))
+        report = assemble(
+            graph,
+            bundle(
+                graph,
+                github=gh,
+                deployments=[DeploymentEvidence(
+                    url="https://ar009.github.io/atma", reachable=True, status_code=200
+                )],
+            ),
+        )
+        assert outcome(report, "W1").note is None
+
+
 class TestTheRunner:
     def test_every_registered_rule_appears_in_the_outcomes(self) -> None:
         """Including the ones that did nothing. A rule missing from the outcomes is a
@@ -336,6 +418,7 @@ def repo(
     owner_matches: bool = True,
     readme_only: bool = False,
     created: str = "2025-06-24",
+    homepage: str | None = None,
     languages: tuple[str, ...] = (),
     frameworks: tuple[str, ...] = (),
     authored_files: int | None = None,
@@ -347,6 +430,7 @@ def repo(
         is_fork=is_fork,
         owner_matches=owner_matches,
         is_readme_only=readme_only,
+        homepage=homepage,
         authored_files=0 if readme_only and authored_files is None else authored_files,
         authored_bytes=0 if readme_only and authored_bytes is None else authored_bytes,
         languages=dict.fromkeys(languages, 1),

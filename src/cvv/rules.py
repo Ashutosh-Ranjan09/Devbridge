@@ -580,10 +580,25 @@ class P6CrossPlatformHandle:
 @register
 @dataclass(frozen=True)
 class W1DeploymentLiveness:
-    """A claimed live product either responds or it does not."""
+    """A claimed live product either responds or it does not — and whose is it?
+
+    Liveness alone proves less than it appears to. `https://atma-ar.vercel.app`
+    returning 200 says a site exists at that address; it says nothing about the
+    candidate, and any URL beside any repository would pass. Nothing in the system
+    checked the PAIRING the CV asserts: this project, that repository, this live link.
+
+    So when every URL responds, the rule looks for the link in GitHub's own record —
+    the repository's declared `homepage`, which the owner sets or a deployment
+    integration writes. Corroboration only: most people never fill that field in, and
+    its absence is the ordinary case rather than evidence of anything. Presence ties
+    the three together from a source that is not the CV.
+
+    What this is NOT is W2. Whether the thing behind the URL does what the CV
+    describes needs a person to look at a screen, and the worksheet asks them to.
+    """
 
     rule_id: str = "W1"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
     scoring: bool = True
     summary: str = "Claimed live deployments respond to an HTTP request"
@@ -598,12 +613,17 @@ class W1DeploymentLiveness:
             for a in c.artefacts
             if a.type.value == "deployment"
         }
+
+        # Built as a list, not yielded straight out: `Corroborated` below is raised
+        # only when nothing fired, and a generator that yields before raising loses
+        # everything it yielded.
+        findings: list[Discrepancy] = []
         for d in ctx.bundle.deployments:
             if d.reachable:
                 continue
             claim = by_url.get(d.url)
             refs = [claim.claim_id] if claim else []
-            yield Discrepancy(
+            findings.append(Discrepancy(
                 finding_id=finding_id(ctx.report_id, self.rule_id, refs or [d.url]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
@@ -620,7 +640,45 @@ class W1DeploymentLiveness:
                     f"{d.url} returned "
                     + (f"HTTP {d.status_code}." if d.status_code else "no response.")
                 ),
+            ))
+
+        if findings:
+            yield from findings
+            return
+
+        linked = self._linked(ctx)
+        if linked:
+            raise Corroborated(
+                "Live deployment tied to the repository by GitHub's own record — "
+                + "; ".join(linked)
             )
+
+    def _linked(self, ctx: Context) -> list[str]:
+        """Claimed deployment URLs that a named repository declares as its homepage."""
+        if ctx.bundle.github is None:
+            return []
+        claimed = {
+            _site(a.url)
+            for c in ctx.graph.claims
+            for a in c.artefacts
+            if a.type.value == "deployment"
+        }
+        return [
+            f"{repo.name} declares {repo.homepage}"
+            for repo in ctx.bundle.github.repos
+            if repo.homepage and _site(repo.homepage) in claimed
+        ]
+
+
+def _site(url: str) -> str:
+    """Host and path, without scheme, `www.` or a trailing slash.
+
+    Compared as a whole rather than by host alone: two GitHub Pages projects for the
+    same account share a host and differ only in the path, so matching on host would
+    tie a deployment to the wrong repository.
+    """
+    stripped = url.split("://", 1)[-1].rstrip("/")
+    return stripped.removeprefix("www.").lower()
 
 
 # --------------------------------------------------------------------------- #
