@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from cvv.ingest import read, read_docx, sections
+from cvv.ingest import TEXT_LAYER_FLOOR, read, read_docx, sections
 from cvv.models import IngestMethod
 
 
@@ -97,3 +97,52 @@ class TestWhatIsRefused:
         path.write_text("hello")
         with pytest.raises(NotImplementedError, match="OCR"):
             read(path)
+
+
+def rasterise(source: Path, target: Path, *, dpi: int = 150) -> Path:
+    """A PDF whose pages are pictures — a scan, in every way that matters here."""
+    import pymupdf
+
+    src = pymupdf.open(source)
+    out = pymupdf.open()
+    for page in src:
+        pix = page.get_pixmap(dpi=dpi)
+        new = out.new_page(width=page.rect.width, height=page.rect.height)
+        new.insert_image(page.rect, stream=pix.tobytes("png"))
+    out.save(target)
+    return target
+
+
+class TestScannedDocuments:
+    """A PDF with no text layer must not come back as an empty document.
+
+    Returning one would produce a report full of abstentions with no reason a reader
+    could act on: "nothing was claimed" reads as a clean CV rather than as a file
+    nobody managed to read.
+    """
+
+    def test_the_floor_allows_for_stray_marks_rather_than_demanding_zero(self) -> None:
+        """A scanned page usually carries a few stray characters — a header stamp, a
+        form field — so "no text layer" cannot mean literally zero."""
+        assert TEXT_LAYER_FLOOR > 0
+
+    def test_a_text_pdf_is_never_sent_to_ocr(self) -> None:
+        cv = Path("docs/CV-SDE-AR.pdf")
+        if not cv.is_file():
+            pytest.skip("the reference CV is not present")
+        assert read(cv).ingest_method is IngestMethod.PDF_TEXT
+
+    @pytest.mark.live
+    def test_a_scanned_pdf_is_read_by_ocr_and_says_so(self, tmp_path: Path) -> None:
+        """Marked live because it needs the optional `ocr` extra — ~100 MB of model
+        weights that a default install does not carry."""
+        pytest.importorskip("rapidocr_onnxruntime")
+        cv = Path("docs/CV-SDE-AR.pdf")
+        if not cv.is_file():
+            pytest.skip("the reference CV is not present")
+
+        doc = read(rasterise(cv, tmp_path / "scanned.pdf"))
+        assert doc.ingest_method is IngestMethod.OCR
+        assert doc.ocr_confidence is not None and doc.ocr_confidence > 0.8
+        assert "23CS10004" in doc.text, "the roll number must survive OCR"
+        assert len(doc.text) > 1000

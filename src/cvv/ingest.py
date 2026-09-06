@@ -231,6 +231,71 @@ def read_docx(path: Path) -> Document:
     )
 
 
+# A page with less text than this almost certainly did not have its text extracted —
+# a scan, or a PDF whose text layer is images. Not zero: a scanned page often carries
+# a few stray characters from a header stamp or a form field.
+TEXT_LAYER_FLOOR = 120
+
+
+def read_scanned_pdf(path: Path, *, dpi: int = 200) -> Document:
+    """OCR, for a PDF whose pages are pictures of a CV.
+
+    Opt-in — `pip install 'cvv[ocr]'` — because the model weights are around 100 MB
+    and most CVs never need them. The import failure is caught and re-raised with
+    that instruction rather than surfacing as a bare ModuleNotFoundError.
+
+    `ocr_confidence` is recorded and travels to the report header. This is the one
+    ingest path whose output is a GUESS, and a reviewer looking at a finding built on
+    a span recovered from OCR text needs to know the text itself was inferred.
+
+    **Word boundaries are the weak point, not characters.** Measured on the reference
+    CV rasterised at 150 dpi: 3,910 characters at 0.981 mean confidence, and inside
+    that, `ASHUTOSHRANJAN`, `IITKharagpur`, `KrishnaPublicSchool`. Detection boxes do
+    not always preserve the spaces between words. Grounding still holds — a claim's
+    verbatim is recovered from this same string, so it is self-consistent — but every
+    check that matches text against a REFERENCE table degrades: `department_matches`
+    looks for "computer science" and `_same_org` for "iit kharagpur", and neither
+    survives the spaces going missing. Those rules abstain rather than contradict,
+    which is the correct failure, but the coverage cost is real and belongs in the
+    report rather than in a comment.
+    """
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+    except ModuleNotFoundError as exc:  # pragma: no cover - depends on the extra
+        raise NotImplementedError(
+            "This document has no text layer and needs OCR, which is an optional "
+            "extra: install it with `uv sync --extra ocr`. It is not a default "
+            "dependency because the model weights are ~100 MB and most CVs are text."
+        ) from exc
+
+    engine = RapidOCR()
+    pdf: Any = pymupdf.open(path)  # type: ignore[no-untyped-call]
+    lines: list[str] = []
+    scores: list[float] = []
+
+    for page in pdf:
+        pixmap = page.get_pixmap(dpi=dpi)
+        result, _ = engine(pixmap.tobytes("png"))
+        for box in result or []:
+            # (box, text, confidence) — the geometry is dropped here; spans index the
+            # normalised string, and OCR geometry is not the PDF's own coordinates.
+            lines.append(str(box[1]))
+            scores.append(float(box[2]))
+
+    raw = "\n".join(lines)
+    text, imap = normalise(raw)
+
+    return Document(
+        document_id="doc_" + hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        text=text,
+        index_map=imap,
+        raw=raw,
+        pages=len(pdf),
+        ingest_method=IngestMethod.OCR,
+        ocr_confidence=round(sum(scores) / len(scores), 3) if scores else None,
+    )
+
+
 def document_info(doc: Document) -> DocumentInfo:
     """The file's own provenance, for D4."""
     return DocumentInfo(
@@ -245,10 +310,16 @@ def document_info(doc: Document) -> DocumentInfo:
 
 
 def read(path: Path) -> Document:
-    """Dispatch on extension. OCR for scanned documents is still unbuilt."""
+    """Dispatch on extension, and on whether a PDF actually carries text."""
     suffix = path.suffix.lower()
     if suffix == ".pdf":
-        return read_pdf(path)
+        document = read_pdf(path)
+        # A PDF with no text layer is a scan. Returning it as an empty document would
+        # produce a report full of abstentions with no reason a reader could act on —
+        # "nothing was claimed" reads as a clean CV rather than as an unread file.
+        if len(document.text) < TEXT_LAYER_FLOOR * document.pages:
+            return read_scanned_pdf(path)
+        return document
     if suffix == ".docx":
         return read_docx(path)
     if suffix == ".doc":

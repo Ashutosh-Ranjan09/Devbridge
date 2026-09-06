@@ -17,6 +17,7 @@ from cvv.models import (
     DocumentInfo,
     EvidenceBundle,
     FindingsReport,
+    IngestMethod,
     RuleStatus,
     Tier,
     VerificationCoverage,
@@ -138,7 +139,12 @@ def quietly_clean(report: FindingsReport) -> list[str]:
     ]
 
 
-def render(report: FindingsReport, graph: ClaimGraph, bundle: EvidenceBundle) -> str:
+def render(
+    report: FindingsReport,
+    graph: ClaimGraph,
+    bundle: EvidenceBundle,
+    document: DocumentInfo | None = None,
+) -> str:
     """What the CLI prints."""
     findings = {f.finding_id: f for f in report.discrepancies}
     out: list[str] = []
@@ -158,6 +164,20 @@ def render(report: FindingsReport, graph: ClaimGraph, bundle: EvidenceBundle) ->
         f"   ·   {cov.rules_abstained} could not run   ·   coverage {cov.coverage:.0%}"
     )
     out.append("  Coverage describes the VERIFICATION, not the candidate.")
+    if document and document.ingest_method is IngestMethod.OCR:
+        # Everything below rests on text that was INFERRED from an image. Grounding
+        # still holds — a verbatim is recovered from the same string — but reference
+        # matching degrades where OCR drops the spaces between words, and a reader
+        # must know that before weighing an abstention.
+        confidence = (
+            f"{document.ocr_confidence:.0%}" if document.ocr_confidence else "unreported"
+        )
+        out.append("")
+        out.append(f"  READ BY OCR — mean character confidence {confidence}.")
+        out.append("  The text every finding below quotes was inferred from an image.")
+        out.append("  Word boundaries are the weak point: checks that match against a")
+        out.append("  reference table abstain more often here, and that is the correct")
+        out.append("  failure rather than a contradiction.")
     head("=")
 
     head("-", "✓ VERIFIED")

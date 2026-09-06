@@ -129,7 +129,7 @@ def verify(
                 "printed instead.",
                 fg="yellow",
             )
-    typer.echo(render(report, graph, bundle))
+    typer.echo(render(report, graph, bundle, document_info(document)))
 
 
 @app.command()

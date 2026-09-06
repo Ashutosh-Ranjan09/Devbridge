@@ -19,7 +19,9 @@ dependencies = [
 #   phase 4  fastapi · psycopg[binary] · psycopg_pool · qdrant-client
 #   phase 5  pandas · matplotlib
 [project.optional-dependencies]
-ocr = ["rapidocr-onnxruntime>=1.4"]   # ~100 MB; scanned CVs only
+ocr = [
+    "rapidocr-onnxruntime>=1.4",
+]   # ~100 MB; scanned CVs only
 
 [project.scripts]
 cvv = "cvv.cli:app"
@@ -65,6 +67,13 @@ files = ["src/cvv"]
 # accumulate and each one is a small lie about what the type checker is doing.
 warn_unused_ignores = true
 
+# rapidocr-onnxruntime ships no type information and is an OPTIONAL extra, so it is
+# not installed in every environment this runs in. Scoped to that one package rather
+# than relaxing the setting globally.
+[[tool.mypy.overrides]]
+module = ["rapidocr_onnxruntime.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
@@ -73,5 +82,5 @@ pythonpath = ["."]
 # network. Run the excluded ones explicitly with `pytest -m live`.
 addopts = "-q --strict-markers --import-mode=importlib -m 'not live'"
 markers = [
-    "live: hits a real model or a real external API; excluded by default",
+    "live: needs something a default install and an offline machine do not have — a\n    real model, a real external API, or an optional extra; excluded by default",
 ]
