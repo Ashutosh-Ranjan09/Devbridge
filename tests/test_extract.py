@@ -7,7 +7,7 @@ spike, not by these.
 
 from __future__ import annotations
 
-from cvv.extract import _years_on, scope_technologies
+from cvv.extract import _one_year, group_handles, scope_technologies
 from cvv.ingest import Document, normalise
 from cvv.models import ClaimKind, IngestMethod
 from tests.cvdata import make_claim
@@ -89,23 +89,98 @@ class TestScopeTechnologies:
         assert scope_technologies(claims, {}, doc) is claims  # type: ignore[arg-type]
 
 
-class TestYearsOnALine:
-    """Stated experience is READ off the line, never asked for — one fewer field for
-    a small model to invent, and it comes with its span for free."""
+class TestYearsPerLine:
+    """The model answers per TECHNOLOGY; the claim is per LINE.
 
-    def test_reads_a_single_figure(self) -> None:
-        assert _years_on("Python (5 years) | Rust") == 5.0
-        assert _years_on("8+ yrs of C++") == 8.0
-        assert _years_on("Java - 2.5 years") == 2.5
+    This replaced a regex for `N years`, which matched that phrasing and no other —
+    not "8 yrs", not "since 2016", not a line in any other language.
+    """
+
+    def test_one_figure_becomes_the_lines_tenure(self) -> None:
+        assert _one_year({5.0}) == 5.0
+
+    def test_the_same_figure_from_several_technologies_is_still_one_answer(self) -> None:
+        assert _one_year({3.0}) == 3.0
 
     def test_two_figures_on_one_line_drop_the_field(self) -> None:
-        """The claim is per LINE and the figures are per technology, so nothing here
-        can assign them. G9 then abstains, which beats attaching 5 to the wrong one."""
-        assert _years_on("Python (5 years) | Go (2 years)") is None
-
-    def test_the_same_figure_twice_is_still_one_answer(self) -> None:
-        assert _years_on("Python 3 years, Go 3 years") == 3.0
+        """"Python (5 years) | Go (2 years)" offers two numbers with no way to assign
+        them. G9 then abstains, which beats attaching 5 to the wrong language."""
+        assert _one_year({5.0, 2.0}) is None
 
     def test_a_line_stating_nothing(self) -> None:
-        assert _years_on("Proficient - C | C++ Intermediate - Python") is None
-        assert _years_on("Graduated 2026, 4 sems") is None
+        assert _one_year(None) is None
+        assert _one_year(set()) is None
+
+
+HANDLE_DOC = (
+    "AWARDS AND ACHIEVEMENTS\n"
+    "\u2022 Achieved a peak Codeforces rating of 1495 (handle: AR009)\n"
+    "\u2022 Reached a peak CodeChef rating of 1733 (handle: ar009)\n"
+)
+
+
+class TestHandlesAreLocatedNotQuoted:
+    """The handles pass returns no `verbatim`, for the reason the skills pass returns
+    none: asked for both, the model COMPOSES one. It returned "Codeforces: AR009"
+    for a document that says "(handle: AR009)" — a phrase not in the CV — and
+    grounding dropped it along with ten other proposals.
+    """
+
+    def proposed(self, platform: str, handle: str) -> object:
+        from cvv.extract import ProposedClaim
+        from cvv.models import ClaimKind
+
+        return ProposedClaim(kind=ClaimKind.PROFILE, platform=platform, handle=handle)
+
+    def test_the_documents_casing_wins(self) -> None:
+        """Guardrail 1. A model normalises tokens — it returns `ar-009` for `AR009`,
+        the API 404s, and the report says a real account does not exist."""
+        doc = document(HANDLE_DOC)
+        out = group_handles([self.proposed("codeforces", "ar009")], doc, (0, len(doc.text)))
+        assert out[0].handle == "AR009"
+
+    def test_the_handle_is_found_on_a_line_naming_its_own_platform(self) -> None:
+        """Guardrail 7 at the token level. This CV carries `AR009` on its Codeforces
+        line and `ar009` on its CodeChef line. A window-wide search takes the first
+        textual match, so the moment the model miscased one, BOTH claims got the
+        Codeforces line — the pairing silently wrong while every field was real."""
+        doc = document(HANDLE_DOC)
+        out = group_handles(
+            [self.proposed("codeforces", "ar009"), self.proposed("codechef", "AR009")],
+            doc,
+            (0, len(doc.text)),
+        )
+        by_platform = {p.platform: (p.handle, p.verbatim) for p in out}
+        assert by_platform["codeforces"][0] == "AR009"
+        assert "Codeforces" in by_platform["codeforces"][1]
+        assert by_platform["codechef"][0] == "ar009"
+        assert "CodeChef" in by_platform["codechef"][1]
+
+    def test_a_handle_on_no_line_naming_its_platform_is_dropped(self) -> None:
+        """Rather than guessing which account it belongs to."""
+        doc = document(HANDLE_DOC)
+        assert group_handles(
+            [self.proposed("leetcode", "AR009")], doc, (0, len(doc.text))
+        ) == []
+
+    def test_the_line_becomes_the_provenance(self) -> None:
+        doc = document(HANDLE_DOC)
+        out = group_handles([self.proposed("codeforces", "AR009")], doc, (0, len(doc.text)))
+        assert "peak Codeforces rating of 1495" in out[0].verbatim
+
+    def test_a_handle_outside_the_window_is_dropped(self) -> None:
+        """Guardrail 7, applied here: the pass's window is a boundary, not a hint."""
+        doc = document(HANDLE_DOC)
+        heading_only = (0, doc.text.index("Achieved"))
+        assert group_handles([self.proposed("codeforces", "AR009")], doc, heading_only) == []
+
+    def test_a_handle_the_document_does_not_contain_is_dropped(self) -> None:
+        doc = document(HANDLE_DOC)
+        assert group_handles([self.proposed("codeforces", "nobody")], doc, (0, len(doc.text))) == []
+
+    def test_one_claim_per_platform_and_handle(self) -> None:
+        doc = document(HANDLE_DOC)
+        out = group_handles(
+            [self.proposed("codeforces", "AR009")] * 3, doc, (0, len(doc.text))
+        )
+        assert len(out) == 1

@@ -1482,13 +1482,31 @@ class TestG9LanguageTenure:
 EXPERIENCE_DOC = DOCUMENT + " 5+ years of professional experience in software"
 
 
+def total_experience(years: float = 5.0) -> object:
+    """A stated total is an EMPLOYMENT claim carrying years and NO dates.
+
+    It asserts a duration of employment and nothing else, which keeps it inside the
+    contract's nine claim kinds. It replaced reading the document with a regex for
+    `N years of experience` — a pattern that matched that phrasing and no other.
+    """
+    return make_claim(
+        "5+ years of professional experience in software",
+        EXPERIENCE_DOC,
+        claim_id="cexp01",
+        kind=ClaimKind.EMPLOYMENT,
+        stated_years=years,
+    )
+
+
 class TestD6DurationArithmetic:
     """Attention, and the catalogue's `decisive` is wrong here. A CV need not list
     every role — a page forces the choice — so a stated total larger than the dated
     roles is the ordinary shape of an edited CV rather than a lie."""
 
     def test_a_stated_total_beyond_the_dated_roles_is_a_question(self) -> None:
-        graph = make_graph([role("Acme", "Jan 2022 - Dec 2022")], EXPERIENCE_DOC)
+        graph = make_graph(
+            [total_experience(), role("Acme", "Jan 2022 - Dec 2022")], EXPERIENCE_DOC
+        )
         report = assemble(graph, bundle(graph))
         finding = next(f for f in report.discrepancies if f.rule_id == "D6")
         assert finding.tier is Tier.ATTENTION
@@ -1502,6 +1520,7 @@ class TestD6DurationArithmetic:
         merged, which is the reading most generous to the candidate."""
         graph = make_graph(
             [
+                total_experience(),
                 role("Acme", "Jan 2020 - Dec 2022", claim_id="ca1"),
                 role("Globex", "Jan 2021 - Dec 2021", claim_id="cb1"),
             ],
@@ -1512,9 +1531,17 @@ class TestD6DurationArithmetic:
         assert finding.params["listed_years"] == 3.0
 
     def test_clean_when_the_dated_roles_cover_the_claim(self) -> None:
-        graph = make_graph([role("Acme", "Jan 2018 - Dec 2022")], EXPERIENCE_DOC)
+        graph = make_graph(
+            [total_experience(), role("Acme", "Jan 2018 - Dec 2022")], EXPERIENCE_DOC
+        )
         report = assemble(graph, bundle(graph))
         assert outcome(report, "D6").status is RuleStatus.CLEAN
+
+    def test_a_dated_role_is_never_mistaken_for_a_stated_total(self) -> None:
+        """A total carries years and NO dates. A role with both would otherwise be
+        counted as its own claimed total and compared against itself."""
+        graph = make_graph([role("Acme", "Jan 2022 - Dec 2022")], DOCUMENT)
+        assert outcome(assemble(graph, bundle(graph)), "D6").status is RuleStatus.ABSTAINED
 
     def test_abstains_when_the_cv_states_no_total(self) -> None:
         graph = make_graph([role("Acme", "Jan 2022 - Dec 2022")], DOCUMENT)
@@ -1523,7 +1550,7 @@ class TestD6DurationArithmetic:
         assert "states no total" in (result.reason or "")
 
     def test_abstains_when_it_states_a_total_but_dates_no_role(self) -> None:
-        graph = make_graph([], EXPERIENCE_DOC)
+        graph = make_graph([total_experience()], EXPERIENCE_DOC)
         result = outcome(assemble(graph, bundle(graph)), "D6")
         assert result.status is RuleStatus.ABSTAINED
         assert "dates no role" in (result.reason or "")

@@ -89,6 +89,7 @@ class ProposedClaim(BaseModel):
     # skills pass only — one item per technology, grouped into a claim per line
     name: str | None = None
     category: str | None = None
+    years: float | None = None
     categories: dict[str, str] = Field(default_factory=dict)
 
     # Set by the caller after validation, never by the model (extra="ignore" drops
@@ -113,6 +114,11 @@ class Pass:
     required: list[str] = field(default_factory=lambda: ["verbatim"])
     # Headings whose section this pass reads. Empty means the whole document.
     sections: tuple[str, ...] = ()
+    # Or a fraction of the document from one end, for a fact that lives under no
+    # heading at all. Positional windows carry no assumption about WORDING, which is
+    # the point — a phrase-matching window is the regex this replaced.
+    footer: float = 0.0
+    header: float = 0.0
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -245,6 +251,7 @@ PASSES: list[Pass] = [
             "Categorise every technology named in this CV section.\n"
             "  name      the technology, exactly as written\n"
             "  category  language | framework | library | tool | concept | not_a_skill\n"
+            "  years     years of experience the line states for it, or 0 if none\n"
             "\n"
             "Use not_a_skill for a heading or category label rather than a skill: a line\n"
             "reading 'Frameworks and Libraries : Next.js | Express.js' names two skills,\n"
@@ -262,8 +269,76 @@ PASSES: list[Pass] = [
                 "type": "string",
                 "enum": ["language", "framework", "library", "tool", "concept", "not_a_skill"],
             },
+            "years": {"type": "number"},
         },
-        required=["name", "category"],
+        required=["name", "category", "years"],
+    ),
+    Pass(
+        name="summary",
+        # The top of the page. A stated total of experience is a headline claim and
+        # lives above everything else; it is also written a hundred ways — "5+ years
+        # of professional experience", "8 yrs in industry", "since 2016" — which is
+        # exactly what a regex could not follow.
+        header=0.15,
+        kind=ClaimKind.EMPLOYMENT,
+        instruction=(
+            "Does this CV state a TOTAL number of years of professional experience "
+            "for the candidate overall?\n"
+            "  verbatim  the phrase stating it, copied exactly\n"
+            "  years     that number\n"
+            "\n"
+            "Only an overall total. A single job's duration is not one, and a course "
+            "or a degree length is not one. Return an empty list if the CV states no "
+            "overall total — most do not."
+        ),
+        properties={"verbatim": _STR, "years": {"type": "number"}},
+        required=["verbatim", "years"],
+    ),
+    Pass(
+        name="declarations",
+        # POSITIONAL, not by heading: an issuer's disclaimer lives in a footer, under
+        # no heading at all. `footer` is a fraction of the document rather than a
+        # phrase to look for, so it carries no assumption about how any institution
+        # words its disclaimer — which is the whole reason this replaced a regex.
+        footer=0.2,
+        kind=ClaimKind.DECLARATION_MARKER,
+        instruction=(
+            "Find any statement in this document, written by the INSTITUTION that "
+            "issued it rather than by the candidate, about what the institution did "
+            "not itself verify.\n"
+            "  verbatim  that sentence, copied exactly\n"
+            "\n"
+            "It is usually a footer. Return an empty list if there is none — most "
+            "documents have none, and inventing one would misdescribe the document."
+        ),
+        properties={"verbatim": _STR},
+        required=["verbatim"],
+    ),
+    Pass(
+        name="handles",
+        # Handles sit beside the achievements that cite them, or in a links or
+        # contact block. Whole-document was measured and is worse than useless here:
+        # qwen3:1.7b returned project titles as handles and stamped 'AR009' onto
+        # three of them — guardrail 7's failure, reached through guardrail 8's.
+        sections=("ACHIEVEMENT", "AWARD", "PROFILE", "LINK", "CONTACT", "CODING"),
+        kind=ClaimKind.PROFILE,
+        instruction=(
+            "List every account name this CV states for an online platform.\n"
+            "  platform  codeforces | codechef | leetcode | atcoder | hackerrank |\n"
+            "            github | gitlab | kaggle\n"
+            "  handle    the account name, copied exactly, character for character\n"
+            "\n"
+            "The CV may write it in any form — 'handle: ar009', 'Codeforces: ar009', "
+            "a profile URL, or a name in brackets after a rating. Copy the account "
+            "name exactly as printed, including its capitalisation."
+        ),
+        # No `verbatim`, for the reason the skills pass has none: asked for both, the
+        # model COMPOSES one. It returned "Codeforces: AR009" for a document that
+        # says "(handle: AR009)" — a phrase that is not in the CV, so grounding
+        # dropped it and eleven proposals with it. The handle is a token; the line it
+        # sits on is found here, the way group_skills does it.
+        properties={"platform": _STR, "handle": _STR},
+        required=["platform", "handle"],
     ),
 ]
 
@@ -273,27 +348,26 @@ PASSES: list[Pass] = [
 # --------------------------------------------------------------------------- #
 
 GITHUB_REPO = re.compile(r"github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)/([\w.-]+)")
-LABELLED_HANDLE = re.compile(
-    r"(codeforces|codechef|leetcode|atcoder|hackerrank|github)[^.\n]{0,60}?"
-    r"handle\s*[:\-]\s*([A-Za-z0-9_.-]{2,32})",
-    re.I,
-)
-# Bounded by sentence and bullet marks. After normalisation the document is one long
-# line with no newlines, so an unbounded [^.\n]* run greedily swallowed the preceding
-# 200 characters and captured the wrong sentence entirely.
-DISCLAIMER = re.compile(
-    r"[^.!•\n]*\b(?:could not verify|self[- ]declared|not verified by)\b[^.!•\n]*", re.I
-)
 
 
 def regex_claims(text: str) -> list[ProposedClaim]:
     """The three things both models missed entirely, and one they only found by luck.
 
-    A roll number is an unremarkable token in a wall of prose — a model has no
-    semantic reason to emit it, and `23CS10004` decodes into admission year and
-    department for a decisive check. Handles were found only when they happened to sit
-    inside an achievement sentence. The institution's own disclaimer scopes every
-    other claim on the page and neither model produced it.
+    Two things, and only two, because only two have a grammar rather than a
+    convention. A roll number's shape is declared per institution in
+    `data/roll-schemes.json`; a URL's shape is declared by the internet. Everything
+    else a regex used to take here — the disclaimer, labelled handles, years of
+    experience, contest numbers — encoded how ONE document happened to be phrased,
+    and returned nothing on a CV phrased differently. Those are model passes now.
+
+    A URL stays because guardrail 1 is explicit that a model normalises tokens: it
+    returns `ar-009` for `AR009`, the API 404s, and the report says a real account
+    does not exist. The `handles` pass runs anyway, and the two agree or the span
+    check drops the disagreement.
+
+    A roll number stays for a different reason, measured: it is an unremarkable token
+    in a wall of prose and a model has no semantic reason to emit it, while
+    `23CS10004` decodes into an admission year and a department for a decisive check.
     """
     out: list[ProposedClaim] = []
 
@@ -320,19 +394,6 @@ def regex_claims(text: str) -> list[ProposedClaim]:
                 kind=ClaimKind.PROFILE, verbatim=url, platform="github", handle=owner
             )
         )
-
-    for m in LABELLED_HANDLE.finditer(text):
-        out.append(
-            ProposedClaim(
-                kind=ClaimKind.PROFILE,
-                verbatim=m.group(0),
-                platform=m.group(1).lower(),
-                handle=m.group(2),
-            )
-        )
-
-    for m in DISCLAIMER.finditer(text):
-        out.append(ProposedClaim(kind=ClaimKind.DECLARATION_MARKER, verbatim=m.group(0).strip()))
 
     return out
 
@@ -384,6 +445,7 @@ def group_skills(
     A name that is not in the section is dropped — guardrail 7, applied here.
     """
     lines: dict[tuple[int, int], dict[str, str]] = {}
+    years: dict[tuple[int, int], set[float]] = {}
     lo, hi = window
 
     for p in skills:
@@ -392,7 +454,10 @@ def group_skills(
         found = doc.text.lower().find(p.name.lower(), lo, hi)
         if found == -1:
             continue  # the section does not contain it
-        lines.setdefault(line_at(doc, found), {})[p.name.lower()] = p.category or "unknown"
+        key = line_at(doc, found)
+        lines.setdefault(key, {})[p.name.lower()] = p.category or "unknown"
+        if p.years:
+            years.setdefault(key, set()).add(float(p.years))
 
     return [
         ProposedClaim(
@@ -400,7 +465,7 @@ def group_skills(
             verbatim=doc.text[start:end],
             skill_refs=sorted(categories),
             categories=categories,
-            stated_years=_years_on(doc.text[start:end]),
+            stated_years=_one_year(years.get((start, end))),
             window_start=start,
             window_end=end,
         )
@@ -409,19 +474,75 @@ def group_skills(
     ]
 
 
-_YEARS = re.compile(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\b", re.I)
+def _one_year(found: set[float] | None) -> float | None:
+    """The line's stated experience, when the technologies on it agree.
 
+    The model answers per TECHNOLOGY and the claim is per LINE, so "Python (5 years)
+    | Go (2 years)" offers two numbers with no way to assign them. Ambiguity drops
+    the field: the claim survives without it and G9 abstains, which beats attaching
+    5 to the wrong language.
 
-def _years_on(line: str) -> float | None:
-    """Stated experience, read off the line rather than asked for.
-
-    Two figures on one line — "Python (5 years) | Go (2 years)" — cannot be assigned,
-    because the claim is per LINE and the figures are per technology. Ambiguity drops
-    the field; the claim survives without it and G9 abstains, which is the honest
-    outcome rather than attaching one number to the wrong language.
+    This replaced a regex for `N years`, which found that phrasing and no other —
+    not "8 yrs", not "since 2016", not a line in any other language.
     """
-    found = {m.group(1) for m in _YEARS.finditer(line)}
-    return float(next(iter(found))) if len(found) == 1 else None
+    return next(iter(found)) if found and len(found) == 1 else None
+
+
+def group_handles(
+    handles: list[ProposedClaim], doc: Document, window: tuple[int, int]
+) -> list[ProposedClaim]:
+    """One handle per item in, one claim per source LINE out.
+
+    The token is located with the DOCUMENT's casing — guardrail 1: a model returns
+    `ar-009` for `AR009`, the API 404s, and the report says a real account does not
+    exist.
+
+    And it is located ON A LINE THAT NAMES ITS PLATFORM, which is guardrail 7 at the
+    token level. A window-wide search takes the first textual match, so a CV carrying
+    `AR009` on its Codeforces line and `ar009` on its CodeChef line gave BOTH claims
+    the Codeforces line the moment the model miscased one of them — the pairing
+    silently wrong while every field was individually real. A handle with no line
+    naming its platform is dropped; the claim it would have made is not worth its
+    risk of being about the wrong account.
+    """
+    out: list[ProposedClaim] = []
+    lo, hi = window
+    seen: set[tuple[str, str]] = set()
+    lowered_text = doc.text.lower()
+
+    for p in handles:
+        if not p.handle or not p.platform:
+            continue
+        platform = p.platform.lower()
+
+        found = -1
+        cursor = lo
+        while (hit := lowered_text.find(p.handle.lower(), cursor, hi)) != -1:
+            start, end = line_at(doc, hit)
+            if platform in lowered_text[start:end]:
+                found = hit
+                break
+            cursor = hit + 1
+        if found == -1:
+            continue
+
+        actual = doc.text[found : found + len(p.handle)]
+        key = (platform, actual)
+        if key in seen:
+            continue
+        seen.add(key)
+        start, end = line_at(doc, found)
+        out.append(
+            ProposedClaim(
+                kind=ClaimKind.PROFILE,
+                verbatim=doc.text[start:end],
+                platform=platform,
+                handle=actual,
+                window_start=start,
+                window_end=end,
+            )
+        )
+    return out
 
 
 def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], dict[str, int]]:
@@ -436,11 +557,21 @@ def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], 
     proposed = regex_claims(doc.text)
     counts = {"regex": len(proposed)}
     for p in PASSES:
-        text, offset = section_text(doc, p.sections) if p.sections else (doc.text, 0)
+        if p.sections:
+            text, offset = section_text(doc, p.sections)
+        elif p.footer:
+            offset = int(len(doc.text) * (1 - p.footer))
+            text = doc.text[offset:]
+        elif p.header:
+            offset, text = 0, doc.text[: int(len(doc.text) * p.header)]
+        else:
+            text, offset = doc.text, 0
         found = _call(p, text, offset, provider)
         counts[p.name] = len(found)
         if p.kind is ClaimKind.SKILL:
             found = group_skills(found, doc, (offset, offset + len(text)))
+        elif p.name == "handles":
+            found = group_handles(found, doc, (offset, offset + len(text)))
         proposed.extend(found)
     return proposed, counts
 
@@ -604,7 +735,9 @@ def ground(
                 qualifier=p.qualifier,
                 skill_refs=p.skill_refs,
                 proficiency=p.proficiency,
-                stated_years=p.stated_years,
+                # The summary pass sets `years` directly; the skills pass sets
+                # `stated_years` after grouping a line's technologies.
+                stated_years=p.stated_years if p.stated_years is not None else p.years,
                 context=context,
                 interval=interval,
                 parsed=parsed,

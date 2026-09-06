@@ -207,7 +207,31 @@ someone and one you would not.
    `data/tech-releases.json` is deliberately early, because a missed anachronism and
    a false accusation are not equally bad.
 
-10. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
+10. **A regex may recognise a token; it may never parse a CV.** A pattern encodes how
+   ONE document happened to be phrased, and returns nothing — silently, on an honest
+   CV — for every document phrased differently. Five of them were doing exactly that:
+
+   | Was | Failed on |
+   |---|---|
+   | `round\s+#?(\d{2,4})` for the contest | AtCoder, LeetCode, ICPC, and "Round 2" |
+   | `\d{2}[A-Z]{2}\d{5}` for the roll number | every institution but IIT Kharagpur — while `data/roll-schemes.json` held the shapes |
+   | `could not verify\|self-declared` | any institution wording its footer differently |
+   | `(platform)...handle:\s*(\w+)` | "Codeforces: ar009", a bare URL, a name in brackets |
+   | `(\d+) years of experience` | "8 yrs", "since 2016", any other language |
+
+   All five are model passes now. **Two regexes remain in the parsing path and both
+   earn it:** `GITHUB_REPO`, because a URL's grammar is declared by the internet and
+   not by a CV — and guardrail 1 is explicit that a model returns `ar-009` for
+   `AR009`; and `PLATFORM_MENTION`, which is enforcement rather than parsing and is
+   built FROM the contract's `Platform` enum so it cannot drift out of it. Roll
+   numbers are still found by pattern, but the patterns come from the data file that
+   interprets them, so a second institution is a data change and nothing else.
+
+   The lever for a converted pass is the WINDOW, never a phrase. `sections=` for a
+   fact under a heading, `header=`/`footer=` for one under none — positional windows
+   carry no assumption about wording, which is the entire point.
+
+11. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
    JEE ranks, returned them anyway — and `qwen3:1.7b` returned them relabelled as
    `codeforces`, which no label-based filter can catch. Anything the design excludes is
    dropped by code reading the verbatim, which the model cannot alter.

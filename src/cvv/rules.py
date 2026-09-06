@@ -1399,14 +1399,6 @@ class G9LanguageTenure:
 # --------------------------------------------------------------------------- #
 
 
-_EXPERIENCE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\s+(?:of\s+)?"
-    r"(?:professional\s+|industry\s+|relevant\s+|work\s+|software\s+|"
-    r"development\s+|hands[-\s]on\s+)*experience",
-    re.I,
-)
-
-
 @register
 @dataclass(frozen=True)
 class D6DurationArithmetic:
@@ -1432,16 +1424,21 @@ class D6DurationArithmetic:
     slack_years: float = 1.0
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
-        # Read from the document rather than from a claim: the contract's nine claim
-        # kinds have no slot for a document-level summary figure, and inventing a
-        # tenth would break the round-trip with the upstream schema. The matched text
-        # and its offset go into params, so the figure keeps its provenance.
-        text = ctx.graph.source.normalised_text
-        stated = [(float(m.group(1)), m.start()) for m in _EXPERIENCE.finditer(text)]
-        if not stated:
+        # A stated total is an EMPLOYMENT claim carrying years and no dates: it
+        # asserts a duration of employment and nothing else. That keeps it inside the
+        # contract's nine claim kinds — a tenth would break the round-trip with the
+        # upstream schema — and it replaces reading the document with a regex for
+        # `N years of experience`, which found that phrasing and no other.
+        totals = [
+            c
+            for c in ctx.claims(ClaimKind.EMPLOYMENT)
+            if c.stated_years and c.interval is None
+        ]
+        if not totals:
             raise Abstain("The CV states no total years of experience to check.")
 
-        years, at = max(stated)
+        stated_claim = max(totals, key=lambda c: float(c.stated_years or 0))
+        years = float(stated_claim.stated_years or 0)
         roles = [c for c in ctx.claims(ClaimKind.EMPLOYMENT) if c.interval is not None]
         if not roles:
             raise Abstain(
@@ -1457,15 +1454,17 @@ class D6DurationArithmetic:
             return
 
         yield Discrepancy(
-            finding_id=finding_id(ctx.report_id, self.rule_id, [c.claim_id for c in roles]),
+            finding_id=finding_id(
+                ctx.report_id, self.rule_id, [stated_claim.claim_id, *(c.claim_id for c in roles)]
+            ),
             rule_id=self.rule_id,
             rule_version=self.rule_version,
             tier=self.tier,
             severity=Severity.LOW,
             confidence=0.5,
             scoring=self.scoring,
-            claim_refs=[c.claim_id for c in roles],
-            evidence_refs=[f"document.char:{at}"],
+            claim_refs=[stated_claim.claim_id, *(c.claim_id for c in roles)],
+            evidence_refs=[stated_claim.claim_id],
             params={
                 "stated_years": years,
                 "listed_years": round(listed, 1),

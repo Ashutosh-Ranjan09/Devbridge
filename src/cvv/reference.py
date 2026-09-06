@@ -98,6 +98,31 @@ def roll_patterns() -> list[tuple[str, re.Pattern[str]]]:
     return out
 
 
+@functools.cache
+def excluded_exams() -> re.Pattern[str]:
+    """Examinations whose ranks are refused, as one compiled alternation.
+
+    Regional DATA — an Indian CV names JEE and GATE, another market names others —
+    but the ENFORCEMENT stays in code. A prompt is not an enforcement mechanism:
+    qwen3:4b, told explicitly to ignore JEE ranks, returned them anyway, and
+    qwen3:1.7b returned them relabelled as `codeforces`, which no label-based filter
+    can catch. So the names are matched against the claim's own verbatim, which the
+    model cannot alter.
+
+    An absent or empty file excludes nothing, and the pattern is built so it can
+    never match the empty string and silently drop every claim.
+    """
+    path = DATA_DIR / "excluded-exams.json"
+    names = []
+    if path.is_file():
+        raw: dict[str, Any] = json.loads(path.read_text())
+        names = [str(n) for n in raw.get("exams", []) if str(n).strip()]
+    if not names:
+        return re.compile(r"(?!)")  # matches nothing, rather than everything
+    alternation = "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True))
+    return re.compile(rf"\b(?:{alternation})\b", re.I)
+
+
 def scheme_for(roll: str, org: str | None) -> dict[str, Any] | None:
     """The scheme whose pattern matches this roll number.
 

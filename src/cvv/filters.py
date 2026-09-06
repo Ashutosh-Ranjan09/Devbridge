@@ -24,21 +24,29 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Sequence
 
-from cvv.models import Claim, ClaimKind, Proficiency
+from cvv.models import Claim, ClaimKind, Platform, Proficiency
+from cvv.reference import excluded_exams
 
 # X1 — entrance rank against a published cutoff is excluded on fairness grounds. JEE
 # cutoffs vary enormously by reservation category, so a category-blind comparison
 # systematically flags reserved-category candidates for a rank that is entirely valid.
-# Matched against the VERBATIM, not the model's platform label: the model controls the
-# label and got it wrong, but it cannot alter text it copied from the document.
-EXCLUDED_EXAMS = re.compile(
-    r"\b(JEE|GATE|NEET|BITSAT|WBJEE|COMEDK|VITEEE|KVPY|NTSE|CUET)\b", re.I
-)
+#
+# The NAMES are regional data (data/excluded-exams.json); the enforcement is here, in
+# code, matched against the VERBATIM rather than the model's platform label. The model
+# controls the label and got it wrong — qwen3:1.7b returned JEE ranks relabelled as
+# `codeforces` — but it cannot alter text it copied from the document.
 
 # Platforms a claim may name. Two or more in one sentence means the number is an
 # aggregate and cannot be attributed to any single source.
+#
+# Built FROM the contract's enum rather than beside it: a platform added to `Platform`
+# and forgotten here would stop being counted toward an aggregate, and P3 would
+# compare a three-source total against one source. The extras are sites this system
+# will never connect to but that a CV names in the same breath — they matter for
+# detecting the aggregate, not for checking it.
+_UNCONNECTED = ("hackerearth", "geeksforgeeks", "spoj", "topcoder", "codingninjas", "kaggle")
 PLATFORM_MENTION = re.compile(
-    r"\b(codeforces|leetcode|codechef|atcoder|hackerrank|hackerearth|geeksforgeeks|spoj|topcoder)\b",
+    r"\b(?:" + "|".join(sorted({*(p.value for p in Platform), *_UNCONNECTED})) + r")\b",
     re.I,
 )
 
@@ -71,7 +79,7 @@ _CONTAINER_KINDS = frozenset(
 
 
 def names_excluded_exam(verbatim: str) -> bool:
-    return EXCLUDED_EXAMS.search(verbatim) is not None
+    return excluded_exams().search(verbatim) is not None
 
 
 def platforms_named(verbatim: str) -> set[str]:

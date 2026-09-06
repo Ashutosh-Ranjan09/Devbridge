@@ -1,0 +1,23 @@
+{
+  "_note": [
+    "Entrance examinations whose ranks this system refuses to check — the X1",
+    "exclusion, enforced.",
+    "",
+    "The reason is fairness and it is not negotiable per-deployment: JEE and similar",
+    "cutoffs vary enormously by reservation category, and a category-blind comparison",
+    "systematically flags reserved-category candidates for a rank that is entirely",
+    "valid. Build it with correct per-category tables, or not at all.",
+    "",
+    "This is DATA rather than code for one reason only: the list is regional. An",
+    "Indian CV names JEE and GATE; a different market names entirely different",
+    "examinations, and the same fairness argument applies to them. What must never",
+    "become data is the ENFORCEMENT — the names are matched against the claim's own",
+    "verbatim, in code, because a prompt is not an enforcement mechanism. qwen3:4b,",
+    "told explicitly to ignore JEE ranks, returned them anyway; qwen3:1.7b returned",
+    "them relabelled as `codeforces`, which no label-based filter can catch."
+  ],
+  "exams": [
+    "JEE", "GATE", "NEET", "BITSAT", "WBJEE", "COMEDK", "VITEEE",
+    "KVPY", "NTSE", "CUET", "KCET", "MHT-CET", "AIEEE", "JEST", "CAT", "GRE", "GMAT"
+  ]
+}
