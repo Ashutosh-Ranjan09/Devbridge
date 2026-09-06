@@ -11,21 +11,36 @@ and says explicitly what it could not check. A person decides what any of it mea
 ## Current state
 
 **27 of the 41 catalogued checks are built and the pipeline runs end to end** on
-`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 269 tests, ~6,300 lines across 25
+`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 306 tests, ~7,000 lines across 27
 modules, ruff and `mypy --strict` clean.
 
 One of the 41 — G12 — is excluded by decision rather than pending, so the buildable
-target is 40. Six more (H1–H6) are human by design. The machine ceiling is 34.
+target is 40. Six more (H1–H6) are human by design, and the system prepares their
+worksheet instead. **The machine ceiling is 34, and 27 of it is built.**
+
+**The system is measured, not asserted.** `cvv evaluate` corrupts one fact at a time
+in a real document and asks whether the check responsible notices: **15/15 detection,
+0 collateral**. Collateral — rules firing on a mutation they had no business noticing
+— is the number that matters, and it started at 2. Both were real bugs, and one of
+them would have contradicted an honest CV.
 
 ```
 cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
-cvv verify cv.pdf [--brief] [--json] [--offline] [--save DIR]
+
+cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save DIR]
+cvv evaluate cv.pdf [--baseline DIR] [--save-baseline DIR]
 cvv rules | inspect | config
 ```
 
-Built: `models/` · `ingest` · `spans` · `extract` · `filters` · `dates` ·
-`intervals` · `gather` (Codeforces · LeetCode · GitHub · liveness) · `github` ·
-`leetcode` · `reference` · `rules` · `report` · `narrative` · `cli`.
+Ingest reads **PDF, DOCX and scanned PDF** (`uv sync --extra ocr`). A PDF whose text
+layer is thinner than 120 characters a page is a scan and goes to OCR automatically;
+the report then carries a banner saying the text was inferred, because word
+boundaries are where OCR fails and every reference-table match degrades with them.
+
+Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `filters` ·
+`dates` · `intervals` · `gather` (Codeforces · LeetCode · GitHub · liveness) ·
+`github` · `leetcode` · `reference` · `rules` · `report` · `narrative` ·
+`worksheet` · `evaluate` · `cli`.
 
 | Group | Built | Missing |
 |---|---|---|
@@ -48,6 +63,14 @@ byte-identical claim set, including across a forced model reload. The one variab
 the GPU/CPU layer split, which Ollama picks from free VRAM at load time and which
 moves the model's raw proposal count; pin `CVV_NUM_GPU` to remove it. The filters
 absorbed that variance in every observed case — 18 proposals or 22, same findings.
+
+**What is genuinely left**, all of it outside the check catalogue: an HTTP surface
+and Postgres persistence (declared in the stack, unbuilt — nothing needs them yet),
+and G6 tier 2, which would read targeted repository files to turn "the dependency is
+installed" into "the dependency is used for the thing claimed". That last one is the
+only remaining check improvement and it is deliberately deferred: it opens a
+prompt-injection surface the candidate chooses the contents of, for a gain the
+manifest check already approximates.
 
 Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 
@@ -206,6 +229,16 @@ And two that shape everything else:
   belonging to P1 in a sentence about G5 is the extraction failure arriving at the
   other end of the pipeline. Rejected prose falls back to a summary assembled by
   counting, and the CLI says why.
+- **Measure the system, do not assert it.** `cvv evaluate` is not a test suite. A unit
+  test proves a rule does what its author intended, using a fixture that author wrote
+  to exercise it; it cannot prove the system catches a falsified CV. The harness
+  corrupts one fact in a real document and reports two numbers. **Detection** is the
+  quotable one and the easy one to inflate — "something fired" does not count, the
+  rule responsible must be the one that noticed. **Collateral** is the honest one:
+  rules firing on a mutation they had no business noticing. It found P3 comparing a
+  LeetCode count against Codeforces, which would have contradicted an honest CV
+  decisively, and it found D11 reporting a career gap between two mentions of one
+  role. Neither was visible to 294 passing tests.
 - **No overall trust score. No verdicts.** `FindingsReport` has no `overall_score` field,
   deliberately. This is most tempting to add during demo prep — don't.
 

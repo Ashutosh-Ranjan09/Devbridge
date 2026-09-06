@@ -22,10 +22,12 @@ Phase 1 is days. It is deliberately ahead of the fixture corpus: real extraction
 tells you which of the 22 claim shapes actually break, and hand-writing 84 fixture files
 before seeing one is guesswork.
 
-**Where the build actually is.** Phases 0, 1 and 3 are done for everything reachable:
-27 of the 41 checks are registered, four connectors are built, and the narrative
-renderer from phase 4 is in. Phase 2 is partly done — PDF, spans, dates and all nine
-claim kinds work; DOCX and OCR do not. Phase 5 has not started.
+**Where the build actually is.** Phases 0-5 are done for everything reachable.
+Phase 2 reads PDF, DOCX and scanned PDF; phase 4 has the five buckets, the narrative
+renderer and the manual-check worksheet; phase 5 is the mutation harness, reporting
+15/15 detection and 0 collateral on the reference CV. What is left sits outside the
+catalogue: an HTTP surface and Postgres persistence, both declared in the stack and
+unbuilt because nothing needs them yet.
 
 The fourteen unbuilt checks are not unbuilt because they are hard. C1-C4 need
 per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
