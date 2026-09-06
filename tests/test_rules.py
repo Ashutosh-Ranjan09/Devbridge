@@ -338,6 +338,8 @@ def repo(
     created: str = "2025-06-24",
     languages: tuple[str, ...] = (),
     frameworks: tuple[str, ...] = (),
+    authored_files: int | None = None,
+    authored_bytes: int | None = None,
 ) -> RepoEvidence:
     return RepoEvidence(
         name=name,
@@ -345,6 +347,8 @@ def repo(
         is_fork=is_fork,
         owner_matches=owner_matches,
         is_readme_only=readme_only,
+        authored_files=0 if readme_only and authored_files is None else authored_files,
+        authored_bytes=0 if readme_only and authored_bytes is None else authored_bytes,
         languages=dict.fromkeys(languages, 1),
         frameworks=list(frameworks),
         created_at=datetime.date.fromisoformat(created),
@@ -522,6 +526,19 @@ class TestG7RepoSubstance:
         graph = make_graph([], DOCUMENT)
         report = assemble(graph, bundle(graph, github=gh))
         assert outcome(report, "G7").status is RuleStatus.CLEAN
+
+
+    def test_the_finding_carries_the_byte_figure(self) -> None:
+        """The trigger is zero authored files and carries no opinion about size — but
+        the reviewer still sees how big the repository is, so "600 KB of lock file"
+        and "an empty shell" are distinguishable without the rule ranking them."""
+        graph = make_graph([], DOCUMENT)
+        gh = github(repos=(repo("shell", readme_only=True, created="2025-01-01"),))
+        report = assemble(graph, bundle(graph, github=gh))
+        finding = next(f for f in report.discrepancies if f.rule_id == "G7")
+        assert finding.params["authored_files"] == 0
+        assert finding.params["authored_bytes"] == 0
+        assert "written by a person" in finding.explanation
 
 
 class TestG8PortfolioComposition:

@@ -59,6 +59,17 @@ class RepoEvidence(Model):
     commit_count: int | None = Field(default=None, ge=0)
     size_kb: int | None = Field(default=None, ge=0)
     is_readme_only: bool | None = None
+    # What a PERSON wrote: every blob in the tree minus boilerplate, dependency lock
+    # files, committed build output and vendored dependencies. None means the tree
+    # was not gathered; 0 means a repository with nothing authored in it, which is a
+    # finding. Never conflate them.
+    #
+    # NOT comparable with `size_kb`, which GitHub reports for the PACKED repository.
+    # A 299 KB repo legitimately holds 452 KB of authored source, and the two appear
+    # together only when this is 0, where "5 KB of repository, none of it authored"
+    # is exactly the intended reading.
+    authored_files: int | None = Field(default=None, ge=0)
+    authored_bytes: int | None = Field(default=None, ge=0)
     # Bytes per language. Gives LANGUAGES, not frameworks: React and Next.js both
     # appear as TypeScript. Framework detection parses dependency manifests instead.
     languages: dict[str, int] = Field(default_factory=dict)

@@ -53,6 +53,39 @@ BOILERPLATE = frozenset(
 )
 
 
+# Files nobody wrote. The list is deliberately CONSERVATIVE, and its bias runs the
+# opposite way to data/tech-releases.json: excluding a file the candidate DID write
+# pushes `authored_files` toward zero, and zero is what makes G7 fire decisively. So
+# anything ambiguous stays IN — build/, out/, target/ and vendor/ are conventional
+# output directories in some ecosystems and ordinary source directories in others,
+# and being wrong about one of those invents a contradiction against an honest
+# repository. Only what is unambiguously machine-generated is listed.
+GENERATED_NAMES = frozenset(
+    {
+        "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock",
+        "Cargo.lock", "Gemfile.lock", "composer.lock", "go.sum",
+    }
+)
+GENERATED_DIRS = ("node_modules/", "__pycache__/", "site-packages/")
+GENERATED_SUFFIXES = (".min.js", ".min.css", ".map")
+
+
+def _authored(path: str) -> bool:
+    """Did a person write this file? Filename evidence only — no content is read.
+
+    This is what separates "the repository holds a project" from "the repository
+    holds a README and fifteen thousand lines of dependency lock file". The previous
+    version asked only whether a filename sat outside eleven boilerplate names, so a
+    lock file counted as substance.
+    """
+    name = path.split("/")[-1]
+    if name in BOILERPLATE or name in GENERATED_NAMES or path.startswith("."):
+        return False
+    if any(segment in path for segment in GENERATED_DIRS):
+        return False
+    return not path.endswith(GENERATED_SUFFIXES)
+
+
 class RateLimited(Exception):  # noqa: N818 - a typed gap reason, not an error
     """The API said no. Becomes a Gap; gathering continues."""
 
@@ -171,16 +204,21 @@ def _repo_evidence(
         for entry in (tree or {}).get("tree", [])
         if entry.get("type") == "blob"
     }
-    # "Is there anything here but a README" — NOT "are there few files". Counting
+    # "Is there anything here a person wrote" — NOT "are there few files". Counting
     # files marked a real 11 KB Python chat application as readme-only because it
     # lives in two files, which would have produced a false G7 finding. A small
     # program is not an empty repository.
-    evidence["is_readme_only"] = not any(
-        path.split("/")[-1] not in BOILERPLATE and not path.startswith(".")
+    #
+    # `size` arrives with the tree, so the byte figure costs no extra request and no
+    # file contents are fetched.
+    authored = [
+        entry
         for entry in (tree or {}).get("tree", [])
-        if entry.get("type") == "blob"
-        for path in [entry["path"]]
-    )
+        if entry.get("type") == "blob" and _authored(entry["path"])
+    ]
+    evidence["authored_files"] = len(authored)
+    evidence["authored_bytes"] = sum(entry.get("size", 0) for entry in authored)
+    evidence["is_readme_only"] = not authored
     evidence["frameworks"] = _frameworks(client, owner, name, files & set(MANIFESTS))
 
     return RepoEvidence(**evidence)

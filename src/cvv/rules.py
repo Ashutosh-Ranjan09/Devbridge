@@ -859,18 +859,30 @@ class G5ActivityDuringClaimedWindow:
 @register
 @dataclass(frozen=True)
 class G7RepoSubstance:
-    """Is there anything in the repository but a README?
+    """Is there anything in the repository that a person wrote?
 
     Deliberately not a size or commit-count threshold. Those encode an opinion about
     how big a project should be, which differs by institution, language and year, and
-    a two-file Python program is a program.
+    a two-file Python program is a program. The trigger is ZERO authored files, which
+    carries no opinion at all — which is what lets G7 be decisive.
+
+    What changed in 2.0 is the definition of "authored", not the threshold. Asking
+    only whether a filename sat outside eleven boilerplate names let two shapes
+    through: a repository holding a README and a fifteen-thousand-line
+    `package-lock.json`, and one holding a README and a committed minified bundle.
+    Both are presented as projects and neither contains one.
+
+    Not caught, and not claimed to be: an unmodified `create-next-app` scaffold.
+    `app/page.js` is indistinguishable from source by its name, and separating
+    generated source from written source needs the generator's template — data
+    acquisition, not a filename rule.
     """
 
     rule_id: str = "G7"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
     scoring: bool = True
-    summary: str = "Named repositories contain more than a README"
+    summary: str = "Named repositories contain a file a person wrote"
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
         gh = ctx.github()
@@ -892,10 +904,16 @@ class G7RepoSubstance:
                 scoring=self.scoring,
                 claim_refs=[by_claim[repo.name]] if repo.name in by_claim else [],
                 evidence_refs=[f"github.repos[{repo.name}]"],
-                params={"repo": repo.name, "size_kb": repo.size_kb},
+                params={
+                    "repo": repo.name,
+                    "size_kb": repo.size_kb,
+                    "authored_files": repo.authored_files,
+                    "authored_bytes": repo.authored_bytes,
+                },
                 explanation=(
-                    f"{repo.name!r} is presented as a project but contains no files "
-                    "beyond a README and boilerplate."
+                    f"{repo.name!r} is presented as a project. Every file in it is a "
+                    "README, a licence, a dependency lock file or generated output — "
+                    "none was written by a person."
                 ),
             )
 
