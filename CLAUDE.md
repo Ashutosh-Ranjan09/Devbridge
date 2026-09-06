@@ -10,9 +10,12 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 ## Current state
 
-**27 of the 41 checks are built and the pipeline runs end to end** on
-`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 237 tests, ~6,200 lines across 25
+**27 of the 41 catalogued checks are built and the pipeline runs end to end** on
+`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 269 tests, ~6,300 lines across 25
 modules, ruff and `mypy --strict` clean.
+
+One of the 41 — G12 — is excluded by decision rather than pending, so the buildable
+target is 40. Six more (H1–H6) are human by design. The machine ceiling is 34.
 
 ```
 cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
@@ -27,17 +30,18 @@ Built: `models/` · `ingest` · `spans` · `extract` · `filters` · `dates` ·
 | Group | Built | Missing |
 |---|---|---|
 | D · document-intrinsic | D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 | — |
-| G · GitHub | G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 | G12 (per-commit distribution, expensive) |
+| G · GitHub | G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — **all of them** | G12 is excluded by decision, below |
 | P · platforms | P1 P2 P3 P4 P6 | P5 (CodeChef — no API, scraper only) |
 | W · deployments | W1 | W2 (human — a reviewer opens the link) |
 | C · credentials | C5 (narrative) | C1–C4 — blocked on DATA, not code |
 | H · human | — | H1–H6, by design |
 
-**The eleven remaining checks are not remaining because they are hard.** C1–C4 need
+**None of the thirteen unbuilt checks is unbuilt because it is hard.** C1–C4 need
 per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
 directories — acquisition problems, not engineering ones. P5 needs a scraper, which
 is a source that breaks silently and answers wrongly. H1–H6 are human by design and
-the system's job there is to prepare the worksheet, not to guess.
+the system's job there is to prepare the worksheet, not to guess. G12 is excluded
+outright.
 
 **Reproducibility is measured, not assumed.** Same document and seed gives a
 byte-identical claim set, including across a forced model reload. The one variable is
@@ -285,6 +289,25 @@ evidence, and building from it produces a system that structurally cannot run 18
   category-blind comparison systematically flags reserved-category candidates.
 - **AI-generated CV detection** — using a model to write a CV is not fraud, and detection
   penalises non-native English speakers.
+- **G12, contribution authenticity** — commit size distribution, to catch activity
+  farming and bulk imports. Cost was never the objection: GraphQL `history { additions
+  deletions }` returns 100 commits a query, roughly 40 for a whole account. It is
+  excluded because it does not work and because it is shaped wrongly.
+
+  It does not work in either direction. **Farming**: 400 commits with a median of one
+  line is a cron job, and it is also `fix: typo in README` / `refactor: rename userId`
+  / `test: add empty-input case` — the atomic-commit habit the industry teaches. No
+  threshold separates them. **Bulk import**: one honest `npm install` writes
+  `package-lock.json  +14,203 -0`, which *is* the signature; so does re-running one
+  Jupyter cell, whose diff is base64 plot data.
+
+  And it is shaped wrongly, which is the deciding argument. **Every other rule tests a
+  claim** — P1 tests "peak rating 1495", G7 tests "this is a project", D7 tests "React
+  in 2012". G12 tests no claim: the CV never says its author's commits are of
+  representative size. There is nothing to contradict, only a habit to be suspicious
+  of, and the innocent explanation cancels the finding on the page. It is also
+  defeated by `random.randint(1, 400)`, so it selects for naive GitHub usage — which
+  is students, deadline pushes, and people whose real work is private.
 - **Identity verification, employment verification, degree and CGPA verification** — no
   accessible source. A degree from an institution can only be confirmed by that
   institution. These are named in the `out_of_scope` bucket, and the system must never

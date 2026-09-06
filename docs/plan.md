@@ -29,9 +29,9 @@ claim kinds work; DOCX and OCR do not. Phase 5 has not started.
 
 The fourteen unbuilt checks are not unbuilt because they are hard. C1-C4 need
 per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
-directories; P5 needs a scraper; H1-H6 are human by design and G12 is expensive for
-what it returns. Every one of those is an acquisition or policy problem rather than an
-engineering one, and `CLAUDE.md` carries the current table.
+directories; P5 needs a scraper; H1-H6 are human by design. G12 is not unbuilt but
+EXCLUDED — see `CLAUDE.md`. Every one of the rest is an acquisition or policy problem
+rather than an engineering one, and `CLAUDE.md` carries the current table.
 
 ### Phase 0 — contracts
 
@@ -113,7 +113,7 @@ they never move a number.
 | G9 | Language tenure | attention | "Python, 8 years", first evidence 2023 |
 | G10 | Activity during claimed employment | attention | zero commits across a claimed 2-year role |
 | G11 | Org membership | attention | claims employer X, no public org membership |
-| G12 | Contribution authenticity | attention | commit pattern looks like farming |
+| ~~G12~~ | ~~Contribution authenticity~~ | — | **excluded** — tests no claim, and atomic commits look identical to farming |
 
 **The ownership asymmetry.** A self-claimed account that *contradicts* the CV is strong
 evidence — nobody lists a handle that undermines them. One that *corroborates* is weak —
