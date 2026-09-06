@@ -39,6 +39,7 @@ dev = [
     "respx>=0.21",       # connectors tested against recorded responses
     "ruff>=0.8",
     "mypy>=1.13",
+    "jsonschema>=4.23",
 ]
 
 [build-system]

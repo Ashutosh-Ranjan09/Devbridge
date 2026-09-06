@@ -14,11 +14,15 @@ import datetime
 from cvv.models import (
     Buckets,
     ClaimGraph,
+    ClaimKind,
+    Discrepancy,
     DocumentInfo,
     EvidenceBundle,
     FindingsReport,
     IngestMethod,
     RuleStatus,
+    Section,
+    SectionConfidence,
     Tier,
     VerificationCoverage,
 )
@@ -75,6 +79,7 @@ def assemble(
         graph_id=graph.graph_id,
         discrepancies=findings,
         rule_outcomes=outcomes,
+        section_confidence=section_confidence(graph, findings),
         buckets=Buckets(
             verified=verified,
             # Capped at five, ranked by confidence: a reviewer gives a report about
@@ -89,6 +94,93 @@ def assemble(
         ),
         evaluated_at=datetime.datetime.now(datetime.UTC),
     )
+
+
+# Which section a finding belongs to, via the claims it cites. `profile`, `identifier`
+# and `declaration_marker` map to none: a finding about a handle or a roll number is
+# not a finding about a section of the CV, and inventing a home for it would put it in
+# somebody's employment score.
+# How much an attention finding counts toward a section, against a decisive one at
+# 1.0. A documented prior, swept in the evaluation rather than fitted: it is the
+# difference between "this section is contradicted" and "there is a question here".
+ATTENTION_WEIGHT = 0.4
+
+SECTION_OF: dict[ClaimKind, Section] = {
+    ClaimKind.EMPLOYMENT: Section.EMPLOYMENT,
+    ClaimKind.EDUCATION: Section.EDUCATION,
+    ClaimKind.CERTIFICATION: Section.CERTIFICATION,
+    ClaimKind.PROJECT: Section.PROJECTS,
+    ClaimKind.SKILL: Section.SKILLS,
+    ClaimKind.ACHIEVEMENT: Section.ACHIEVEMENTS,
+}
+
+
+def section_confidence(
+    graph: ClaimGraph, findings: list[Discrepancy]
+) -> list[SectionConfidence]:
+    """Noisy-OR over the SCORING discrepancies that touch each section.
+
+    Read it as: *how strongly the outside world contradicts what this section of the
+    CV says*. High is bad for the claim, not good — the contract's name is
+    `confidence` and the number is a probability of contradiction, so the docstring
+    has to carry what the field name does not.
+
+    Noisy-OR is `1 - Π(1 - w_i)`: two independent findings at 0.5 give 0.75, not 1.0,
+    and no number of weak findings ever reaches certainty. Summing them would let five
+    low-confidence attention findings outweigh one decisive contradiction.
+
+    Each `w_i` is **confidence times the tier's weight**, and the tier is not decoration
+    here. `Discrepancy.confidence` says how sure we are of the OBSERVATION, not how
+    bad it is: P2 recording 1109 where the CV claims 1106 has confidence 1.0, because
+    the API definitely says 1109. Combining raw confidences drove the achievements
+    section of an honest CV to **1.0 on a three-place standings artefact** — a
+    finding whose own innocent explanation says ranks shift after system testing.
+
+    Tier is the system's declared statement of how much a finding should count, fixed
+    on the rule and never chosen per finding (guardrail 5), so it is the right thing
+    to weight by. `ATTENTION_WEIGHT` is a documented prior to be swept in the
+    evaluation, not a fitted constant.
+
+    Three things it must not do, and they are the whole reason this is not a score:
+
+    - **`scoring=False` findings never contribute.** Enforced in the filter below and
+      again on the rule. A career gap, a naming habit, our own extractor dropping a
+      claim — none of them is evidence about a person, and D11's docstring says so.
+    - **A section with no scoring finding is ABSENT, not zero.** Zero would read as
+      "measured, found nothing" and be averaged with the rest. Absence forces a
+      consumer to ask whether the section was checked at all.
+    - **Nothing here is combined across sections.** `FindingsReport` has no
+      `overall_score` field, and this is the field most likely to be talked into
+      becoming one.
+    """
+    by_section: dict[Section, list[Discrepancy]] = {}
+    kinds = {c.claim_id: c.kind for c in graph.claims}
+
+    for finding in findings:
+        if not finding.scoring:
+            continue
+        for claim_id in finding.claim_refs:
+            section = SECTION_OF.get(kinds.get(claim_id, ClaimKind.PROFILE))
+            if section is None:
+                continue
+            bucket = by_section.setdefault(section, [])
+            if finding not in bucket:
+                bucket.append(finding)
+
+    out: list[SectionConfidence] = []
+    for section, group in sorted(by_section.items(), key=lambda pair: pair[0].value):
+        combined = 1.0
+        for finding in group:
+            weight = 1.0 if finding.tier is Tier.DECISIVE else ATTENTION_WEIGHT
+            combined *= 1.0 - finding.confidence * weight
+        out.append(
+            SectionConfidence(
+                section=section,
+                confidence=round(1.0 - combined, 4),
+                basis_finding_ids=[f.finding_id for f in group],
+            )
+        )
+    return out
 
 
 def coverage(report: FindingsReport) -> VerificationCoverage:

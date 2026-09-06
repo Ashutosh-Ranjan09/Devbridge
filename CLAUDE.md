@@ -71,6 +71,37 @@ Four decisions worth not re-deriving:
   than absent ones, so a client never needs two shapes. A verification that vanishes
   leaves the client polling and with nothing to tell the person whose CV it was.
 
+**`section_confidence` is a probability of CONTRADICTION, not a grade.** Noisy-OR
+over the scoring discrepancies touching each section: `1 - Π(1 - confidence * weight)`.
+Three things stop it becoming the score this system refuses to produce — non-scoring
+findings never contribute, a section with no scoring finding is ABSENT rather than
+zero (zero reads as "measured, found nothing" and gets averaged), and nothing is
+combined across sections. The weight is the TIER, and it is not decoration:
+`Discrepancy.confidence` says how sure we are of the OBSERVATION, so P2 recording
+1109 against a claimed 1106 carries confidence 1.0, and raw confidences drove an
+honest CV's achievements section to **1.0 on a three-place standings artefact**.
+Weighted, it reads 0.4.
+
+**The M6 projection emits capability signals, not findings.** `cvv verify --events`
+writes `evidence-event.schema.json`, and the schema's own description is the design
+brief: *"M6 does NOT consume discrepancies — it has no interest in fraud."* So most
+of a verification is withheld, each item with a typed reason, because filtering
+nobody can see is filtering nobody can audit. Four decisions inside it:
+
+- **Consent defaults to nothing.** M6 must refuse events whose scope does not cover
+  skill-graph inclusion; this system holds no consent record, so it asserts none and
+  `--consent` is an explicit flag. The batch still goes, carrying what was withheld
+  and why — a receiver that can see that can ask for consent, where an empty batch
+  looks like a verification that found nothing.
+- **`subject_ref` is never derived from the CV.** Minting an identifier out of a name
+  or a roll number makes someone linkable across verifications they never connected.
+- **Positive evidence from an unproven account is capped; negative is not** — the
+  ownership asymmetry, in the schema's own words, and every multiplier is emitted as
+  a named `reliability_factor` so a capped value is auditable instead of magic.
+- **`skill_id` is an ESCO-seeded canonical id and there is no resolver here**, so ids
+  go out in an explicit `surface:` namespace with reduced relevance. M6 can map or
+  reject them knowingly rather than storing something invented.
+
 **Logging never carries the CV.** Everything this system touches is somebody's
 personal data, and a log line is the easiest place for it to escape — written to
 disk, shipped to an aggregator, tailed in a shared terminal, kept long after the

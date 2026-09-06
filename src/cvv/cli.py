@@ -53,6 +53,18 @@ def verify(
         bool,
         typer.Option(help="Print the manual-check worksheet instead of the buckets."),
     ] = False,
+    events: Annotated[
+        Path | None,
+        typer.Option(help="Write the M6 evidence-event projection here."),
+    ] = None,
+    subject: Annotated[
+        str | None,
+        typer.Option(help="Subject reference for the projection. Never derived from the CV."),
+    ] = None,
+    consent: Annotated[
+        bool,
+        typer.Option(help="Assert consent for skill-graph inclusion. Off by default."),
+    ] = False,
 ) -> None:
     """Run a CV end to end and print the five buckets."""
     if not path.is_file():
@@ -96,6 +108,36 @@ def verify(
         report_id=f"fr_{document.document_id[4:]}",
         document=document_info(document),
     )
+
+    if events:
+        from cvv.events import SKILL_GRAPH, project
+
+        batch = project(
+            graph,
+            bundle,
+            report,
+            verification_id=f"vr_{document.document_id[4:]}",
+            # Never derived from the CV: minting an identifier for a person out of
+            # their name or roll number would make them linkable across
+            # verifications they never connected.
+            subject_ref=subject or f"subject:{document.document_id}",
+            consent_scope=[SKILL_GRAPH] if consent else [],
+        )
+        events.write_text(batch.model_dump_json(indent=2))
+        typer.secho(
+            f"wrote {len(batch.events)} event(s), {len(batch.not_emitted)} withheld, "
+            f"to {events}",
+            fg="green" if consent else "yellow",
+            err=True,
+        )
+        if not consent:
+            typer.secho(
+                "  consent_scope is EMPTY, so M6 will refuse every event. Pass "
+                "--consent only where the candidate actually agreed to skill-graph "
+                "inclusion.",
+                fg="yellow",
+                err=True,
+            )
 
     if save:
         save.mkdir(parents=True, exist_ok=True)
