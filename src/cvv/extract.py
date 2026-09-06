@@ -32,7 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from cvv.dates import parse_interval
 from cvv.filters import apply as apply_filters
 from cvv.ids import claim_id
-from cvv.ingest import Document, line_at, section_text
+from cvv.ingest import Document, Section, line_at, section_text, sections
 from cvv.models import (
     Artefact,
     ArtefactType,
@@ -119,6 +119,14 @@ class Pass:
     # the point — a phrase-matching window is the regex this replaced.
     footer: float = 0.0
     header: float = 0.0
+    # The routing category this pass consumes, when the model identifies one.
+    routes_to: str = ""
+    # Force at least this many items. A pass whose honest answer is usually "none"
+    # gets nothing at all from a small model otherwise — the summary pass returned an
+    # empty list for a CV reading "3 yrs of hands-on industry experience", because an
+    # empty list was permitted and is always the cheaper answer. Made mandatory, the
+    # model has to look; a zero is then a real answer and is dropped downstream.
+    min_items: int = 0
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -126,6 +134,7 @@ class Pass:
             "properties": {
                 "claims": {
                     "type": "array",
+                    "minItems": self.min_items,
                     "items": {
                         "type": "object",
                         "properties": self.properties,
@@ -145,6 +154,7 @@ _STR = {"type": "string"}
 PASSES: list[Pass] = [
     Pass(
         name="achievements",
+        routes_to="achievements",
         sections=("ACHIEVEMENT", "AWARD"),
         kind=ClaimKind.ACHIEVEMENT,
         instruction=(
@@ -172,6 +182,7 @@ PASSES: list[Pass] = [
     ),
     Pass(
         name="projects",
+        routes_to="projects",
         sections=("PROJECT",),
         kind=ClaimKind.PROJECT,
         instruction=(
@@ -202,6 +213,7 @@ PASSES: list[Pass] = [
     ),
     Pass(
         name="employment",
+        routes_to="employment",
         # Headings vary more here than anywhere else on a CV. Missing the section is
         # not fatal — section_text falls back to the whole document, just with a
         # wider window and worse precision.
@@ -232,6 +244,7 @@ PASSES: list[Pass] = [
     ),
     Pass(
         name="education",
+        routes_to="education",
         sections=("EDUCATION",),
         kind=ClaimKind.EDUCATION,
         instruction=(
@@ -245,6 +258,7 @@ PASSES: list[Pass] = [
     ),
     Pass(
         name="skills",
+        routes_to="skills",
         sections=("SKILL", "EXPERTISE"),
         kind=ClaimKind.SKILL,
         instruction=(
@@ -282,17 +296,21 @@ PASSES: list[Pass] = [
         header=0.15,
         kind=ClaimKind.EMPLOYMENT,
         instruction=(
-            "Does this CV state a TOTAL number of years of professional experience "
-            "for the candidate overall?\n"
-            "  verbatim  the phrase stating it, copied exactly\n"
-            "  years     that number\n"
+            "Extract the candidate's stated total professional experience from this "
+            "CV header.\n"
+            "  verbatim  the phrase that states it, copied exactly from the text\n"
+            "  years     the number of years that phrase states\n"
             "\n"
-            "Only an overall total. A single job's duration is not one, and a course "
-            "or a degree length is not one. Return an empty list if the CV states no "
-            "overall total — most do not."
+            "A total is one figure covering the whole career — years of professional, "
+            "industry, or hands-on experience. One job's dates are not a total, a "
+            "degree's length is not a total, and a course is not a total.\n"
+            "\n"
+            "Answer with exactly one entry. Where the header states no total, answer "
+            "years 0 with an empty verbatim."
         ),
         properties={"verbatim": _STR, "years": {"type": "number"}},
         required=["verbatim", "years"],
+        min_items=1,
     ),
     Pass(
         name="declarations",
@@ -316,6 +334,7 @@ PASSES: list[Pass] = [
     ),
     Pass(
         name="handles",
+        routes_to="achievements",
         # Handles sit beside the achievements that cite them, or in a links or
         # contact block. Whole-document was measured and is worse than useless here:
         # qwen3:1.7b returned project titles as handles and stamped 'AR009' onto
@@ -488,6 +507,103 @@ def _one_year(found: set[float] | None) -> float | None:
     return next(iter(found)) if found and len(found) == 1 else None
 
 
+ROUTING = Pass(
+    name="routing",
+    kind=ClaimKind.SKILL,  # unused; routing produces no claim
+    instruction=(
+        "Below are the section headings of one CV, one per line. For each heading, "
+        "say what that section holds.\n"
+        "  heading   the heading, copied exactly\n"
+        "  category  achievements | projects | employment | education | skills | other\n"
+        "\n"
+        "  achievements  contests, ratings, ranks, competitive programming, awards\n"
+        "  projects      things the candidate built\n"
+        "  employment    jobs, internships, professional roles\n"
+        "  education     QUALIFICATIONS — degrees, schools, board examinations\n"
+        "  coursework    individual COURSES taken, which are not qualifications\n"
+        "  skills        technologies, languages, tools\n"
+        "  other         anything else — publications, interests, references"
+    ),
+    properties={
+        "heading": _STR,
+        "category": {
+            "type": "string",
+            "enum": [
+                "achievements", "projects", "employment",
+                "education", "coursework", "skills", "other",
+            ],
+        },
+    },
+    required=["heading", "category"],
+)
+
+
+def route(doc: Document, provider: LLMProvider) -> dict[str, list[tuple[int, int]]]:
+    """Which section each pass should read, decided by the model, not by keywords.
+
+    `sections=("ACHIEVEMENT", "AWARD")` is a hardcoded convention in exactly the way
+    a regex is. Measured on a second CV: its competitive-programming section is
+    headed "COMPETITIVE PROGRAMMING", matched nothing, and the achievements pass fell
+    back to the whole document — the failure mode guardrail 8 is entirely about. Two
+    of three ratings and the only contest rank were lost, silently, on a CV that had
+    done nothing wrong.
+
+    One call, and the answer is verified: a heading the model returns must be a
+    heading the document actually has, compared on normalised text. An unroutable
+    document falls back to the keyword lists and then to the whole document, so this
+    can improve the window and never break it.
+    """
+    found = sections(doc)
+    if not found:
+        return {}
+
+    listing = "\n".join(s.heading for s in found)
+    answer = provider.complete_json(ROUTING.prompt(listing), ROUTING.schema())
+    by_heading = {_norm_text(s.heading): s for s in found}
+
+    windows: dict[str, list[Section]] = {}
+    for item in answer.get("claims") or []:
+        if not isinstance(item, dict):
+            continue
+        section = by_heading.get(_norm_text(str(item.get("heading", ""))))
+        category = str(item.get("category", ""))
+        # `coursework` and `other` are routed so the model has somewhere honest to put
+        # them, and consumed by no pass. Sending a coursework list to the education
+        # pass turned "Computer Science" and "Mathematics" into degrees awarded by
+        # "University", and D9 then picked one of those and abstained on a CV whose
+        # actual B.Tech was sitting two claims away.
+        if section is None or category in ("other", "coursework"):
+            continue
+        windows.setdefault(category, []).append(section)
+
+    return {category: _runs(group) for category, group in windows.items()}
+
+
+def _runs(group: list[Section]) -> list[tuple[int, int]]:
+    """Routed sections as one window per CONTIGUOUS run, never one window overall.
+
+    Sections are back-to-back — each runs to the next heading — so adjacent ones form
+    a clean region and can be unioned. Non-adjacent ones cannot: the real CV routes
+    both "EDUCATION" and "COURSEWORK INFORMATION" to education, correctly, and they
+    sit at opposite ends of the page. Spanning them turned a 180-character window
+    into a 4,252-character one holding every project and skill on the CV — the
+    wide-window failure, arrived at by being RIGHT about the headings.
+
+    Choosing between them was the next wrong answer: longest-first picked COURSEWORK
+    over EDUCATION and would have lost every degree. There is no need to choose. The
+    pass runs once per run, and the claims merge — one extra call on the uncommon CV
+    that splits a topic in two.
+    """
+    ordered = sorted(group, key=lambda s: s.start)
+    runs: list[list[Section]] = [[ordered[0]]]
+    for section in ordered[1:]:
+        if section.start == runs[-1][-1].end:
+            runs[-1].append(section)
+        else:
+            runs.append([section])
+    return [(run[0].start, run[-1].end) for run in runs]
+
+
 def group_handles(
     handles: list[ProposedClaim], doc: Document, window: tuple[int, int]
 ) -> list[ProposedClaim]:
@@ -556,22 +672,42 @@ def propose(doc: Document, provider: LLMProvider) -> tuple[list[ProposedClaim], 
     """
     proposed = regex_claims(doc.text)
     counts = {"regex": len(proposed)}
+
+    # The model says which heading holds what, and the keyword lists become the
+    # fallback rather than the mechanism.
+    try:
+        routed = route(doc, provider)
+    except Exception:  # routing is an optimisation; never let it fail a run
+        routed = {}
+    counts["routing"] = len(routed)
+
     for p in PASSES:
-        if p.sections:
+        if windows := routed.get(p.routes_to):
+            pass  # the model identified the section(s) this pass reads
+        elif p.sections:
             text, offset = section_text(doc, p.sections)
+            windows = [(offset, offset + len(text))]
         elif p.footer:
-            offset = int(len(doc.text) * (1 - p.footer))
-            text = doc.text[offset:]
+            windows = [(int(len(doc.text) * (1 - p.footer)), len(doc.text))]
         elif p.header:
-            offset, text = 0, doc.text[: int(len(doc.text) * p.header)]
+            windows = [(0, int(len(doc.text) * p.header))]
         else:
-            text, offset = doc.text, 0
-        found = _call(p, text, offset, provider)
+            windows = [(0, len(doc.text))]
+
+        found: list[ProposedClaim] = []
+        for offset, end in windows:
+            batch = _call(p, doc.text[offset:end], offset, provider)
+            if p.name == "summary":
+                # `years: 0` is the pass's way of saying "no total stated", which is
+                # the answer for most CVs. It is not a claim about anybody.
+                batch = [c for c in batch if c.years and c.years > 0]
+            if p.kind is ClaimKind.SKILL and p.name == "skills":
+                batch = group_skills(batch, doc, (offset, end))
+            elif p.name == "handles":
+                batch = group_handles(batch, doc, (offset, end))
+            found.extend(batch)
+
         counts[p.name] = len(found)
-        if p.kind is ClaimKind.SKILL:
-            found = group_skills(found, doc, (offset, offset + len(text)))
-        elif p.name == "handles":
-            found = group_handles(found, doc, (offset, offset + len(text)))
         proposed.extend(found)
     return proposed, counts
 

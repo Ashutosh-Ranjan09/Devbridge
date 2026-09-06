@@ -227,9 +227,30 @@ someone and one you would not.
    numbers are still found by pattern, but the patterns come from the data file that
    interprets them, so a second institution is a data change and nothing else.
 
-   The lever for a converted pass is the WINDOW, never a phrase. `sections=` for a
-   fact under a heading, `header=`/`footer=` for one under none — positional windows
-   carry no assumption about wording, which is the entire point.
+   The lever for a converted pass is the WINDOW, never a phrase. `header=`/`footer=`
+   for a fact under no heading — positional windows carry no assumption about
+   wording, which is the entire point.
+
+   **And the section keyword lists were the same mistake one level up.**
+   `sections=("ACHIEVEMENT", "AWARD")` encodes what one CV called its section. A
+   second document headed that section "COMPETITIVE PROGRAMMING", matched nothing,
+   fell back to the whole document, and lost two of three ratings and the only
+   contest rank — silently, on a CV that had done nothing wrong. **The model routes
+   the sections now**: it is shown the headings and says what each one holds, the
+   answer is verified against headings the document actually has, and the keyword
+   lists survive only as a fallback. Two things that cost a debugging round each:
+
+   - **Route to one window per CONTIGUOUS run, never one window overall.** The real
+     CV routes both `EDUCATION` and `COURSEWORK INFORMATION` to education —
+     correctly — and they sit at opposite ends of the page. Spanning them turned a
+     180-character window into a 4,252-character one. Choosing between them was the
+     next wrong answer: longest-first picked COURSEWORK and lost every degree. The
+     pass runs once per run and the claims merge.
+   - **A category the model needs must exist even if no pass consumes it.** With no
+     `coursework` category, coursework went to `education`, and the education pass
+     turned "Computer Science" and "Mathematics" into degrees awarded by
+     "University". D9 then picked one of those and abstained on a CV whose actual
+     B.Tech was two claims away.
 
 11. **A prompt is not an enforcement mechanism.** `qwen3:4b`, told explicitly to ignore
    JEE ranks, returned them anyway — and `qwen3:1.7b` returned them relabelled as

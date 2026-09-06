@@ -331,11 +331,23 @@ CATALOGUE: list[Mutation] = [
 # --------------------------------------------------------------------------- #
 
 
-def _fired(graph: ClaimGraph, bundle: EvidenceBundle) -> set[str]:
+def _run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], dict[str, str]]:
+    """Which rules fired, and why each abstaining rule could not run.
+
+    Both are needed. A rule that ABSTAINED did not miss the mutation — it never got
+    to look, because its source was unreachable or the CV named no account. Counting
+    that as a miss conflates a broken check with an absent source, which is the one
+    conflation this whole system exists to avoid, and it would make the detection
+    rate a measure of how well-connected a candidate is.
+    """
     report = assemble(graph, bundle, report_id="fr_eval")
-    return {
-        o.rule_id for o in report.rule_outcomes if o.status is RuleStatus.FIRED
+    fired = {o.rule_id for o in report.rule_outcomes if o.status is RuleStatus.FIRED}
+    unable = {
+        o.rule_id: o.reason or "no reason given"
+        for o in report.rule_outcomes
+        if o.status in (RuleStatus.ABSTAINED, RuleStatus.ERROR)
     }
+    return fired, unable
 
 
 def run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], list[Outcome]]:
@@ -346,7 +358,7 @@ def run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], list[Outco
     the reason the baseline set is returned too: a reader must be able to see what
     was excused.
     """
-    baseline = _fired(graph, bundle)
+    baseline, _ = _run(graph, bundle)
     outcomes: list[Outcome] = []
 
     for mutation in CATALOGUE:
@@ -363,7 +375,19 @@ def run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], list[Outco
             )
             continue
 
-        fired = _fired(*mutated)
+        fired, unable = _run(*mutated)
+        if reason := unable.get(mutation.expect):
+            outcomes.append(
+                Outcome(
+                    mutation.mutation_id,
+                    mutation.expect,
+                    mutation.describes,
+                    caught=False,
+                    skipped=f"{mutation.expect} could not run — {reason}",
+                )
+            )
+            continue
+
         outcomes.append(
             Outcome(
                 mutation.mutation_id,
@@ -385,7 +409,7 @@ def render_evaluation(baseline: set[str], outcomes: list[Outcome]) -> str:
     out.append(f"  {'MUTATION':22} {'EXPECT':7} {'CAUGHT':7} COLLATERAL")
     for o in outcomes:
         if o.skipped:
-            out.append(f"  {o.mutation_id:22} {o.expect:7} {'skip':7} {o.skipped}")
+            out.append(f"  {o.mutation_id:22} {o.expect:7} {'n/a':7} {o.skipped[:44]}")
             continue
         mark = "yes" if o.caught else "NO"
         out.append(
@@ -399,6 +423,8 @@ def render_evaluation(baseline: set[str], outcomes: list[Outcome]) -> str:
         "-" * 78,
         f"  detection    {len(caught)}/{len(applied)} ({rate:.0%}) of applied mutations "
         "caught by the rule responsible",
+        f"  not applied  {len(outcomes) - len(applied)} — the document could not carry "
+        "the mutation, or the rule had no source to check it against",
         f"  collateral   {collateral} finding(s) from rules the mutation did not concern",
         f"  baseline     {', '.join(sorted(baseline)) or 'nothing'} fired on the "
         "unmutated document and is excused throughout",

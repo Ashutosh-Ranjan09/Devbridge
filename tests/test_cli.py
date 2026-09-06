@@ -95,3 +95,54 @@ def test_offline_verify_abstains_everywhere_with_reasons() -> None:
     for rule in REGISTRY:
         accounted = f"[{rule.rule_id}]" in result.stdout or rule.summary in result.stdout
         assert accounted, f"{rule.rule_id} vanished from the report"
+
+
+VIT = Path("tests/fixtures/cv-vit-synthetic.pdf")
+
+
+@pytest.mark.live
+@pytest.mark.skipif(not VIT.is_file(), reason="the second fixture is not present")
+def test_a_second_institutions_cv_extracts_what_the_first_one_did() -> None:
+    """THE GENERALISATION CHECK.
+
+    Every measurement in this project was taken against one document, from one
+    institution, in one template. This is the second: a different roll-number scheme,
+    "COMPETITIVE PROGRAMMING" instead of "AWARDS AND ACHIEVEMENTS", handles written
+    "Codeforces: pnara_dev" instead of "(handle: AR009)", a disclaimer in the
+    institution's own words, and a stated total of experience reading "3 yrs of
+    hands-on industry experience".
+
+    Every one of those was matched by a hardcoded pattern once, and every one of
+    those patterns returned nothing here. Needs Ollama; no network is required for
+    what it asserts.
+    """
+    from cvv.extract import extract
+    from cvv.ingest import read
+    from cvv.models import ClaimKind
+    from cvv.providers import OllamaProvider
+
+    graph, _ = extract(read(VIT), provider=OllamaProvider(), graph_id="cg_vit")
+    by_kind: dict[ClaimKind, list] = {}
+    for claim in graph.claims:
+        by_kind.setdefault(claim.kind, []).append(claim)
+
+    # The roll number, via a scheme added to data/roll-schemes.json and nothing else.
+    roll = by_kind[ClaimKind.IDENTIFIER][0]
+    assert roll.parsed == {"admission_year": 2021, "dept_code": "BCE", "serial": 1847}
+
+    # Handles in a form the old regex required the word "handle" to find.
+    handles = {c.platform: c.handle for c in by_kind[ClaimKind.PROFILE]}
+    assert handles["codeforces"] == "pnara_dev"
+    assert handles["codechef"] == "pnara"
+    assert handles["leetcode"] == "pnara-dev"
+
+    # A section headed COMPETITIVE PROGRAMMING, which no keyword list matched.
+    platforms = {c.platform for c in by_kind[ClaimKind.ACHIEVEMENT]}
+    assert {"codeforces", "codechef"} <= platforms
+
+    # The institution's own wording, which no disclaimer pattern matched.
+    assert "not independently verified" in by_kind[ClaimKind.DECLARATION_MARKER][0].provenance.verbatim
+
+    # Both roles, from a section headed WORK EXPERIENCE.
+    orgs = {c.org for c in by_kind[ClaimKind.EMPLOYMENT] if c.org}
+    assert {"Zerodha Technologies", "Freshworks"} <= orgs

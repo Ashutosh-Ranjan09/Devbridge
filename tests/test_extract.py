@@ -184,3 +184,65 @@ class TestHandlesAreLocatedNotQuoted:
             [self.proposed("codeforces", "AR009")] * 3, doc, (0, len(doc.text))
         )
         assert len(out) == 1
+
+
+ROUTED = (
+    "PRIYA NARAYANAN\n"
+    "EDUCATION\nB.Tech in Computer Science, 2021 - 2025\n"
+    "PROJECTS\nLedgerline, a double-entry ledger\n"
+    "COURSEWORK INFORMATION\nComputer Science, Mathematics, Others\n"
+)
+
+
+def section_list(raw: str) -> list:
+    from cvv.ingest import sections
+
+    return sections(document(raw))
+
+
+class TestSectionRuns:
+    """`sections=("ACHIEVEMENT", "AWARD")` is a hardcoded convention in exactly the
+    way a regex is. A second CV headed its competitive-programming section
+    "COMPETITIVE PROGRAMMING", matched nothing, and the achievements pass fell back
+    to the whole document — losing two of three ratings and the only contest rank,
+    silently, on a CV that had done nothing wrong.
+    """
+
+    def test_adjacent_sections_become_one_window(self) -> None:
+        from cvv.extract import _runs
+        from cvv.ingest import Section
+
+        a = Section(heading="A", start=0, end=100)
+        b = Section(heading="B", start=100, end=250)
+        assert _runs([a, b]) == [(0, 250)]
+
+    def test_separated_sections_stay_separate(self) -> None:
+        """The real CV routes both "EDUCATION" and "COURSEWORK INFORMATION" to
+        education, correctly, and they sit at opposite ends of the page. Spanning
+        them turned a 180-character window into a 4,252-character one holding every
+        project and skill on the CV — the wide-window failure, arrived at by being
+        RIGHT about the headings."""
+        from cvv.extract import _runs
+        from cvv.ingest import Section
+
+        a = Section(heading="EDUCATION", start=0, end=180)
+        b = Section(heading="COURSEWORK", start=3800, end=4300)
+        assert _runs([a, b]) == [(0, 180), (3800, 4300)]
+
+    def test_choosing_between_them_was_the_next_wrong_answer(self) -> None:
+        """Longest-first picked COURSEWORK over EDUCATION and would have lost every
+        degree. There is no need to choose — the pass runs once per run."""
+        from cvv.extract import _runs
+        from cvv.ingest import Section
+
+        small = Section(heading="EDUCATION", start=0, end=180)
+        large = Section(heading="COURSEWORK", start=3800, end=4300)
+        assert _runs([large, small])[0] == (0, 180), "document order, not size"
+
+    def test_order_is_normalised(self) -> None:
+        from cvv.extract import _runs
+        from cvv.ingest import Section
+
+        a = Section(heading="A", start=100, end=200)
+        b = Section(heading="B", start=0, end=100)
+        assert _runs([a, b]) == [(0, 200)]
