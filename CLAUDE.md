@@ -82,10 +82,17 @@ construction; Alembic is in "not used", and one idempotent DDL statement is the
 honest amount of machinery for two tables.
 
 ```bash
+# a local server, peer auth over the unix socket — no password in the DSN
+export CVV_DATABASE_URL="postgresql:///cvv"
+
+# or throwaway, for a test run on a machine with no server
 docker run -d --rm --name cvv-pg -e POSTGRES_PASSWORD=cvv -e POSTGRES_USER=cvv \
     -e POSTGRES_DB=cvv -p 55432:5432 postgres:16-alpine
 export CVV_DATABASE_URL="postgresql://cvv:cvv@127.0.0.1:55432/cvv"
 ```
+
+Both are exercised. `tests/test_store.py` runs its Postgres half only when the DSN is
+set, so a default test run needs no server at all.
 
 **One suite runs against both stores**, and that is not ceremony. The Protocol makes
 mypy check they have the same SHAPE; only `tests/test_store.py` checks they have the
