@@ -56,6 +56,26 @@ def normalise_tech(name: str) -> str:
     return re.sub(r"[^a-z0-9+#]", "", name.lower())
 
 
+@functools.cache
+def institution_contact(org: str) -> str | None:
+    """A verification contact the OPERATOR supplied, or None.
+
+    Never guessed and never derived. A wrong address for a registrar sends a
+    candidate's details to a stranger, so an institution absent from the file
+    produces no contact and the worksheet names the office by role instead.
+    """
+    path = DATA_DIR / "institutions.json"
+    if not path.is_file():
+        return None
+    raw: dict[str, Any] = json.loads(path.read_text())
+    lowered = org.lower()
+    for entry in raw.get("institutions", []):
+        if any(name.lower() in lowered for name in entry.get("names", [])):
+            contact: str | None = entry.get("verification_contact")
+            return contact
+    return None
+
+
 def scheme_for(roll: str, org: str | None) -> dict[str, Any] | None:
     """The scheme whose pattern matches this roll number.
 

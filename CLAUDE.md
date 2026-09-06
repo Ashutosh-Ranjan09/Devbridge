@@ -314,6 +314,19 @@ evidence, and building from it produces a system that structurally cannot run 18
   imply otherwise.
 - **Any overall trust score.**
 
-Where a human must do the work, the system prepares it: the manual-check worksheet emits
-what to verify, the parsed roll number, the registrar's contact, and the exact question
-to ask.
+Where a human must do the work, the system prepares it. `cvv verify --worksheet` emits
+what to verify, the roll number already decoded, the exact question to ask and whom to
+ask it of — and it invents nothing. A verification contact is printed only where the
+operator supplied one in `data/institutions.json`, which ships EMPTY: a guessed
+registrar address sends a candidate's details to a stranger, so an unlisted institution
+gets its office named by role instead.
+
+Two things the worksheet must never do, both learned from its first output:
+
+- **A non-scoring finding never becomes a question for the candidate.** `scoring=False`
+  marks findings that describe the extraction (D2), the document (D3, D4), a career's
+  shape (D11, D12) or a naming habit (P6). The first version asked a candidate how two
+  of nineteen proposed claims came to be dropped by our extractor, why their own CDC
+  wrote a disclaimer, and to account for a gap in their dates.
+- **A single-year education claim is a completion year, not an open range.** "Awarded
+  from 2027 to ongoing" is a sentence the CV never said.

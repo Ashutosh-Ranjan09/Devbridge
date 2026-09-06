@@ -22,6 +22,7 @@ from cvv.narrative import narrate
 from cvv.providers import OllamaProvider
 from cvv.report import assemble, coverage, render
 from cvv.rules import REGISTRY
+from cvv.worksheet import render_worksheet
 
 app = typer.Typer(
     add_completion=False,
@@ -44,6 +45,10 @@ def verify(
     ] = False,
     brief: Annotated[
         bool, typer.Option(help="Add a model-written briefing above the buckets.")
+    ] = False,
+    worksheet: Annotated[
+        bool,
+        typer.Option(help="Print the manual-check worksheet instead of the buckets."),
     ] = False,
 ) -> None:
     """Run a CV end to end and print the five buckets."""
@@ -101,6 +106,12 @@ def verify(
 
     if as_json:
         typer.echo(report.model_dump_json(indent=2))
+        return
+
+    if worksheet:
+        # What a person still has to do, prepared. Every line is derived from a claim
+        # or a finding that exists — the worksheet invents no fact and no contact.
+        typer.echo(render_worksheet(graph, report))
         return
 
     if brief:

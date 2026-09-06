@@ -1,0 +1,18 @@
+{
+  "_note": [
+    "Verification contacts, for the manual-check worksheet. EMPTY BY DEFAULT and",
+    "filled by the operator, never by inference.",
+    "",
+    "A registrar's address cannot be guessed from an institution's name, and a wrong",
+    "one sends a candidate's personal details to a stranger. So an institution absent",
+    "from this file produces no contact at all, and the worksheet names the office by",
+    "role — 'academic / examinations section' — for the reviewer to find themselves.",
+    "",
+    "Each entry: names[] are matched case-insensitively as substrings of the",
+    "institution as written on the CV.",
+    "",
+    "  { \"names\": [\"iit kharagpur\", \"iitkgp\"],",
+    "    \"verification_contact\": \"<office>, <email or URL the operator confirmed>\" }"
+  ],
+  "institutions": []
+}
