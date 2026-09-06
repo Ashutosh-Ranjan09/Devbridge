@@ -35,7 +35,7 @@ from cvv.models import (
     Tier,
 )
 from cvv.report import assemble
-from cvv.rules import REGISTRY, _same_org
+from cvv.rules import REGISTRY, _same_org, same_contest
 from tests.cvdata import (
     AGGREGATE,
     CF_RANK,
@@ -160,6 +160,16 @@ class TestP1CodeforcesRating:
 
 
 class TestP2ContestRank:
+    """The contest is a MODEL field, verified against the claim's own span at
+    extraction. `context["contest"]` is what a grounded claim carries, so every
+    fixture here carries one."""
+
+    def ranked(self, value: int, contest: str = "Codeforces Round 998 (Div. 3)") -> object:
+        return make_claim(
+            CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank",
+            value=value, context={"contest": contest},
+        )
+
     def test_clean_when_the_rank_is_in_the_history(self) -> None:
         claim = make_claim(
             CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank", value=1106
@@ -179,25 +189,32 @@ class TestP2ContestRank:
     def test_a_better_recorded_rank_is_never_a_finding(self) -> None:
         """Lower is better. A record at least as good as the claim means the candidate
         understated, or the standings improved after rejudging."""
-        claim = make_claim(
-            CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank", value=1106
-        )
-        graph = make_graph([claim], DOCUMENT)
+        graph = make_graph([self.ranked(1106)], DOCUMENT)
         report = assemble(graph, bundle(graph, platforms=[codeforces(ranks=(1050,))]))
         assert outcome(report, "P2").status is RuleStatus.CLEAN
 
     def test_a_few_places_out_is_attention_not_contradicted(self) -> None:
         """The real case: a CV claiming 1106 in Round 998 where the API records 1109.
         Three places on 1100 is a standings-timing artefact, not a fabrication."""
-        claim = make_claim(
-            CF_RANK, DOCUMENT, platform="codeforces", metric="contest_rank", value=1106
-        )
-        graph = make_graph([claim], DOCUMENT)
+        graph = make_graph([self.ranked(1106)], DOCUMENT)
         report = assemble(graph, bundle(graph, platforms=[codeforces(ranks=(1109,))]))
         finding = next(f for f in report.discrepancies if f.rule_id == "P2")
         assert finding.tier is Tier.ATTENTION
         assert finding.innocent_explanation
         assert finding.finding_id in report.buckets.needs_context
+
+    def test_the_named_contest_is_matched_before_any_rank_is_compared(self) -> None:
+        """A rank that exists in the history but in a DIFFERENT contest is not a
+        match. Round 512 recording 1106 says nothing about Round 998."""
+        graph = make_graph([self.ranked(1106)], DOCUMENT)
+        cf = codeforces(ranks=(1106,))
+        renamed = cf.model_copy(update={"contests": [
+            cf.contests[0].model_copy(update={"name": "Codeforces Round 512 (Div. 2)"})
+        ]})
+        report = assemble(graph, bundle(graph, platforms=[renamed]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P2")
+        assert finding.params["contest"] == "Codeforces Round 998 (Div. 3)"
+        assert "no contest of that name" in finding.explanation
 
     def test_a_large_overstatement_stays_decisive(self) -> None:
         claim = make_claim(
@@ -208,6 +225,43 @@ class TestP2ContestRank:
         finding = next(f for f in report.discrepancies if f.rule_id == "P2")
         assert finding.tier is Tier.DECISIVE
         assert finding.finding_id in report.buckets.contradicted
+
+
+class TestContestIdentity:
+    """The regex this replaced was `round\\s+#?(\\d{2,4})` — a Codeforces naming
+    convention. It returned None for AtCoder, LeetCode, ICPC and even "Round 2", so
+    every one of those claims fell silently to a weaker path on an honest CV."""
+
+    @pytest.mark.parametrize(
+        ("claimed", "actual"),
+        [
+            ("Codeforces Round 998 (Div. 3)", "Codeforces Round 998 (Div. 3)"),
+            ("codeforces round 998 div 3", "Codeforces Round 998 (Div. 3)"),
+            # Partial naming, in BOTH directions — a subset rule only handles one.
+            ("Codeforces Round 998", "Codeforces Round 998 (Div. 3)"),
+            ("Codeforces Round 998 (Div. 3)", "Codeforces Round 998"),
+            ("ICPC Amritapuri Regionals 2024", "ICPC Amritapuri Regional Contest 2024"),
+            ("AtCoder Beginner Contest 350", "AtCoder Beginner Contest 350"),
+            ("LeetCode Weekly Contest 380", "Weekly Contest 380"),
+            ("Meta Hacker Cup Round 2", "Meta Hacker Cup 2024 Round 2"),
+        ],
+    )
+    def test_the_same_contest_named_two_ways(self, claimed: str, actual: str) -> None:
+        assert same_contest(claimed, actual)
+
+    @pytest.mark.parametrize(
+        ("claimed", "actual"),
+        [
+            # The numeral guard. These score far above any workable fuzzy threshold.
+            ("Codeforces Round 99", "Codeforces Round 998 (Div. 3)"),
+            ("Codeforces Round 1998", "Codeforces Round 998 (Div. 3)"),
+            ("AtCoder Beginner Contest 350", "AtCoder Beginner Contest 351"),
+            ("Codeforces Round 998", "AtCoder Beginner Contest 998"),
+            ("", "Codeforces Round 998"),
+        ],
+    )
+    def test_different_contests_are_never_matched(self, claimed: str, actual: str) -> None:
+        assert not same_contest(claimed, actual)
 
 
 class TestP3ProblemsSolved:

@@ -76,6 +76,28 @@ def institution_contact(org: str) -> str | None:
     return None
 
 
+@functools.cache
+def roll_patterns() -> list[tuple[str, re.Pattern[str]]]:
+    r"""Every institution's roll-number shape, compiled, as (scheme key, pattern).
+
+    Extraction reads these rather than carrying a pattern of its own. A hardcoded
+    `\d{2}[A-Z]{2}\d{5}` finds IIT Kharagpur's roll numbers and nobody else's, so a
+    VIT `19BCE1234` produced no identifier claim at all and D9 never ran — and adding
+    VIT to this file would not have fixed it, because the finder never consulted the
+    file. Recognition and interpretation now read the same table.
+
+    The anchors are relaxed to word boundaries: the scheme patterns are anchored for
+    `fullmatch` against a candidate token, and the same shape has to be findable
+    inside a line of prose.
+    """
+    out: list[tuple[str, re.Pattern[str]]] = []
+    for key, scheme in roll_schemes().items():
+        pattern = str(scheme["pattern"])
+        body = pattern.removeprefix("^").removesuffix("$")
+        out.append((key, re.compile(rf"\b(?:{body})\b")))
+    return out
+
+
 def scheme_for(roll: str, org: str | None) -> dict[str, Any] | None:
     """The scheme whose pattern matches this roll number.
 

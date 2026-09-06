@@ -47,6 +47,7 @@ from cvv.models import (
     SpanProvenance,
 )
 from cvv.providers import LLMProvider, OllamaProvider
+from cvv.reference import roll_patterns
 from cvv.spans import recover_span, recover_token
 
 PROMPT_VERSION = "extract/v2-narrow"
@@ -78,6 +79,7 @@ class ProposedClaim(BaseModel):
     metric: str | None = None
     value: int | float | str | None = None
     qualifier: str | None = None
+    contest: str | None = None
     skill_refs: list[str] = Field(default_factory=list)
     proficiency: Proficiency | None = None
     stated_years: int | float | None = None
@@ -145,6 +147,7 @@ PASSES: list[Pass] = [
             "  metric     max_rating | contest_rank | problems_solved\n"
             "  value      the number, as an integer\n"
             "  qualifier  the rank title in brackets, e.g. Specialist, 3-Star\n"
+            "  contest    the contest's name as written, for a rank. Empty otherwise\n"
             "  handle     the account handle, if the sentence states one"
         ),
         properties={
@@ -154,8 +157,12 @@ PASSES: list[Pass] = [
             "value": {"type": "integer"},
             "qualifier": _STR,
             "handle": _STR,
+            "contest": _STR,
         },
-        required=["verbatim", "platform", "metric", "value"],
+        # `contest` is REQUIRED so the key is always emitted — an optional field is
+        # one a small model skips. An empty string is the legitimate answer for a
+        # rating or a problem count, and the span check drops anything unsupported.
+        required=["verbatim", "platform", "metric", "value", "contest"],
     ),
     Pass(
         name="projects",
@@ -265,7 +272,6 @@ PASSES: list[Pass] = [
 # Deterministic pre-pass — no model
 # --------------------------------------------------------------------------- #
 
-ROLL_NUMBER = re.compile(r"\b(\d{2})([A-Z]{2})(\d{5})\b")
 GITHUB_REPO = re.compile(r"github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)/([\w.-]+)")
 LABELLED_HANDLE = re.compile(
     r"(codeforces|codechef|leetcode|atcoder|hackerrank|github)[^.\n]{0,60}?"
@@ -291,8 +297,15 @@ def regex_claims(text: str) -> list[ProposedClaim]:
     """
     out: list[ProposedClaim] = []
 
-    for m in ROLL_NUMBER.finditer(text):
-        out.append(ProposedClaim(kind=ClaimKind.IDENTIFIER, verbatim=m.group(0)))
+    # Shapes come from data/roll-schemes.json, never from a pattern written here. A
+    # hardcoded one finds one institution's roll numbers and silently finds nobody
+    # else's, and adding an institution to the data file would not fix it.
+    seen_rolls: set[str] = set()
+    for _, pattern in roll_patterns():
+        for m in pattern.finditer(text):
+            if m.group(0) not in seen_rolls:
+                seen_rolls.add(m.group(0))
+                out.append(ProposedClaim(kind=ClaimKind.IDENTIFIER, verbatim=m.group(0)))
 
     # One entry per owner, keeping the FIRST URL that names them. The previous
     # version re-searched from the start of the document for every owner, so with two
@@ -447,6 +460,40 @@ def _artefact(url: str) -> Artefact:
     )
 
 
+def _norm_text(value: str) -> str:
+    """Lowercase, and every run of non-alphanumerics collapsed to one space.
+
+    So "Codeforces Round 998 (Div. 3)" and "codeforces round 998 div 3" compare
+    equal — punctuation around a contest name varies between a CV and an API and
+    carries no meaning.
+    """
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _decode_roll(token: str) -> dict[str, Any] | None:
+    """Named groups from whichever institution's scheme matches, or None.
+
+    The groups a scheme declares are the groups it gets — `year`, `dept` and `serial`
+    here, and a scheme that encodes something else contributes what it encodes. D9
+    reads what is present and abstains on what is not, so an institution with no
+    department in its roll number costs a sub-check rather than the whole rule.
+    """
+    for _, pattern in roll_patterns():
+        m = pattern.fullmatch(token)
+        if m is None:
+            continue
+        groups = m.groupdict()
+        parsed: dict[str, Any] = {}
+        if year := groups.get("year"):
+            parsed["admission_year"] = 2000 + int(year) if len(year) == 2 else int(year)
+        if dept := groups.get("dept"):
+            parsed["dept_code"] = dept
+        if serial := groups.get("serial"):
+            parsed["serial"] = int(serial)
+        return parsed or None
+    return None
+
+
 def scope_technologies(
     claims: list[Claim], windows: dict[str, tuple[int, int]], doc: Document
 ) -> list[Claim]:
@@ -508,13 +555,7 @@ def ground(
         handle = recover_token(p.handle, doc.text, within=span) if p.handle else None
 
         urls = [u for u in p.urls if recover_token(u, doc.text) is not None]
-        parsed: dict[str, Any] | None = None
-        if p.kind is ClaimKind.IDENTIFIER and (m := ROLL_NUMBER.fullmatch(p.verbatim)):
-            parsed = {
-                "admission_year": 2000 + int(m.group(1)),
-                "dept_code": m.group(2),
-                "serial": int(m.group(3)),
-            }
+        parsed = _decode_roll(p.verbatim) if p.kind is ClaimKind.IDENTIFIER else None
 
         # The model returned the date TEXT; our parser reads it. An unrecognised
         # format drops the INTERVAL and keeps the claim: a project with an unreadable
@@ -525,7 +566,16 @@ def ground(
         interval = parse_interval(p.date_text) if p.date_text else None
         flags = ["date_unparsed"] if p.date_text and interval is None else []
 
-        context = {"categories": p.categories} if p.categories else None
+        context: dict[str, Any] | None = None
+        if p.categories:
+            context = {"categories": p.categories}
+        # Guardrail 7. A contest name the claim's own sentence does not contain is
+        # a name the model supplied from somewhere else, and contest identity is
+        # what P2 matches on. It rides in `context` rather than as a new Claim
+        # field: the contract's nine claim kinds come from the upstream schema and
+        # `context` is its documented place for pass-specific extras.
+        if p.contest and _norm_text(p.contest) in _norm_text(doc.text[span.text_slice]):
+            context = {**(context or {}), "contest": p.contest.strip()}
         discriminator = handle or (p.skill_refs[0] if p.skill_refs else "") or (p.metric or "")
         cid = claim_id(graph_id, span.char_start, p.kind, discriminator)
         if cid in seen:

@@ -17,6 +17,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Protocol, cast
 
+from rapidfuzz import fuzz
+
 from cvv.filters import is_aggregate
 from cvv.ids import finding_id
 from cvv.intervals import Rel, bounds, gap_between, max_span, merge_non_overlapping, overlap
@@ -49,6 +51,10 @@ from cvv.reference import (
 from cvv.reference import (
     normalise_tech as _norm,
 )
+
+# Contest names differ in punctuation and in how much of the title a CV bothers to
+# copy, never in their number — which the numeral guard above checks separately.
+CONTEST_THRESHOLD = 85
 
 
 class Abstain(Exception):  # noqa: N818 - a control signal, not an error
@@ -133,17 +139,41 @@ def register[R](rule: type[R]) -> type[R]:
     return rule
 
 
-_ROUND = re.compile(r"\bround\s+#?(\d{2,4})\b", re.I)
+def same_contest(claimed: str, actual: str) -> bool:
+    """Is this the same contest, named two ways?
 
+    Platform-agnostic by construction: a contest is identified by its name, and the
+    LARGEST number in that name is what makes it this contest rather than the one
+    before it. Divisions, stages and parts are small; a year, where one appears at
+    all, appears in the platform's record rather than in what a CV copies. So the
+    guard is: the biggest number the CV writes must be present in the recorded name.
 
-def _round_number(text: str) -> int | None:
-    """The contest number out of "Codeforces Round 998 (Div. 3)".
+    That handles both directions of partial naming, which a subset rule does not:
 
-    Read from the claim's own verbatim rather than a model-supplied field: the model
-    controls its fields, but it cannot alter text it copied from the document.
+        "Codeforces Round 998"           vs  "Codeforces Round 998 (Div. 3)"   same
+        "Codeforces Round 998 (Div. 3)"  vs  "Codeforces Round 998"            same
+        "Meta Hacker Cup Round 2"        vs  "Meta Hacker Cup 2024 Round 2"    same
+        "Codeforces Round 99"            vs  "Codeforces Round 998 (Div. 3)"   different
+        "AtCoder Beginner Contest 350"   vs  "AtCoder Beginner Contest 351"    different
+        "Codeforces Round 998 (Div. 3)"  vs  "Codeforces Round 3"              different
+
+    It is also what makes the fuzzy tier safe. Every "different" row above scores far
+    above any workable similarity threshold — one digit barely moves a ratio, and the
+    digit is the whole of the identity.
     """
-    m = _ROUND.search(text)
-    return int(m[1]) if m else None
+    a, b = _norm_contest(claimed), _norm_contest(actual)
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    claimed_numbers = [int(n) for n in re.findall(r"\d+", a)]
+    if claimed_numbers and str(max(claimed_numbers)) not in re.findall(r"\d+", b):
+        return False
+    return fuzz.token_set_ratio(a, b) >= CONTEST_THRESHOLD
+
+
+def _norm_contest(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
 def _achievements(ctx: Context, platform: Platform, metric: str) -> list[Claim]:
@@ -240,12 +270,21 @@ class P1CodeforcesRating:
 @register
 @dataclass(frozen=True)
 class P2ContestRank:
-    """Match the NAMED contest first, then compare ranks within it.
+    r"""Match the NAMED contest first, then compare ranks within it.
 
     An earlier version asked only whether the claimed rank appeared anywhere in the
     history. Against a real CV that produced a technically true and useless finding:
     "no contest records rank 1106". The account had in fact competed in the very
     contest named, placing 1109 — three places out.
+
+    Version 4 stops reading the contest out of the sentence with a regex. That regex
+    was `round\s+#?(\d{2,4})`, which is a Codeforces naming convention and nothing
+    more: it returned None for "AtCoder Beginner Contest 350", "LeetCode Weekly
+    Contest 380", "ICPC Amritapuri Regionals 2024" and even "Meta Hacker Cup Round
+    2". Every one of those claims fell to the weaker "is this rank anywhere in the
+    history" path, silently, on a CV that had done nothing wrong. The contest is now
+    a model field verified against the claim's own span, and matching is by NAME —
+    which is what a contest is identified by on every platform.
 
     Saying "claimed 1106 in Round 998, the API records 1109" lets a reviewer see in
     one line that this is a standings-timing artefact and not a fabrication. Codeforces
@@ -256,7 +295,7 @@ class P2ContestRank:
     """
 
     rule_id: str = "P2"
-    rule_version: str = "3.0"
+    rule_version: str = "4.0"
     tier: Tier = Tier.DECISIVE
     soft_tier: Tier = Tier.ATTENTION
     band: float = 0.02  # relative; three places matters at rank 4, not at rank 1100
@@ -276,18 +315,21 @@ class P2ContestRank:
             if claimed is None:
                 continue
 
-            # The contest is identified from the claim's OWN span, not from a model
-            # field — guardrail 7. "Codeforces Round 998 (Div. 3)" gives 998.
-            round_no = _round_number(claim.provenance.verbatim)
+            # The contest name reached `context` only by appearing in this claim's
+            # own span — guardrail 7 is enforced at extraction, not here.
+            named = (claim.context or {}).get("contest")
             match = None
-            if round_no is not None:
-                match = next(
-                    (c for c in cf.contests if _round_number(c.name) == round_no), None
-                )
+            if isinstance(named, str) and named:
+                match = next((c for c in cf.contests if same_contest(named, c.name)), None)
 
             if match is None:
-                if any(c.rank == claimed for c in cf.contests):
-                    continue  # the rank is on record, just not tied to a named round
+                # The lenient fallback belongs only to a claim that names no contest.
+                # It existed because the old regex failed to identify one on most
+                # platforms, and leaving it in place now would undo the matching: a
+                # CV claiming rank 1106 IN ROUND 998 is making a claim about Round
+                # 998, and holding 1106 in some other contest does not support it.
+                if not named and any(c.rank == claimed for c in cf.contests):
+                    continue
                 yield Discrepancy(
                     finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
                     rule_id=self.rule_id,
@@ -298,11 +340,17 @@ class P2ContestRank:
                     scoring=self.scoring,
                     claim_refs=[claim.claim_id],
                     evidence_refs=["codeforces.user.rating"],
-                    params={"claimed_rank": claimed, "contests_on_record": len(cf.contests)},
+                    params={
+                        "claimed_rank": claimed,
+                        "contest": named,
+                        "contests_on_record": len(cf.contests),
+                    },
                     explanation=(
-                        f"The CV claims a contest rank of {claimed}. No contest in the "
-                        f"{len(cf.contests)}-contest rated history for {cf.handle!r} "
-                        "records that rank, and the contest named could not be matched."
+                        f"The CV claims a contest rank of {claimed}"
+                        + (f" in {named!r}" if named else "")
+                        + f". No contest in the {len(cf.contests)}-contest rated history "
+                        f"for {cf.handle!r} records that rank"
+                        + (", and no contest of that name is in it." if named else ".")
                     ),
                 )
                 continue
