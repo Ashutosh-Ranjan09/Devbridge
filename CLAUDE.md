@@ -94,6 +94,21 @@ export CVV_DATABASE_URL="postgresql://cvv:cvv@127.0.0.1:55432/cvv"
 Both are exercised. `tests/test_store.py` runs its Postgres half only when the DSN is
 set, so a default test run needs no server at all.
 
+**Local, not hosted — decided, not pending.** A stored report holds a real person's
+name, roll number, institutions and handles, so where the database lives is a
+question about consent rather than about infrastructure. Neon or any hosted Postgres
+would need NO code change — psycopg 3 speaks to it unchanged, and the schema applies
+itself — which is exactly why the decision has to be made deliberately instead of
+falling out of a connection string someone pasted. If it is ever revisited: real CVs
+stay local, and anything hosted gets the synthetic fixture. Two values of one
+environment variable, and the answer to "where is that person's CV stored" stays "on
+my machine".
+
+(For whoever does switch: a `-pooler` Neon endpoint is PgBouncer in transaction mode,
+and psycopg 3 auto-prepares statements after five executions, which transaction
+pooling does not support. It works for a few requests and then fails oddly.
+`prepare_threshold=None`, or the direct endpoint.)
+
 **One suite runs against both stores**, and that is not ceremony. The Protocol makes
 mypy check they have the same SHAPE; only `tests/test_store.py` checks they have the
 same BEHAVIOUR, and it caught two divergences on its first run. A duplicate
