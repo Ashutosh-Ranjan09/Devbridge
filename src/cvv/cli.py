@@ -32,7 +32,7 @@ app = typer.Typer(
 
 @app.command()
 def verify(
-    path: Annotated[Path, typer.Argument(help="The CV to verify (PDF).")],
+    path: Annotated[Path, typer.Argument(help="The CV to verify (PDF or DOCX).")],
     model: Annotated[str | None, typer.Option(help="Ollama model id.")] = None,
     as_json: Annotated[
         bool, typer.Option("--json", help="Emit the report as JSON instead of prose.")

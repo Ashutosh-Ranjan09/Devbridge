@@ -183,6 +183,54 @@ def read_pdf(path: Path) -> Document:
     )
 
 
+def read_docx(path: Path) -> Document:
+    """python-docx, walking the body in document ORDER.
+
+    `Document.paragraphs` silently omits every table, and a CV in a two-column table
+    layout — which is most templates that are not LaTeX — then reads as a handful of
+    headings with no content under them. Worse, it fails quietly: you get a document,
+    it grounds, and half the claims never existed to be extracted. So the body's XML
+    children are walked directly and tables are flattened in place, keeping the
+    reading order the author wrote.
+
+    DOCX carries no pagination — a page is decided by the renderer, at render time —
+    so `pages` is 1 and that is a property of the format, not a measurement.
+    """
+    import docx
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    file = docx.Document(str(path))
+    lines: list[str] = []
+
+    for child in file.element.body.iterchildren():
+        tag = child.tag.split("}")[-1]
+        if tag == "p":
+            lines.append(Paragraph(child, file).text)
+        elif tag == "tbl":
+            for row in Table(child, file).rows:
+                # Tab-joined, not newline-joined: a table row is one line of a CV,
+                # and splitting it would break `line_at` provenance for skills.
+                cells = [c.text.strip().replace("\n", " ") for c in row.cells]
+                lines.append("\t".join(c for c in cells if c))
+
+    raw = "\n".join(lines)
+    text, imap = normalise(raw)
+    core = file.core_properties
+
+    return Document(
+        document_id="doc_" + hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        text=text,
+        index_map=imap,
+        raw=raw,
+        pages=1,  # DOCX has no pagination; the renderer decides
+        ingest_method=IngestMethod.DOCX,
+        producer=core.author or None,
+        created_at=core.created.isoformat() if core.created else None,
+        modified_at=core.modified.isoformat() if core.modified else None,
+    )
+
+
 def document_info(doc: Document) -> DocumentInfo:
     """The file's own provenance, for D4."""
     return DocumentInfo(
@@ -197,11 +245,20 @@ def document_info(doc: Document) -> DocumentInfo:
 
 
 def read(path: Path) -> Document:
-    """Dispatch on extension. DOCX and OCR land in phase 2."""
+    """Dispatch on extension. OCR for scanned documents is still unbuilt."""
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return read_pdf(path)
+    if suffix == ".docx":
+        return read_docx(path)
+    if suffix == ".doc":
+        raise NotImplementedError(
+            "Legacy .doc is a different, binary format that python-docx cannot read. "
+            "Convert it to .docx or PDF first — guessing at it would produce a "
+            "document that grounds cleanly and is missing half its content."
+        )
     raise NotImplementedError(
-        f"{suffix} not supported yet — phase 2 adds python-docx and rapidocr. "
-        "A document that cannot be read fails fast rather than being guessed at."
+        f"{suffix} not supported — .pdf and .docx are. Scanned documents need OCR, "
+        "which is unbuilt. A document that cannot be read fails fast rather than "
+        "being guessed at."
     )

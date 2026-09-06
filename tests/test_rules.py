@@ -913,6 +913,39 @@ class TestD4DocumentProvenance:
         assert result.status is RuleStatus.ABSTAINED
         assert "normal for many exporters" in (result.reason or "")
 
+    def test_a_docx_iso_timestamp_is_read_too(self) -> None:
+        """Two ingest paths write two formats. Handling only the PDF one meant D4
+        silently abstained on every DOCX — a check quietly not running."""
+        graph = make_graph([], DOCUMENT)
+        report = assemble(
+            graph,
+            bundle(graph),
+            document=document_info(
+                created="2025-07-04T10:00:00+00:00",
+                modified="2025-08-10T18:30:00+00:00",
+                producer="python-docx",
+            ),
+        )
+        finding = next(f for f in report.discrepancies if f.rule_id == "D4")
+        assert finding.params["gap_days"] == 37
+
+    def test_a_template_creation_date_is_not_an_edit_history(self) -> None:
+        """python-docx leaves its template's 2013 date in place unless the caller
+        sets one, and Word templates do the same. The first DOCX read here reported
+        a four-thousand-day "edit gap" that was an artefact of the template."""
+        graph = make_graph([], DOCUMENT)
+        report = assemble(
+            graph,
+            bundle(graph),
+            document=document_info(
+                created="2013-12-23T23:15:00+00:00",
+                modified="2026-09-04T12:00:00+00:00",
+            ),
+        )
+        result = outcome(report, "D4")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "not credible as an edit history" in (result.reason or "")
+
     def test_abstains_when_no_metadata_reaches_the_rule(self) -> None:
         graph = make_graph([], DOCUMENT)
         report = assemble(graph, bundle(graph))

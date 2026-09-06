@@ -1864,12 +1864,17 @@ class D4DocumentProvenance:
     scoring: bool = False
     summary: str = "Document provenance — producer, and edits after generation"
     gap_days: int = 1
+    # Beyond this the CREATED timestamp is not credible as this document's creation.
+    # python-docx leaves its template's 2013 date in place unless the caller sets one,
+    # and Word templates do the same — so the first DOCX read here reported a
+    # four-thousand-day "edit gap" that was an artefact of the template, not an edit.
+    implausible_days: int = 1826  # five years
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
         if ctx.document is None:
             raise Abstain("No document metadata was supplied.")
-        created = _pdf_date(ctx.document.created_at)
-        modified = _pdf_date(ctx.document.modified_at)
+        created = _doc_date(ctx.document.created_at)
+        modified = _doc_date(ctx.document.modified_at)
         if created is None or modified is None:
             raise Abstain(
                 "The file records no creation or modification time, which is normal "
@@ -1878,6 +1883,13 @@ class D4DocumentProvenance:
         gap = (modified - created).days
         if gap < self.gap_days:
             return
+        if gap > self.implausible_days:
+            raise Abstain(
+                f"The file records a {gap}-day span between creation and last "
+                "modification, which is not credible as an edit history. Document "
+                "templates carry their own creation date, so this says nothing "
+                "about when the CV was written."
+            )
 
         producer = ctx.document.producer
         yield Discrepancy(
@@ -2198,14 +2210,26 @@ def _same_org(claimed: str, org_login: str) -> bool:
     return a in b or b in a
 
 
-def _pdf_date(value: str | None) -> datetime.date | None:
-    """PDF dates look like `D:20250704194743+05'30'`."""
+def _doc_date(value: str | None) -> datetime.date | None:
+    """Two formats, because two ingest paths write them.
+
+        PDF     D:20250704194743+05'30'
+        DOCX    2013-12-23T23:15:00+00:00
+
+    Handling only the first meant D4 silently abstained on every DOCX — not a wrong
+    answer, but a check quietly not running, which is the failure this system exists
+    to avoid.
+    """
     if not value:
         return None
-    digits = value.removeprefix("D:")[:8]
-    try:
-        return datetime.datetime.strptime(digits, "%Y%m%d").replace(
-            tzinfo=datetime.UTC
-        ).date()
-    except ValueError:
-        return None
+    text = value.removeprefix("D:")
+    for fmt, cut in (("%Y%m%d", 8), ("%Y-%m-%d", 10)):
+        try:
+            return (
+                datetime.datetime.strptime(text[:cut], fmt)
+                .replace(tzinfo=datetime.UTC)
+                .date()
+            )
+        except ValueError:
+            continue
+    return None
