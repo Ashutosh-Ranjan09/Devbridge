@@ -11,8 +11,15 @@ from typing import Literal
 
 from pydantic import Field
 
-from cvv.models.claims import Frozen, Id, Model, Url
-from cvv.models.enums import GapReason, Ownership, Platform, SourceQuality
+from cvv.models.claims import Frozen, Id, Model, Resolution, Url
+from cvv.models.enums import (
+    CredentialMethod,
+    CredentialStatus,
+    GapReason,
+    Ownership,
+    Platform,
+    SourceQuality,
+)
 
 
 class ContestResult(Model):
@@ -132,6 +139,22 @@ class DeploymentEvidence(Model):
     checked_at: datetime.datetime | None = None
 
 
+class CredentialEvidence(Model):
+    """What an issuer said about a credential — C1 to C4.
+
+    Never populated here: only the issuer can confirm a credential and no issuer API
+    is installed, so `/v1/attest` returns 501. The model exists because the field is
+    in the contract, and a bundle arriving from a system that DOES attest must parse.
+    """
+
+    credential_id: str
+    issuer: str
+    status: CredentialStatus
+    method: CredentialMethod = CredentialMethod.NONE
+    issued_at: datetime.date | None = None
+    expires_at: datetime.date | None = None
+
+
 class Gap(Model):
     """Why a source could not be consulted.
 
@@ -150,5 +173,10 @@ class EvidenceBundle(Frozen):
     github: GitHubEvidence | None = None
     platforms: list[PlatformEvidence] = Field(default_factory=list)
     deployments: list[DeploymentEvidence] = Field(default_factory=list)
+    # Both empty throughout this system, and both in the contract. Attestation needs
+    # an issuer API and resolution needs a registry; neither is installed, and each
+    # says so with a 501 rather than an empty success.
+    credentials: list[CredentialEvidence] = Field(default_factory=list)
+    registries: dict[str, Resolution] = Field(default_factory=dict)
     gathered_at: datetime.datetime
     gaps: list[Gap] = Field(default_factory=list)

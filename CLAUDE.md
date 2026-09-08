@@ -11,7 +11,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 ## Current state
 
 **27 of the 41 catalogued checks are built and the pipeline runs end to end** on
-`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 374 tests, ~8,900 lines across 30
+`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 466 tests, ~9,900 lines across 33
 modules, ruff and `mypy --strict` clean.
 
 One of the 41 — G12 — is excluded by decision rather than pending, so the buildable
@@ -102,6 +102,22 @@ nobody can see is filtering nobody can audit. Four decisions inside it:
   go out in an explicit `surface:` namespace with reduced relevance. M6 can map or
   reject them knowingly rather than storing something invented.
 
+**We are ahead of the contract, and it is written down rather than silent.** 25 of the
+27 definitions in `verification-report.schema.json` set `additionalProperties: false`,
+so a field added here is a field that makes our output INVALID for a consumer
+validating against the schema. Seven exist —`ExtractionMeta.filtered`,
+`RepoEvidence.authored_files/authored_bytes/homepage`,
+`GitHubEvidence.public_repos/public_repo_count`, `RuleOutcome.note` — each load-bearing
+for a check, and each added unilaterally. The integration spec predicted exactly this:
+*"one person adds a field locally, the other never sees it, and integration breaks in
+week 7."*
+
+`tests/test_contract.py` now holds them as a NAMED list and fails on anything else, and
+it round-trips the three reference payloads — the phase 0 guarantee, which was lost in
+the clean-slate rebuild and restored only after roughly twenty model changes had gone
+unchecked. Resolving the seven needs a contract version bump, which the spec says takes
+both owners.
+
 **Two causes of a lost claim, never added together.** `span_failures` means the
 quoted text is not in the document — the model invented or garbled it.
 `extraction_meta.filtered` means the text was real and the claim was not usable: a
@@ -181,9 +197,10 @@ the report then carries a banner saying the text was inferred, because word
 boundaries are where OCR fails and every reference-table match degrades with them.
 
 Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `filters` ·
-`dates` · `intervals` · `gather` (Codeforces · LeetCode · GitHub · liveness) ·
-`github` · `leetcode` · `reference` · `rules` · `report` · `narrative` ·
-`worksheet` · `evaluate` · `cli`.
+`dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` ·
+`gather` (Codeforces · LeetCode · GitHub · liveness) · `github` · `leetcode` ·
+`rules` · `report` · `narrative` · `worksheet` · `evaluate` · `events` · `logs` ·
+`store` · `api` · `pipeline` · `cli`.
 
 | Group | Built | Missing |
 |---|---|---|
@@ -201,11 +218,17 @@ is a source that breaks silently and answers wrongly. H1–H6 are human by desig
 the system's job there is to prepare the worksheet, not to guess. G12 is excluded
 outright.
 
-**Reproducibility is measured, not assumed.** Same document and seed gives a
-byte-identical claim set, including across a forced model reload. The one variable is
-the GPU/CPU layer split, which Ollama picks from free VRAM at load time and which
-moves the model's raw proposal count; pin `CVV_NUM_GPU` to remove it. The filters
-absorbed that variance in every observed case — 18 proposals or 22, same findings.
+**Reproducibility is measured, not assumed, and the measurement has a limit.** Within
+one model load it is exact: four consecutive extractions of the same CV were
+byte-identical. Across loads it is not. Ollama picks the GPU/CPU layer split from
+whatever VRAM is free AT LOAD TIME — the same machine reported 100% GPU and later 81%
+in a single session — and that moves the model's raw proposal count.
+
+The filters absorb that variance **usually, not always**. An earlier note here said
+"in every observed case"; an audit then found a live extraction assertion failing once
+in three runs, so the claim was wrong. Pin `CVV_NUM_GPU` for anything whose result you
+intend to compare. A live run without it warns, so a single failure is not mistaken
+for a regression.
 
 **What is genuinely left** is G6 tier 2, which would read targeted repository files
 to turn "the dependency is installed" into "the dependency is used for the thing
@@ -448,9 +471,12 @@ three, and the four pipeline directories for the rest. Full annotated tree in
 
 **Two structural rules:**
 
-- **`rules/` imports only `models`, `intervals` and stdlib.** No `httpx`, no `gather`.
-  Enforced by a test that walks the imports. If a rule needs data it arrives in the
-  `EvidenceBundle` or the rule abstains.
+- **`rules/` imports only PURE modules** — `models`, `intervals`, `ids`, `filters`,
+  `reference`, `logs` and stdlib. No `httpx`, no `gather`. If a rule needs data it
+  arrives in the `EvidenceBundle` or the rule abstains. `tests/test_structure.py`
+  walks the imports and holds the pure list, with a reason beside each entry; before
+  that test existed this paragraph claimed an enforcement that was not there, and the
+  rule it described had already drifted.
 - **`views/` takes only a `VerificationReport`.** `narrative.py` in particular: the
   faithfulness guarantee is that the function signature makes it impossible to introduce
   a fact nobody computed.

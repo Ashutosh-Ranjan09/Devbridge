@@ -87,8 +87,16 @@ class EvidenceEvent(Model):
     # When the ACTIVITY happened, not when it was observed — M6's decay kernel reads
     # this. Server-side dates only, for the same reason guardrail 6 exists.
     occurred_at: datetime.datetime
+    # When this system LOOKED, as against when the activity happened. Both are in the
+    # contract and they are not the same question: `occurred_at` drives M6's decay
+    # kernel, `observed_at` says how stale the observation itself is.
+    observed_at: datetime.datetime
     skill_refs: list[SkillRef]
     strength: Confidence
+    # Before any factor was applied. Emitting only the final number makes a capped
+    # value unauditable — a reader cannot tell 0.375 from a weak source apart from
+    # 0.375 from a strong source that was capped twice.
+    reliability_base: Confidence
     reliability: Confidence
     reliability_factors: list[ReliabilityFactor] = Field(default_factory=list)
     direction: Direction

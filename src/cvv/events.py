@@ -164,8 +164,13 @@ def project(
                 event_id="ev_" + stable_id(batch_id, kind.value, origin, *skills, *claim_refs)[:12],
                 kind=kind,
                 occurred_at=occurred_at or now,
+                # `now` is when this system looked. `occurred_at` falls back to it
+                # when the CV gives no date, and the `undated_observation` factor
+                # says so — the two being equal is information, not a duplicate.
+                observed_at=now,
                 skill_refs=[skill(name) for name in skills],
                 strength=round(strength, 4),
+                reliability_base=base,
                 reliability=_cap(base, factors),
                 reliability_factors=factors,
                 direction=direction,

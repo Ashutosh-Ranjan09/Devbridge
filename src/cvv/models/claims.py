@@ -20,6 +20,8 @@ from cvv.models.enums import (
     Precision,
     Proficiency,
     Recovery,
+    ResolutionMethod,
+    ResolutionStatus,
 )
 
 Confidence = Annotated[float, Field(ge=0.0, le=1.0)]
@@ -118,6 +120,22 @@ class Artefact(Model):
     owner: str | None = None  # for repos: the account segment, parsed from the path
 
 
+class Resolution(Model):
+    """A surface form tied to a canonical registry id — or not tied to one.
+
+    `unresolved` everywhere in this system today: `/v1/resolve` returns 501 because
+    no registry is installed. The model exists so an upstream payload that HAS
+    resolutions parses, and so the field a consumer expects is present rather than
+    silently absent.
+    """
+
+    status: ResolutionStatus = ResolutionStatus.UNRESOLVED
+    canonical_id: str | None = None
+    registry: str | None = None  # esco · aicte · ugc · companies · iitkgp_faculty
+    score: float | None = Field(default=None, ge=0.0, le=1.0)
+    method: ResolutionMethod = ResolutionMethod.NONE
+
+
 class Claim(Model):
     """One assertion the candidate makes about themselves.
 
@@ -140,6 +158,10 @@ class Claim(Model):
     issuer: str | None = None
     credential_id: str | None = None
     employment_type: EmploymentType = EmploymentType.UNSTATED
+
+    # Canonical-id resolution. Always None here — nothing resolves — but a claim
+    # arriving from a system that DOES resolve must round-trip through this model.
+    resolution: Resolution | None = None
 
     # skill
     skill_refs: list[str] = Field(default_factory=list)

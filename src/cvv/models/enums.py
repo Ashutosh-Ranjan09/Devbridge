@@ -77,6 +77,42 @@ class IngestMethod(StrEnum):
     OCR = "ocr"
 
 
+class ResolutionStatus(StrEnum):
+    """Whether a surface form was tied to a canonical registry id.
+
+    Every claim carries one and it is `unresolved` throughout this system: there is
+    no registry installed to resolve against, and `/v1/resolve` says so with a 501.
+    Modelled anyway, because the field is in the contract and a consumer sending us a
+    payload that HAS resolutions must not be rejected by our parser.
+    """
+
+    RESOLVED = "resolved"
+    AMBIGUOUS = "ambiguous"
+    UNRESOLVED = "unresolved"
+
+
+class ResolutionMethod(StrEnum):
+    THRESHOLD = "threshold"
+    LLM_TIEBREAK = "llm_tiebreak"
+    NONE = "none"
+
+
+class CredentialStatus(StrEnum):
+    """C1-C4. Only the issuer can say, and no issuer API is installed."""
+
+    VERIFIED = "verified"
+    NOT_FOUND = "not_found"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+    ISSUER_UNREACHABLE = "issuer_unreachable"
+
+
+class CredentialMethod(StrEnum):
+    ISSUER_API = "issuer_api"
+    W3C_VC = "w3c_vc"
+    NONE = "none"
+
+
 class Platform(StrEnum):
     CODEFORCES = "codeforces"
     LEETCODE = "leetcode"

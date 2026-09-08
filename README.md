@@ -216,7 +216,7 @@ something failed on a real CV, and each one says what.
 ## Development
 
 ```bash
-uv run pytest                                   # 392 tests, no server needed
+uv run pytest                                   # 466 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy
