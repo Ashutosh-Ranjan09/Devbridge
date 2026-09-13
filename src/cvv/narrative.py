@@ -47,7 +47,9 @@ Rules, all of them absolute:
   - Where a finding carries an innocent reading, put it in the same sentence, with
     the same weight. "X, though Y" — never X alone.
   - State no verdict. Do not say whether anything is good, bad, or hiring-relevant.
-  - Copy the `rule` value exactly into the `rule` field.\
+  - Copy the `rule` value exactly into the `rule` field.
+  - Do NOT name the rule inside the sentence. The id is printed beside it already,
+    so "P2 says the CV claims..." renders as "[P2] P2 says the CV claims...".\
 """
 
 SCHEMA = {
@@ -94,6 +96,24 @@ def facts(finding: Discrepancy) -> dict[str, object]:
         "innocent_reading": finding.innocent_explanation,
         "details": finding.params,
     }
+
+
+def strip_rule_prefix(sentence: str, rule_id: str) -> str:
+    """Remove a leading "P2 says" / "P2:" / "Rule P2 —" the model prepended.
+
+    The frame already prints `[P2]` beside the sentence, so the model naming it again
+    renders as "[P2] P2 says the CV claims...". Asked in the prompt not to, qwen3:1.7b
+    did it anyway — guardrail 11, on this system's own second model call: a prompt is
+    not an enforcement mechanism, so the id is stripped by code the model cannot
+    reach. Only a LEADING mention goes; a rule id in the body of a sentence is a
+    citation and stays.
+    """
+    pattern = rf"^\s*(?:rule\s+)?{re.escape(rule_id)}\s*(?:says|states|reports|found)?\s*[:\u2014\u2013-]?\s*"
+    stripped = re.sub(pattern, "", sentence, count=1, flags=re.I)
+    if not stripped:
+        return sentence
+    # Restore the capital the prefix was carrying.
+    return stripped[0].upper() + stripped[1:]
 
 
 def check(sentence: str, allowed: str) -> str | None:
@@ -184,7 +204,7 @@ def narrate(report: FindingsReport, provider: LLMProvider) -> Narrative:
                     f"a sentence cites {point.get('rule')!r}, which produced no finding"
                 ),
             )
-        sentence = str(point.get("sentence", "")).strip()
+        sentence = strip_rule_prefix(str(point.get("sentence", "")).strip(), finding.rule_id)
         if reason := check(sentence, payloads[finding.finding_id]):
             return Narrative(summarise(report), faithful=False, rejected_because=reason)
         sentences[finding.finding_id] = sentence

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from cvv.models import (
     Buckets,
     Discrepancy,
@@ -178,3 +180,45 @@ class TestTheFramePythonWrites:
         text = summarise(report(P1, G5))
         assert "[P1]" in text and "[G5]" in text
         assert Narrative(text, faithful=False).faithful is False
+
+
+class TestTheRuleIdIsNotSaidTwice:
+    """The frame prints `[P2]` beside the sentence, so a model naming it again
+    renders as "[P2] P2 says the CV claims...".
+
+    Asked in the prompt not to, qwen3:1.7b did it anyway — which is guardrail 11
+    landing on this system's own second model call. A prompt is not an enforcement
+    mechanism, so the id is stripped by code the model cannot reach.
+    """
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["P2 says the CV claims rank 1106.", "P2: the CV claims rank 1106.",
+         "Rule P2 — the CV claims rank 1106.", "p2 states the CV claims rank 1106.",
+         "P2 - the CV claims rank 1106."],
+    )
+    def test_a_leading_mention_is_removed(self, raw: str) -> None:
+        from cvv.narrative import strip_rule_prefix
+
+        assert strip_rule_prefix(raw, "P2") == "The CV claims rank 1106."
+
+    def test_a_citation_in_the_body_is_left_alone(self) -> None:
+        """Only a LEADING mention is a duplicate of the frame. A rule id inside the
+        sentence is a citation and carries meaning."""
+        from cvv.narrative import strip_rule_prefix
+
+        body = "Ranks shift, which P2 reports as a three-place gap."
+        assert strip_rule_prefix(body, "P2") == body
+
+    def test_an_untouched_sentence_is_unchanged(self) -> None:
+        from cvv.narrative import strip_rule_prefix
+
+        plain = "The CV claims rank 1106."
+        assert strip_rule_prefix(plain, "P2") == plain
+
+    def test_it_runs_inside_narrate(self) -> None:
+        provider = FakeProvider(points(("P1", "P1 says the CV claims 1495 against 1180.")))
+        out = narrate(report(P1), provider)
+        assert out.faithful
+        assert "[P1] The CV claims 1495" in out.text
+        assert "P1 says" not in out.text
