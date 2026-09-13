@@ -208,8 +208,9 @@ docs/plan.md   the phases and the full 41-check catalogue
 CLAUDE.md      the guardrails, and why each one exists
 ```
 
-`CLAUDE.md` is the file to read next. Every guardrail in it is there because
-something failed on a real CV, and each one says what.
+[`docs/design.md`](docs/design.md) is the file to read next — every stage, every
+design choice, and the failure that produced each one. `CLAUDE.md` holds the
+guardrails in their working form.
 
 ---
 
