@@ -208,7 +208,9 @@ docs/plan.md   the phases and the full 41-check catalogue
 CLAUDE.md      the guardrails, and why each one exists
 ```
 
-[`docs/design.md`](docs/design.md) is the file to read next — every stage, every
+[`docs/design.md`](docs/design.md) is the file to read next — also rendered as
+[`docs/design.html`](docs/design.html) and [`docs/design.pdf`](docs/design.pdf)
+(35 pages; regenerate with `uv run python scripts/render-pdf.py`) — every stage, every
 design choice, and the failure that produced each one. `CLAUDE.md` holds the
 guardrails in their working form.
 

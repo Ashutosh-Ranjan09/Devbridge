@@ -1,0 +1,1012 @@
+<title>CV Verification Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#f7f8fa; --surface:#ffffff; --surface-2:#eef1f5;
+  --ink:#16202e; --ink-2:#33415a; --muted:#5d6b7f; --faint:#8794a6;
+  --rule:#dce1e9; --rule-2:#c3ccd9;
+  --accent:#2f4b8f; --accent-soft:#e7ecf7;
+  --decisive:#9b2c2c; --decisive-soft:#f7e9e8;
+  --attention:#8a5d12; --attention-soft:#faf0dd;
+  --verified:#1a6152; --verified-soft:#e3f1ed;
+  --shadow:0 1px 2px rgba(22,32,46,.05), 0 8px 24px -12px rgba(22,32,46,.12);
+  --serif:"Spectral",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d131b; --surface:#141c26; --surface-2:#1b242f;
+    --ink:#e0e7f0; --ink-2:#b9c5d4; --muted:#8c9bae; --faint:#6b7a8d;
+    --rule:#26313e; --rule-2:#354354;
+    --accent:#82a0e4; --accent-soft:#1a2436;
+    --decisive:#e49090; --decisive-soft:#2c1c1e;
+    --attention:#d7a446; --attention-soft:#2a2318;
+    --verified:#5cb9a4; --verified-soft:#15272a;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d131b; --surface:#141c26; --surface-2:#1b242f;
+  --ink:#e0e7f0; --ink-2:#b9c5d4; --muted:#8c9bae; --faint:#6b7a8d;
+  --rule:#26313e; --rule-2:#354354;
+  --accent:#82a0e4; --accent-soft:#1a2436;
+  --decisive:#e49090; --decisive-soft:#2c1c1e;
+  --attention:#d7a446; --attention-soft:#2a2318;
+  --verified:#5cb9a4; --verified-soft:#15272a;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- masthead ---------- */
+.masthead{border-bottom:1px solid var(--rule);background:var(--surface)}
+.masthead-in{max-width:1180px;margin:0 auto;padding:44px 32px 32px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 14px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(36px,5.2vw,58px);line-height:1.04;
+  letter-spacing:-.022em;margin:0 0 18px;text-wrap:balance;max-width:16ch}
+.thesis{font-family:var(--serif);font-size:clamp(17px,2vw,21px);line-height:1.5;color:var(--ink-2);
+  max-width:56ch;margin:0 0 8px;font-weight:500}
+.refusal{max-width:60ch;color:var(--muted);font-size:15px;margin:14px 0 0;
+  border-left:2px solid var(--accent);padding-left:16px}
+.refusal strong{color:var(--ink);font-weight:600}
+
+.figures{display:grid;grid-template-columns:repeat(4,auto);justify-content:start;
+  margin-top:34px;border-top:1px solid var(--rule)}
+@media (max-width:620px){.figures{grid-template-columns:repeat(2,auto)}}
+.fig{padding:16px 26px 6px 0;margin-right:26px;border-right:1px solid var(--rule)}
+.fig:last-child{border-right:0;margin-right:0}
+.fig .n{font-family:var(--mono);font-size:26px;font-weight:500;letter-spacing:-.02em;
+  color:var(--ink);display:block;font-variant-numeric:tabular-nums}
+.fig .l{font-size:12.5px;color:var(--muted);display:block;margin-top:2px}
+
+/* ---------- shell ---------- */
+.shell{max-width:1180px;margin:0 auto;padding:0 32px;display:grid;
+  grid-template-columns:212px minmax(0,1fr);gap:56px;align-items:start}
+.rail{position:sticky;top:0;max-height:100vh;overflow-y:auto;padding:40px 0 40px;
+  font-size:13px;line-height:1.45}
+.rail h2{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 12px;font-weight:500}
+.rail ol{list-style:none;margin:0 0 26px;padding:0;counter-reset:r}
+.rail li{counter-increment:r;margin:0 0 1px}
+.rail a{display:flex;gap:9px;text-decoration:none;color:var(--muted);padding:4px 8px 4px 6px;
+  border-radius:3px;border-left:2px solid transparent}
+.rail a:hover{color:var(--ink);background:var(--surface-2);border-left-color:var(--rule-2)}
+.rail a::before{content:counter(r,decimal-leading-zero);font-family:var(--mono);font-size:10.5px;
+  color:var(--faint);padding-top:2px;flex:none}
+main{padding:40px 0 100px;min-width:0}
+
+/* ---------- sections ---------- */
+section{margin:0 0 56px;scroll-margin-top:24px}
+h2.sec{font-family:var(--serif);font-weight:600;font-size:29px;line-height:1.2;letter-spacing:-.015em;
+  margin:0 0 6px;text-wrap:balance;display:flex;gap:14px;align-items:baseline}
+h2.sec .num{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);
+  letter-spacing:.04em;flex:none;padding-top:2px}
+.lede{color:var(--muted);max-width:66ch;margin:0 0 22px;font-size:15.5px}
+h3{font-family:var(--sans);font-weight:600;font-size:16.5px;letter-spacing:-.005em;
+  margin:30px 0 8px;color:var(--ink)}
+p{max-width:68ch;margin:0 0 14px}
+ul,ol.body{max-width:68ch;margin:0 0 14px;padding-left:20px}
+li{margin:0 0 7px}
+strong{font-weight:600}
+code{font-family:var(--mono);font-size:.875em;background:var(--surface-2);padding:.1em .34em;
+  border-radius:3px;color:var(--ink-2)}
+pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--surface);
+  border:1px solid var(--rule);border-radius:5px;padding:16px 18px;overflow-x:auto;margin:0 0 18px;
+  color:var(--ink-2)}
+pre code{background:none;padding:0;font-size:inherit}
+.cmt{color:var(--faint)}
+.kw{color:var(--accent)}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:0 0 20px;border:1px solid var(--rule);border-radius:5px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;padding:11px 14px;border-bottom:1px solid var(--rule);
+  background:var(--surface-2);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td strong{color:var(--ink)}
+.mono{font-family:var(--mono);font-size:.92em}
+
+/* ---------- tier chips ---------- */
+.chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;white-space:nowrap}
+.chip.dec{background:var(--decisive-soft);color:var(--decisive)}
+.chip.att{background:var(--attention-soft);color:var(--attention)}
+.chip.ver{background:var(--verified-soft);color:var(--verified)}
+.chip.non{background:var(--surface-2);color:var(--muted)}
+.yes{color:var(--verified);font-weight:600}
+.no{color:var(--faint)}
+
+/* ---------- the failure/fix pair — the page's one repeated device ---------- */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);
+  border-radius:5px;overflow:hidden;margin:0 0 20px;background:var(--surface)}
+.pair>div{padding:15px 18px}
+.pair .obs{background:var(--decisive-soft);border-right:1px solid var(--rule)}
+.pair .fix{background:var(--surface)}
+.pair h4{margin:0 0 7px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;font-weight:500}
+.pair .obs h4{color:var(--decisive)}
+.pair .fix h4{color:var(--verified)}
+.pair p{margin:0;font-size:14px;max-width:none;color:var(--ink-2)}
+@media (max-width:760px){.pair{grid-template-columns:1fr}
+  .pair .obs{border-right:0;border-bottom:1px solid var(--rule)}}
+
+/* ---------- buckets ---------- */
+.buckets{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);
+  border-radius:5px;overflow:hidden;margin:0 0 20px}
+.bk{background:var(--surface);padding:13px 16px;display:grid;grid-template-columns:26px 158px 1fr;
+  gap:14px;align-items:baseline;font-size:14px}
+.bk .g{font-family:var(--mono);font-size:16px;text-align:center}
+.bk .nm{font-weight:600;color:var(--ink)}
+.bk .ds{color:var(--muted)}
+.bk.v .g{color:var(--verified)} .bk.c .g{color:var(--decisive)}
+.bk.n .g{color:var(--attention)} .bk.e .g,.bk.o .g{color:var(--faint)}
+@media (max-width:660px){.bk{grid-template-columns:24px 1fr}.bk .ds{grid-column:2}}
+
+/* ---------- callout ---------- */
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;
+  border-radius:0 4px 4px 0;margin:0 0 20px;font-size:14.5px}
+.note p{margin:0;max-width:none}
+.note p+p{margin-top:9px}
+.note.warn{border-left-color:var(--attention);background:var(--attention-soft)}
+
+blockquote{margin:0 0 20px;padding:0 0 0 20px;border-left:2px solid var(--rule-2);
+  font-family:var(--serif);font-size:17px;line-height:1.55;color:var(--ink-2);max-width:62ch}
+hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
+footer{border-top:1px solid var(--rule);margin-top:20px;padding:22px 0 0;font-size:13px;color:var(--faint)}
+
+/* ---------- walkthrough stages ---------- */
+.stage{border-left:2px solid var(--rule);padding:0 0 4px 22px;margin:0 0 26px;position:relative}
+.stage::before{content:"";position:absolute;left:-5px;top:7px;width:8px;height:8px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--ground)}
+.stage>h3{margin-top:0;display:flex;align-items:baseline;gap:10px}
+.stage>h3 .st{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--faint);
+  text-transform:uppercase;flex:none}
+pre.data{background:var(--surface-2);border-color:var(--rule);font-size:12.5px;line-height:1.55}
+pre.data b{color:var(--ink);font-weight:500}
+pre.data .hit{color:var(--decisive);font-weight:500}
+pre.data .ok{color:var(--verified);font-weight:500}
+.tight td,.tight th{padding-top:7px;padding-bottom:7px}
+@media (max-width:940px){
+  .shell{grid-template-columns:1fr;gap:0}
+  .rail{position:static;max-height:none;padding:28px 0 0;border-bottom:1px solid var(--rule)}
+  .rail ol{columns:2;column-gap:24px;margin-bottom:20px}
+  main{padding-top:28px}
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <p class="eyebrow">DevBridge M5 · design record</p>
+    <h1>CV Verification Engine</h1>
+    <p class="thesis">Verifies developer CVs against the systems the candidate names — GitHub, Codeforces, LeetCode, live deployments — extracting typed claims with verbatim spans and running 27 deterministic checks.</p>
+    <p class="refusal">It produces <strong>no score</strong> and <strong>no verdict</strong>. It reports evidence and says explicitly what it could not check. A person decides what any of it means.</p>
+    <div class="figures">
+      <div class="fig"><span class="n">27<span style="color:var(--faint);font-size:18px">/34</span></span><span class="l">checks built, of the machine ceiling</span></div>
+      <div class="fig"><span class="n">474</span><span class="l">tests passing</span></div>
+      <div class="fig"><span class="n">9,939</span><span class="l">lines across 33 modules</span></div>
+      <div class="fig"><span class="n">15/15</span><span class="l">mutation detection, 0 collateral</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+<nav class="rail">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#status">Status</a></li>
+    <li><a href="#arch">Architecture</a></li>
+    <li><a href="#contract">The contract</a></li>
+    <li><a href="#ingest">Ingest</a></li>
+    <li><a href="#spans">Span grounding</a></li>
+    <li><a href="#extract">Extraction</a></li>
+    <li><a href="#filters">The gate</a></li>
+    <li><a href="#dates">Dates &amp; intervals</a></li>
+    <li><a href="#gather">Evidence</a></li>
+    <li><a href="#rules">The rules</a></li>
+    <li><a href="#report">The report</a></li>
+    <li><a href="#narrative">Narrative</a></li>
+    <li><a href="#worksheet">Worksheet</a></li>
+    <li><a href="#events">M6 projection</a></li>
+    <li><a href="#interfaces">Interfaces</a></li>
+    <li><a href="#cross">Cross-cutting</a></li>
+    <li><a href="#measure">Measurement</a></li>
+    <li><a href="#excluded">Not built</a></li>
+    <li><a href="#open">Open decisions</a></li>
+    <li><a href="#invariant">The invariant</a></li>
+    <li><a href="#walkthrough">A worked example</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="status">
+<h2 class="sec"><span class="num">01</span>Status</h2>
+<p class="lede">Twenty-seven of a catalogue of forty-one checks. Six are human by design and one is excluded on fairness grounds, so the machine ceiling is thirty-four.</p>
+
+<div class="tw"><table>
+<thead><tr><th>Group</th><th>Built</th><th>Not built</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><strong>D</strong> document-intrinsic</td><td class="mono">D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 — <strong>11/11</strong></td><td>—</td><td>complete</td></tr>
+<tr><td><strong>G</strong> GitHub</td><td class="mono">G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — <strong>10/10</strong></td><td>—</td><td>complete</td></tr>
+<tr><td><strong>P</strong> platforms</td><td class="mono">P1 P2 P3 P4 P6 — <strong>5/6</strong></td><td class="mono">P5</td><td>CodeChef publishes no API</td></tr>
+<tr><td><strong>W</strong> deployments</td><td class="mono">W1 — <strong>1/2</strong></td><td class="mono">W2</td><td>human — a reviewer opens the link</td></tr>
+<tr><td><strong>C</strong> credentials</td><td class="mono">C5 — <strong>1/5</strong></td><td class="mono">C1–C4</td><td>per-issuer APIs do not exist for us</td></tr>
+<tr><td><strong>H</strong> human</td><td>—</td><td class="mono">H1–H6</td><td>human by design</td></tr>
+</tbody></table></div>
+
+<h3>Measured behaviour, not asserted</h3>
+<p><code>cvv evaluate</code> corrupts exactly one fact in a real document and asks whether the check responsible notices.</p>
+<div class="tw"><table>
+<thead><tr><th>Document</th><th class="num">Claims</th><th class="num">Coverage</th><th class="num">Detection</th><th class="num">Collateral</th></tr></thead>
+<tbody>
+<tr><td>student CV — IIT Kharagpur</td><td class="num">19</td><td class="num">52%</td><td class="num"><strong>15/15</strong></td><td class="num">0</td></tr>
+<tr><td>synthetic CV — VIT Vellore</td><td class="num">20</td><td class="num">44%</td><td class="num"><strong>7/7</strong></td><td class="num">1 <span class="no">(correct)</span></td></tr>
+<tr><td>professional CV — 2 pages</td><td class="num">15</td><td class="num">22%</td><td class="num"><strong>2/2</strong></td><td class="num">0</td></tr>
+</tbody></table></div>
+<div class="note"><p><strong>Collateral is the number that matters</strong> — rules firing on a mutation they had no business noticing. A system that flags six things when one number changes is noisy, not sensitive, and every extra finding lands on a real person. It started at 2; both were real bugs invisible to 294 passing tests.</p></div>
+
+<h3>Test distribution</h3>
+<div class="tw"><table>
+<thead><tr><th>File</th><th class="num">Tests</th><th>Covers</th></tr></thead>
+<tbody>
+<tr><td class="mono">test_rules.py</td><td class="num">142</td><td>all 27 checks, against recorded evidence</td></tr>
+<tr><td class="mono">test_contract.py</td><td class="num">40</td><td>our models vs. the authoritative JSON Schemas</td></tr>
+<tr><td class="mono">test_dates.py</td><td class="num">36</td><td>the date parser's table</td></tr>
+<tr><td class="mono">test_github.py</td><td class="num">31</td><td>authored-file detection, repo evidence</td></tr>
+<tr><td class="mono">test_api.py</td><td class="num">25</td><td>the HTTP surface</td></tr>
+<tr><td class="mono">test_intervals.py</td><td class="num">21</td><td>three-valued interval algebra</td></tr>
+<tr><td class="mono">test_events.py · test_extract.py</td><td class="num">19</td><td>M6 projection · extraction internals</td></tr>
+<tr><td class="mono">test_logs.py</td><td class="num">18</td><td>log redaction</td></tr>
+<tr><td class="mono">test_filters.py</td><td class="num">17</td><td>the deterministic gate</td></tr>
+<tr><td class="mono">test_spans.py</td><td class="num">14</td><td>grounding and the numeral guard</td></tr>
+<tr><td class="mono">test_structure.py</td><td class="num">13</td><td>architectural rules, enforced</td></tr>
+<tr><td class="mono">test_leetcode · test_store · test_narrative</td><td class="num">12</td><td>connector · both backends · the second LLM site</td></tr>
+<tr><td class="mono">test_worksheet · test_ingest · test_evaluate · test_cli</td><td class="num">11–6</td><td>manual prep · PDF/DOCX/OCR · the harness · commands</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="arch">
+<h2 class="sec"><span class="num">02</span>Architecture</h2>
+<p class="lede">One package, one process. The tree reads in execution order, and each arrow is a typed contract.</p>
+<pre><code>ingest  →  extract  →  gather  →  rules  →  views
+ bytes     ClaimGraph  EvidenceBundle  FindingsReport  what a person reads</code></pre>
+<p>That is what makes every stage testable alone: <code>rules</code> never sees a PDF, <code>narrative</code> never sees a URL.</p>
+
+<h3>Two structural rules, enforced rather than asserted</h3>
+<p><strong><code>rules.py</code> imports only pure modules.</strong> No <code>httpx</code>, no <code>gather</code>. If a rule needs data it arrives in the <code>EvidenceBundle</code> or the rule abstains. A test walks the AST and holds the allow-list:</p>
+<pre><code>PURE = {
+    <span class="cmt">"cvv.models",      # the contract</span>
+    <span class="cmt">"cvv.intervals",   # the date algebra</span>
+    <span class="cmt">"cvv.ids",         # stable identifiers, no I/O</span>
+    <span class="cmt">"cvv.filters",     # pure predicates over claims</span>
+    <span class="cmt">"cvv.reference",   # curated tables loaded from data/</span>
+    <span class="cmt">"cvv.logs",        # writes to stderr, gathers nothing</span>
+}</code></pre>
+<p>The test also fails on a <em>stale</em> entry, so the list cannot rot. Before it existed, the project's own documentation claimed this enforcement and it was not there — and the rule it described had already drifted.</p>
+<p><strong><code>narrative.py</code> cannot reach the document.</strong> The faithfulness guarantee is the function signature, not the prompt: an endpoint that cannot receive the source text cannot leak it into prose, whatever the model is asked to do.</p>
+</section>
+
+<section id="contract">
+<h2 class="sec"><span class="num">03</span>The contract</h2>
+<p class="lede">Nine claim kinds, from the authoritative JSON Schema. <code>StrEnum</code> throughout, so a typo is an <code>AttributeError</code> rather than a silently false comparison.</p>
+<pre><code><span class="kw">class</span> ClaimKind(StrEnum):
+    EMPLOYMENT · EDUCATION · CERTIFICATION · PROJECT · SKILL
+    PROFILE              <span class="cmt"># carries the handle; 18 checks depend on it existing</span>
+    ACHIEVEMENT          <span class="cmt"># carries the directly checkable numeric</span>
+    IDENTIFIER           <span class="cmt"># the roll number → D9</span>
+    DECLARATION_MARKER   <span class="cmt"># the institution's own disclaimer</span></code></pre>
+
+<h3>A CV date denotes a set, not a point</h3>
+<pre><code><span class="kw">class</span> FuzzyDate(Model):
+    year: int = Field(ge=1950, le=2100)
+    month: int | None = None
+    day: int | None = None
+    precision: Precision          <span class="cmt"># exact | month | year</span></code></pre>
+<p>Validators enforce that precision matches the components present, and that an exact date is a real calendar day — 31 April would otherwise raise inside <code>intervals.bounds()</code> during rule evaluation, far from the input that caused it.</p>
+
+<h3>The validator that catches most integration breakage</h3>
+<pre><code><span class="kw">@model_validator</span>(mode=<span class="cmt">"after"</span>)
+<span class="kw">def</span> _spans_index_their_verbatim(self, info) -> ClaimGraph:
+    text = self.source.normalised_text
+    <span class="kw">for</span> c <span class="kw">in</span> self.claims:
+        p = c.provenance
+        <span class="kw">if</span> p.char_end > len(text):
+            <span class="kw">raise</span> ValueError(f<span class="cmt">"{c.claim_id}: span exceeds source text"</span>)
+        <span class="kw">if</span> p.recovery <span class="kw">is</span> Recovery.EXACT <span class="kw">and</span> text[p.char_start:p.char_end] != p.verbatim:
+            <span class="kw">raise</span> ValueError(f<span class="cmt">"{c.claim_id}: span does not index its verbatim"</span>)</code></pre>
+
+<h3>What the findings model deliberately lacks</h3>
+<p>There is no <code>overall_score</code> field and there never will be. A single number invites a threshold, a threshold becomes a filter, and a filter rejects people for reasons nobody can inspect.</p>
+<p>Two validators carry design decisions rather than type checks:</p>
+<pre><code><span class="cmt"># An attention finding is UNCONSTRUCTABLE without its benign reading.</span>
+<span class="kw">if</span> self.tier <span class="kw">is</span> Tier.ATTENTION <span class="kw">and not</span> self.innocent_explanation:
+    <span class="kw">raise</span> ValueError(<span class="cmt">"tier=attention requires innocent_explanation"</span>)
+
+<span class="cmt"># Abstention without a reason is exactly the silence the design forbids.</span>
+<span class="kw">if</span> self.status <span class="kw">in</span> (ABSTAINED, ERROR) <span class="kw">and not</span> self.reason:
+    <span class="kw">raise</span> ValueError(f<span class="cmt">"status={self.status} requires a reason"</span>)</code></pre>
+</section>
+
+<section id="ingest">
+<h2 class="sec"><span class="num">04</span>Ingest</h2>
+<p class="lede">Three paths, dispatched on extension and on whether a PDF actually carries text.</p>
+<div class="tw"><table>
+<thead><tr><th>Input</th><th>Path</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td class="mono">.pdf</td><td>PyMuPDF, page by page</td><td>producer and creation metadata retained for D4</td></tr>
+<tr><td class="mono">.pdf</td> <td>&lt; 120 chars/page → <strong>OCR</strong></td><td>RapidOCR, opt-in extra; report carries a caveat banner</td></tr>
+<tr><td class="mono">.docx</td><td>python-docx, walking body XML</td><td>tables flattened <strong>in document order</strong></td></tr>
+<tr><td class="mono">.doc</td><td>refused, with its reason</td><td>a different binary format; guessing loses content</td></tr>
+</tbody></table></div>
+
+<h3>Normalisation owns the definition of "the document"</h3>
+<p>NFKC folds what a PDF quietly inserts — ligatures (ﬁ → fi), non-breaking spaces, full-width digits — any of which makes an exact span match fail on text a human would call identical. An index map carries offsets back to the raw string, because after folding they no longer line up and provenance must point at the original.</p>
+
+<div class="pair">
+  <div class="obs"><h4>Observed — DOCX</h4><p><code>Document.paragraphs</code> silently omits every table. A CV whose education sits in a two-column layout reads as headings with nothing under them. It does not fail: it grounds cleanly and loses half the claims.</p></div>
+  <div class="fix"><h4>Resolved</h4><p>The body's XML children are walked directly, and each table <strong>row becomes one line</strong> — a row is one line of a CV, and splitting it would make <code>line_at</code> cite a cell rather than what a reader sees.</p></div>
+</div>
+
+<div class="pair">
+  <div class="obs"><h4>Observed — OCR</h4><p>The reference CV rasterised at 150 dpi: 3,910 characters at <strong>0.981 mean confidence</strong>. Inside that — <code>ASHUTOSHRANJAN</code>, <code>IITKharagpur</code>, <code>KrishnaPublicSchool</code>. Word boundaries fail, not characters.</p></div>
+  <div class="fix"><h4>Resolved</h4><p>Grounding still holds — a verbatim is recovered from the same string. What degrades is reference-table matching, so those rules abstain rather than contradict. The report prints a banner above every bucket so a reader knows why.</p></div>
+</div>
+</section>
+
+<section id="spans">
+<h2 class="sec"><span class="num">05</span>Span grounding</h2>
+<p class="lede">The model returns a verbatim; this module verifies that text really is in the document and returns where. Without it, a model that reads "rating of 1495" and returns 1595 produces a decisive contradiction against a claim the CV never made.</p>
+
+<h3>Two tiers, and the second needs a guard</h3>
+<pre><code><span class="kw">def</span> numerals_present(verbatim: str, text: str) -> bool:
+    <span class="cmt">"""Every digit sequence in the verbatim must occur in the document."""</span>
+    <span class="kw">return</span> all(n <span class="kw">in</span> text <span class="kw">for</span> n <span class="kw">in</span> _NUMERALS.findall(verbatim))</code></pre>
+<div class="note warn"><p><strong>Measured:</strong> a hallucinated <code>rating of 1800</code> where the document says <code>1495</code> scores <strong>0.944</strong> on partial-ratio and sails through a bare 0.92 threshold — three characters out of fifty-three. Similarity is blind to precisely the character that matters, and numbers are where the decisive checks live.</p></div>
+
+<h3>The window is a boundary, not a hint</h3>
+<pre><code><span class="kw">if</span> window <span class="kw">is</span> <span class="kw">None</span>:
+    lo, hi = 0, len(text)
+<span class="kw">else</span>:
+    lo = max(0, window[0] - WINDOW_MARGIN)   <span class="cmt"># 64 chars of slack</span>
+    hi = min(len(text), window[1] + WINDOW_MARGIN)</code></pre>
+<p>A margin, not a fallback. Given a 180-character education section, the model returned "SKILLS AND EXPERTISE" and "EXTRA CURRICULAR ACTIVITIES" as degrees; a document-wide search found that text elsewhere and grounded both.</p>
+
+<h3>Token-shaped fields are recovered, not trusted</h3>
+<p>Handles, repo owners, credential ids, roll numbers and URLs must each be a literal substring of the document, <strong>taking the document's casing</strong>. A model works in tokens and normalises: it returns <code>ar-009</code> for <code>AR009</code>, the API 404s, and the report says a real account does not exist.</p>
+<p>The search is scoped to the claim's own span with no fallback. A real CV carried <code>handle: AR009</code> (Codeforces) and <code>handle: ar009</code> (CodeChef) two lines apart; a document-wide search returned whichever appeared first.</p>
+</section>
+
+<section id="extract">
+<h2 class="sec"><span class="num">06</span>Extraction</h2>
+<p class="lede">Eight narrow passes, each over a scoped window. The model proposes; deterministic code decides what is real.</p>
+<div class="tw"><table>
+<thead><tr><th>Pass</th><th>Window</th><th>Produces</th></tr></thead>
+<tbody>
+<tr><td class="mono">achievements</td><td>routed section</td><td>platform · metric · value · qualifier · contest</td></tr>
+<tr><td class="mono">projects</td><td>routed section</td><td>title · urls · dates · technologies</td></tr>
+<tr><td class="mono">employment</td><td>routed section</td><td>org · title · type · dates</td></tr>
+<tr><td class="mono">education</td><td>routed section</td><td>degree · org · dates</td></tr>
+<tr><td class="mono">skills</td><td>routed section</td><td>name + category + years, per technology</td></tr>
+<tr><td class="mono">summary</td><td><strong>top 15%</strong> of the document</td><td>total years of professional experience</td></tr>
+<tr><td class="mono">declarations</td><td><strong>bottom 20%</strong></td><td>the institution's own disclaimer</td></tr>
+<tr><td class="mono">handles</td><td>routed section</td><td>platform + handle, <strong>no verbatim</strong></td></tr>
+</tbody></table></div>
+
+<h3><code>required</code> is the lever</h3>
+<p>A single call with every field optional returned 18 claims carrying <code>kind</code> and <code>verbatim</code> and nothing else — the model segmented the document and populated none of it. Four narrow calls with <code>required</code> in the JSON Schema returned every value correctly. Grammar-constrained generation makes an optional field one a small model will skip.</p>
+
+<h3>The model routes the sections, not a keyword list</h3>
+<div class="pair">
+  <div class="obs"><h4>Observed</h4><p><code>sections=("ACHIEVEMENT", "AWARD")</code> encodes what <em>one</em> CV called its section. A second document headed it <strong>"COMPETITIVE PROGRAMMING"</strong>, matched nothing, fell back to the whole document, and lost two of three ratings and the only contest rank — silently, on a CV that had done nothing wrong.</p></div>
+  <div class="fix"><h4>Resolved</h4><p>The model is shown the headings and says what each holds; the answer is verified against headings the document actually has. Keyword lists survive only as a fallback, so routing can improve a window and never break one.</p></div>
+</div>
+<p>Two refinements each cost a debugging round:</p>
+<ul>
+<li><strong>One window per <em>contiguous</em> run, never one overall.</strong> The reference CV routes both <code>EDUCATION</code> and <code>COURSEWORK INFORMATION</code> to education — correctly — and they sit at opposite ends of the page. Spanning them turned a 180-character window into a 4,252-character one. Choosing between them was the next wrong answer: longest-first picked COURSEWORK and lost every degree.</li>
+<li><strong>A category the model needs must exist even if no pass consumes it.</strong> With no <code>coursework</code> category, coursework went to <code>education</code>, and the education pass turned "Computer Science" into a degree awarded by "University".</li>
+</ul>
+
+<h3>Ask the right question</h3>
+<p>The skills pass returned the CV's own category headings as skills — <code>programming languages</code>, <code>utilities</code> — and the plan was an ontology lookup to filter them. Not needed: asking <em>"what category is each item"</em> instead of <em>"list the skills"</em> made both models exclude headings by themselves, because a heading has no plausible category. <strong>Junk output is often a task-framing problem before it is a capability one.</strong></p>
+
+<h3>Do not ask for a verbatim you can derive</h3>
+<p>The <code>skills</code> and <code>handles</code> passes return no verbatim at all. Asked for both a name and a verbatim, the model sets them equal and returns the whole line as the skill name; asked for a handle and a verbatim it <em>composes</em> one — it returned <code>"Codeforces: AR009"</code> for a document that says <code>"(handle: AR009)"</code>, and grounding dropped it along with ten other proposals.</p>
+<p>A handle is then located <strong>on a line that names its own platform</strong>. This CV carries <code>AR009</code> on its Codeforces line and <code>ar009</code> on its CodeChef line, so a window-wide search gave <em>both</em> claims the Codeforces line the moment the model miscased one. Every field individually real; the pairing silently wrong.</p>
+
+<h3>What still uses a regex, and why</h3>
+<p>Five patterns became model passes because each encoded how <em>one</em> document happened to be phrased:</p>
+<div class="tw"><table>
+<thead><tr><th>Pattern</th><th>Returned nothing on</th></tr></thead>
+<tbody>
+<tr><td class="mono">round\s+#?(\d{2,4})</td><td>AtCoder, LeetCode, ICPC, even "Round 2"</td></tr>
+<tr><td class="mono">\d{2}[A-Z]{2}\d{5}</td><td>every institution but IIT Kharagpur</td></tr>
+<tr><td class="mono">could not verify|self-declared</td><td>any institution wording its footer differently</td></tr>
+<tr><td class="mono">(platform)…handle:\s*(\w+)</td><td><code>Codeforces: ar009</code>, a bare URL, a bracketed name</td></tr>
+<tr><td class="mono">(\d+) years of experience</td><td>"8 yrs", "since 2016", any other language</td></tr>
+</tbody></table></div>
+<p><strong>Two remain and both earn it.</strong> <code>GITHUB_REPO</code>, because a URL's grammar is declared by the internet and not by a CV. <code>PLATFORM_MENTION</code>, which is <em>enforcement</em> rather than parsing and is built <strong>from</strong> the contract's <code>Platform</code> enum so it cannot drift out of it.</p>
+<p>Roll numbers are still found by pattern, but the patterns come from the same data file that interprets them — adding VIT Vellore as a data entry made <code>21BCE1847</code> decode end to end with no code change.</p>
+</section>
+
+<section id="filters">
+<h2 class="sec"><span class="num">07</span>The deterministic gate</h2>
+<p class="lede">Grounding proves a claim's text is real. It does not prove the model classified that text correctly — and misclassification produces false decisive findings just as readily as hallucination.</p>
+
+<div class="pair">
+  <div class="obs"><h4>Observed — the headline failure</h4><p>Given the whole CV, the model found one achievement — Codeforces 1495 Specialist — and emitted those same field values against <strong>fourteen different verbatims</strong>, including the CV's name header.</p></div>
+  <div class="fix"><h4>Why grounding cannot catch it</h4><p>Every verbatim is genuine and 1495 is a genuine rating. Only the <em>pairing</em> is invented. Checking the document is not enough — the number has to be in <em>this</em> span.</p></div>
+</div>
+
+<pre><code><span class="kw">def</span> value_is_in_its_own_span(claim: Claim) -> bool:
+    <span class="kw">if</span> claim.value <span class="kw">is</span> <span class="kw">None</span>:
+        <span class="kw">return</span> <span class="kw">True</span>
+    <span class="kw">return</span> str(claim.value) <span class="kw">in</span> claim.provenance.verbatim</code></pre>
+
+<div class="tw"><table>
+<thead><tr><th>Field</th><th>Rule</th></tr></thead>
+<tbody>
+<tr><td class="mono">value</td><td>the number must appear in <em>this</em> claim's verbatim</td></tr>
+<tr><td class="mono">platform</td><td>whichever the verbatim names; none named → unattributable, dropped</td></tr>
+<tr><td class="mono">proficiency</td><td>the band the sentence uses, or <code>None</code>. Never invented</td></tr>
+<tr><td>two or more platforms named</td><td>flag <code>aggregate_across_sources</code>; the rule abstains</td></tr>
+</tbody></table></div>
+
+<p>The model labelled a CodeChef rating <code>codeforces</code>, which would have compared 1733 against Codeforces' 1495 and fired a decisive contradiction against an honest candidate. It also labelled four skills <code>expert</code> — a word appearing nowhere in the CV.</p>
+
+<h3>The other three stages</h3>
+<ul>
+<li><strong>Excluded exams</strong> — read from the verbatim, never the model's label.</li>
+<li><strong>Semantic deduplication</strong>, keyed on meaning rather than span: the model returns the same claim with slightly different verbatims, which ground to different offsets and survive a span-keyed dedup. Five copies of one rating got through that way.</li>
+<li><strong>One region, one kind.</strong> Two <em>container</em> claims over the same text is a classification conflict, and the more specific kind wins.</li>
+</ul>
+<p>The drop counts are not decoration — they are the extraction-quality metric, and they travel into the report.</p>
+</section>
+
+<section id="dates">
+<h2 class="sec"><span class="num">08</span>Dates and intervals</h2>
+<p class="lede">No <code>dateutil</code>: it is permissive by design and reads <code>2022-26</code> as June 2022 — a confidently wrong precision, which is worse than a failure.</p>
+
+<h3>The slash-date problem</h3>
+<div class="pair">
+  <div class="obs"><h4>Observed</h4><p>A third CV had five roles in <code>MM/DD/YYYY</code>. All five parsed to nothing, and D5, D10, D11 and D12 all abstained "fewer than two dated roles" — <strong>the entire employment group disabled by one date format.</strong></p></div>
+  <div class="fix"><h4>Resolved</h4><p>Nothing in <code>02/05/2024</code> says which field is the month. The <em>rest of the document</em> does: a CV writing <code>01/26/2024</code> anywhere has shown its hand, because 26 is not a month.</p></div>
+</div>
+<p>Where nothing is decisive — or where the evidence conflicts — the date parses to the <strong>year</strong>. The year is certain, the month is a coin toss, and a wrong month can raise a DEFINITE overlap and contradict somebody where a year-precision interval never can.</p>
+
+<h3>Three-valued interval algebra</h3>
+<div class="tw"><table>
+<thead><tr><th>Span</th><th>Definition</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><strong>core</strong></td><td class="mono">[start.latest, end.earliest]</td><td>covered under <em>every</em> reading</td></tr>
+<tr><td><strong>max</strong></td><td class="mono">[start.earliest, end.latest]</td><td>covered under <em>some</em> reading</td></tr>
+</tbody></table></div>
+<pre><code>cores intersect          → DEFINITE     (scorable)
+only max spans intersect → POSSIBLE     (context, never scored)
+neither                  → NONE</code></pre>
+<div class="note"><p><strong>Only DEFINITE may raise a scoring discrepancy.</strong> A single-year interval has an <em>inverted, empty</em> core — "2021" has <code>start.latest</code> 2021-12-31 after <code>end.earliest</code> 2021-01-01 — and can never be DEFINITE. That emptiness is the mechanism, not a defect.</p>
+<p>Live example: CF-Connect <code>[May '25 – Jun '25]</code> against Dijkstra Visualizer <code>[Jun '25]</code>. Both cover June, so a naive comparison reports a contradiction; the two could equally have run Jun 1–10 and Jun 20–30, and the document does not say.</p></div>
+<p><code>today</code> is injected everywhere. Nothing reads the clock — a verification must reproduce when re-run, and a report stored in March must still explain itself in September.</p>
+</section>
+
+<section id="gather">
+<h2 class="sec"><span class="num">09</span>Evidence gathering</h2>
+<p class="lede">Every outbound request lives behind one module. Every failure path writes a <strong>typed gap</strong> and gathering continues: one dead source must never fail the bundle.</p>
+<div class="tw"><table>
+<thead><tr><th>Connector</th><th>Source</th><th>Feeds</th></tr></thead>
+<tbody>
+<tr><td><strong>Codeforces</strong></td><td>public API, no auth</td><td class="mono">P1 P2 P3</td></tr>
+<tr><td><strong>LeetCode</strong></td><td>public GraphQL, no auth</td><td class="mono">P4</td></tr>
+<tr><td><strong>GitHub</strong></td><td>REST + GraphQL contributions calendar</td><td class="mono">G2–G11</td></tr>
+<tr><td><strong>HTTP liveness</strong></td><td>one GET per claimed deployment</td><td class="mono">W1</td></tr>
+<tr><td>CodeChef</td><td><em>deliberately absent</em></td><td>no API; a scraper answers wrongly in silence</td></tr>
+</tbody></table></div>
+
+<h3>Server-side timestamps only</h3>
+<p><code>git commit --date=</code> and <code>GIT_COMMITTER_DATE</code> are attacker-controlled. Only <code>repo.created_at</code>, <code>pushed_at</code> and the contributions calendar are trustworthy; where no server-side value exists the field stays <code>null</code> and a gap opens. <code>RepoEvidence.first_commit</code> is therefore permanently <code>None</code>.</p>
+
+<h3>Two connector details that are easy to get wrong</h3>
+<ul>
+<li><strong>LeetCode's <code>acSubmissionNum</code> carries "All" alongside the per-difficulty rows.</strong> A naive sum gives <code>253 + 60 + 141 + 52 = 506</code> — exactly double. That inflates the <em>observed</em> count, making an honest claim look understated.</li>
+<li><strong>LeetCode publishes a live rating and no peak</strong>, so it is stored as <code>current_rating</code> with <code>max_rating</code> left <code>None</code>. Storing it as a peak would let P4 call someone an overstater for a rating that has since fallen.</li>
+</ul>
+</section>
+
+<section id="rules">
+<h2 class="sec"><span class="num">10</span>The rules</h2>
+<p class="lede">Twenty-seven checks, each a frozen dataclass registered by decorator, each declaring its tier and whether it may move a number.</p>
+
+<h3>Three control signals</h3>
+<div class="tw"><table>
+<thead><tr><th>Signal</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td class="mono">yield Discrepancy(…)</td><td>a finding</td></tr>
+<tr><td class="mono">raise Abstain(reason)</td><td>could not run — the reason reaches the reader</td></tr>
+<tr><td class="mono">raise Corroborated(note)</td><td>nothing to raise, something to <strong>confirm</strong></td></tr>
+</tbody></table></div>
+<p><code>Corroborated</code> exists because some checks can only ever confirm. GitHub organisation membership is <strong>private by default</strong>, so its absence is the ordinary state of an honest employee and its presence is evidence from a party other than the candidate.</p>
+
+<h3>The catalogue</h3>
+<div class="tw"><table>
+<thead><tr><th>ID</th><th class="num">Ver</th><th>Tier</th><th class="num">Scores</th><th>What it checks</th></tr></thead>
+<tbody>
+<tr><td class="mono">D2</td><td class="num">2.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>claims dropped, split by cause</td></tr>
+<tr><td class="mono">D3</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>the document's own disclaimer</td></tr>
+<tr><td class="mono">D4</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>file provenance — edits after generation</td></tr>
+<tr><td class="mono">D5</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>two roles held at once</td></tr>
+<tr><td class="mono">D6</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>stated total vs. the dated roles</td></tr>
+<tr><td class="mono">D7</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>a project dated before its technology existed</td></tr>
+<tr><td class="mono">D8</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>degree span vs. standard length</td></tr>
+<tr><td class="mono">D9</td><td class="num">1.1</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>roll-number structure vs. programme and dates</td></tr>
+<tr><td class="mono">D10</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>the same role dated two incompatible ways</td></tr>
+<tr><td class="mono">D11</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>gap between roles</td></tr>
+<tr><td class="mono">D12</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>seniority against tenure</td></tr>
+<tr><td class="mono">G2</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>the account exists</td></tr>
+<tr><td class="mono">G3</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>whether control was proven</td></tr>
+<tr><td class="mono">G4</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>repos exist, are owned, are not forks</td></tr>
+<tr><td class="mono">G5</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>activity during the claimed project window</td></tr>
+<tr><td class="mono">G6</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>claimed stack vs. the repository it links</td></tr>
+<tr><td class="mono">G7</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>the repo contains a file a person wrote</td></tr>
+<tr><td class="mono">G8</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>fork ratio across the account</td></tr>
+<tr><td class="mono">G9</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>claimed tenure vs. earliest public evidence</td></tr>
+<tr><td class="mono">G10</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>activity across a claimed employment window</td></tr>
+<tr><td class="mono">G11</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>employers vs. public org membership</td></tr>
+<tr><td class="mono">P1</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>Codeforces rating</td></tr>
+<tr><td class="mono">P2</td><td class="num">4.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>contest rank, matched by contest <strong>name</strong></td></tr>
+<tr><td class="mono">P3</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>problems solved — Codeforces only</td></tr>
+<tr><td class="mono">P4</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>LeetCode statistics</td></tr>
+<tr><td class="mono">P6</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>one handle across platforms</td></tr>
+<tr><td class="mono">W1</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>deployments respond, <strong>and whose they are</strong></td></tr>
+</tbody></table></div>
+
+<h3>Tier decides the bucket, mechanically</h3>
+<pre><code><span class="kw">for</span> f <span class="kw">in</span> findings:
+    <span class="kw">if</span> f.tier <span class="kw">is</span> Tier.DECISIVE:    contradicted.append(f.finding_id)
+    <span class="kw">elif</span> f.tier <span class="kw">is</span> Tier.ATTENTION: needs_context.append(f.finding_id)</code></pre>
+<p>No per-rule branching in the aggregator, and there must never be — that is the only thing stopping a judgement being presented as a fact.</p>
+
+<h3>A check that is technically correct can still be unfair</h3>
+<p><strong>Ten rules</strong>, on their first version, would have put a false or misleading finding in front of a reviewer looking at an honest CV. None was a bug in the usual sense.</p>
+<div class="tw"><table>
+<thead><tr><th>Rule</th><th>The tempting version</th><th>Why it is wrong</th></tr></thead>
+<tbody>
+<tr><td class="mono">G5</td><td>repo created after the claimed window</td><td><code>created_at</code> bounds when the REPO existed, not when the WORK happened</td></tr>
+<tr><td class="mono">G7</td><td>fewer than N files means empty</td><td>an 11 KB program in two files is a program</td></tr>
+<tr><td class="mono">P2</td><td>is the rank anywhere in the history</td><td>true, useless, and it hid that the named contest was three places out</td></tr>
+<tr><td class="mono">D9</td><td>department absent from the degree text</td><td>the CV named no department at all. Absence is not contradiction</td></tr>
+<tr><td class="mono">G6</td><td>a claimed technology is missing</td><td>MongoDB is not a language and is not an npm package</td></tr>
+<tr><td class="mono">G9</td><td>claimed tenure exceeds earliest evidence</td><td>the account is usually younger than the claim</td></tr>
+<tr><td class="mono">G10</td><td>no public commits during a claimed job</td><td>that is what a salaried job looks like from outside</td></tr>
+<tr><td class="mono">G11</td><td>employer absent from public orgs</td><td>org membership is private by default</td></tr>
+<tr><td class="mono">D6</td><td>stated total exceeds the dated roles</td><td>a CV need not list every role; one page forces the choice</td></tr>
+<tr><td class="mono">D5</td><td>any DEFINITE overlap between full-time roles</td><td>a <strong>13-day</strong> overlap is a notice period</td></tr>
+</tbody></table></div>
+<p><strong>Four survive as corroboration-only rules</strong> — G10, G11, P6 and the confirming half of G9. That is not a weakened check; it is the correct shape when absence is the ordinary state of an honest candidate.</p>
+
+<h3>Two worked examples</h3>
+<p><strong>D5 — the handover band.</strong> A professional CV gave exact dates for the first time:</p>
+<pre><code>Curebase / Quotient    56 days, 22%  →  ✗ contradicted   (two months of dual full-time)
+Quotient / Stewards    13 days,  5%  →  ? needs context  (a notice period)</code></pre>
+<p>Absolute days, not the fraction — a two-week handover between two one-month contracts is 50% of the shorter role and still a handover.</p>
+<p><strong>P2 — contest identity, platform-agnostic.</strong> The identity of a contest is its <em>largest</em> number; divisions and stages are small, and a year appears in the platform's record rather than in what a CV copies.</p>
+<pre><code>"Codeforces Round 998"          vs "Codeforces Round 998 (Div. 3)"   same
+"Codeforces Round 998 (Div. 3)" vs "Codeforces Round 998"            same
+"Meta Hacker Cup Round 2"       vs "Meta Hacker Cup 2024 Round 2"    same
+"Codeforces Round 99"           vs "Codeforces Round 998 (Div. 3)"   different
+"AtCoder Beginner Contest 350"  vs "AtCoder Beginner Contest 351"    different</code></pre>
+</section>
+
+<section id="report">
+<h2 class="sec"><span class="num">11</span>The report</h2>
+<p class="lede">Five buckets, and the fifth is what makes the other four honest.</p>
+<div class="buckets">
+  <div class="bk v"><span class="g">✓</span><span class="nm">verified</span><span class="ds">checked against an outside source, no discrepancy — plus corroboration notes</span></div>
+  <div class="bk c"><span class="g">✗</span><span class="nm">contradicted</span><span class="ds">decisive findings, capped at 5, ranked by confidence</span></div>
+  <div class="bk n"><span class="g">?</span><span class="nm">needs context</span><span class="ds">attention findings, <strong>always printed with the innocent reading</strong></span></div>
+  <div class="bk e"><span class="g">–</span><span class="nm">not evaluated</span><span class="ds">every abstention, with its reason</span></div>
+  <div class="bk o"><span class="g">□</span><span class="nm">out of scope</span><span class="ds">the static exclusion list, always present</span></div>
+</div>
+<p>A reviewer gives a report about sixty seconds; the caps are a design constraint, not a preference.</p>
+
+<h3><code>section_confidence</code> is a probability of contradiction, not a grade</h3>
+<pre><code>combined = 1.0
+<span class="kw">for</span> finding <span class="kw">in</span> group:
+    weight = 1.0 <span class="kw">if</span> finding.tier <span class="kw">is</span> Tier.DECISIVE <span class="kw">else</span> ATTENTION_WEIGHT  <span class="cmt"># 0.4</span>
+    combined *= 1.0 - finding.confidence * weight
+confidence = 1.0 - combined</code></pre>
+<p>Three things stop it becoming the score this system refuses to produce: non-scoring findings never contribute; a section with no scoring finding is <strong>absent</strong>, not zero — zero reads as "measured, found nothing" and gets averaged; and nothing is combined across sections.</p>
+<div class="note warn"><p><strong>The tier weight is not decoration.</strong> <code>Discrepancy.confidence</code> says how sure we are of the <em>observation</em>: P2 recording rank 1109 against a claimed 1106 carries confidence 1.0, because the API definitely says 1109. Raw confidences drove an honest CV's achievements section to <strong>1.0 on a three-place standings artefact</strong>. Weighted, it reads 0.4.</p></div>
+<p><strong>Coverage describes the verification, not the candidate.</strong> A high number means "we checked thoroughly", never "they are good" — so it cannot become a hiring threshold.</p>
+</section>
+
+<section id="narrative">
+<h2 class="sec"><span class="num">12</span>The narrative</h2>
+<p class="lede">The second and last place a model is called. It does not write a briefing — it writes one sentence per finding, and Python assembles the frame.</p>
+<div class="pair">
+  <div class="obs"><h4>Observed</h4><p>Asked for free prose over a report carrying four attention findings, the model opened with <em>"the CV does not contradict any rules, as all claimed information is verified"</em> — a verdict, from a system whose first principle is that it produces none. It passed a numeral check <strong>because it contained no numbers.</strong></p></div>
+  <div class="fix"><h4>Resolved</h4><p>A model that never writes a global sentence cannot write a false one. It now produces one sentence per finding; the counts, the ordering and the innocent readings are printed by Python.</p></div>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Layer</th><th>What it stops</th></tr></thead>
+<tbody>
+<tr><td><strong>signature</strong></td><td><code>narrate(report, provider)</code> — cannot reach the document, so cannot introduce a fact nobody computed</td></tr>
+<tr><td><strong>omission check</strong></td><td>every finding must get a sentence — omission is how version 1 lied</td></tr>
+<tr><td><strong>containment</strong></td><td>numerals checked <strong>per finding</strong>, not per report</td></tr>
+</tbody></table></div>
+<p>Per-finding containment matters: a number belonging to P1 inside a sentence about G5 is the extraction failure arriving at the other end of the pipeline, and a report-wide check would pass it. Asked to include the benign reading, the real model copied the headline and dropped it — so that guarantee cannot depend on a model remembering.</p>
+</section>
+
+<section id="worksheet">
+<h2 class="sec"><span class="num">13</span>The manual-check worksheet</h2>
+<p class="lede">Naming what a machine cannot do and stopping there is useless: a reviewer told "the degree was not verified" still has to work out which institution, which roll number, and what to ask.</p>
+<p><code>cvv verify --worksheet</code> emits the question, whom to ask, the roll number <strong>already decoded</strong>, and what the machine already established — and it invents nothing.</p>
+<div class="pair">
+  <div class="obs"><h4>Observed — its first output</h4><p>It asked a candidate how two of nineteen proposed claims came to be dropped <strong>by our extractor</strong>, why their own placement cell wrote a disclaimer, and to account for a gap in their dates.</p></div>
+  <div class="fix"><h4>Resolved</h4><p>A non-scoring finding never becomes a question for the candidate. <code>scoring=False</code> marks findings describing the extraction, the document, a career's shape or a naming habit — none is a claim the candidate made.</p></div>
+</div>
+<p>A verification contact is printed only where the operator supplied one in <code>data/institutions.json</code>, <strong>which ships empty</strong>: a guessed registrar address sends a candidate's details to a stranger, so an unlisted institution gets its office named by role instead.</p>
+</section>
+
+<section id="events">
+<h2 class="sec"><span class="num">14</span>The M6 projection</h2>
+<blockquote>M6 does NOT consume discrepancies — it has no interest in fraud. It consumes corroborated capability signals.</blockquote>
+<p>That line from the schema is the design brief. Most of a verification is <strong>withheld</strong>, each item with a typed reason, because filtering nobody can see is filtering nobody can audit.</p>
+<div class="tw"><table>
+<thead><tr><th>Decision</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Consent defaults to nothing</strong></td><td>M6 must refuse events outside scope; this system holds no consent record, so it asserts none</td></tr>
+<tr><td><strong><code>subject_ref</code> never derived from the CV</strong></td><td>minting an id from a name or roll number makes someone linkable across verifications they never connected</td></tr>
+<tr><td><strong>Positive capped, negative not</strong></td><td>the ownership asymmetry — nobody prints a handle that undermines them</td></tr>
+<tr><td><strong><code>surface:</code> namespace for skill ids</strong></td><td>ESCO-seeded ids need a resolver we do not have; M6 can map or reject knowingly</td></tr>
+</tbody></table></div>
+<p>Measured on the reference CV — 11 events, 5 withheld — and the reliabilities show the asymmetry working:</p>
+<pre><code>platform_rating   0.90    uncapped — the handle resolved on the platform's own API
+repo_artifact     0.375   = 0.75 × 0.5,  ownership_unverified
+cv_claim          0.12    = 0.20 × 0.6,  undated_observation</code></pre>
+<p>Every multiplier is emitted as a named <code>reliability_factor</code>, so a capped value is auditable instead of magic.</p>
+</section>
+
+<section id="interfaces">
+<h2 class="sec"><span class="num">15</span>Interfaces</h2>
+<pre><code>cvv verify cv.pdf [--brief] [--worksheet] [--events F] [--json] [--offline] [--save D]
+cvv evaluate cv.pdf [--baseline D] [--save-baseline D]
+cvv serve [--host] [--port]
+cvv rules | inspect cv.pdf | config</code></pre>
+
+<h3>HTTP — the integration spec, in one process</h3>
+<pre><code>POST /v1/verifications              202 · Idempotency-Key honoured
+GET  /v1/verifications/{id}         200 report · 202 while running · 404 unknown
+GET  /v1/verifications/{id}/claims/{claim_id}/provenance
+POST /v1/webhooks · GET /v1/usage · GET /healthz /readyz
+POST /v1/narrate /evaluate · GET /v1/rules
+POST /v1/resolve /attest            501, with the reason</code></pre>
+<p>The spec draws three services; this system collapsed them by explicit decision. <strong>The two boundaries the split existed to enforce survive:</strong> <code>/v1/narrate</code> accepts only a <code>FindingsReport</code>, <code>/v1/evaluate</code> only a <code>ClaimGraph</code>. Neither can reach the document, whether the call crosses a network or a stack frame.</p>
+<div class="tw"><table>
+<thead><tr><th>Decision</th><th>Reasoning</th></tr></thead>
+<tbody>
+<tr><td><strong>No queue</strong></td><td><code>BackgroundTasks</code> runs the job here. Honest for one process, first thing to replace when it is not</td></tr>
+<tr><td><strong><code>completed_degraded</code> must mean something</strong></td><td>"any gap" was useless — CodeChef has no API, so <em>every</em> report was degraded. It now means something <strong>transient</strong> stopped a check</td></tr>
+<tr><td><strong>A failure is still a report</strong></td><td>empty claims and findings, not absent — a client never needs two shapes, and a vanished verification leaves them with nothing to tell the candidate</td></tr>
+<tr><td><strong>501, not an empty success</strong></td><td>an empty result reads as "resolved to nothing" rather than "never attempted"</td></tr>
+</tbody></table></div>
+
+<h3>Persistence — two stores, one Protocol</h3>
+<p><strong>JSONB, not an ORM.</strong> The stored object is the report itself — a deep pydantic tree that already round-trips through JSON by contract — so shredding it into columns would create a second schema to keep in step with the first. Columns hold only what is <em>queried</em>, including the idempotency key under a <strong>partial UNIQUE index</strong>, because two concurrent retries of one upload cannot be settled by a check-then-insert.</p>
+<div class="pair">
+  <div class="obs"><h4>Observed — one suite, both stores</h4><p>A duplicate idempotency key made memory quietly rebind the key to a <strong>second verification</strong>, while Postgres raised a <code>UniqueViolation</code> that reached the client as a <strong>500</strong>. Registering one webhook twice made memory fire it <strong>twice</strong> per verification and Postgres fire it once.</p></div>
+  <div class="fix"><h4>Why it was invisible</h4><p>The Protocol makes mypy check they have the same <em>shape</em>. Only a suite running against both checks they have the same <em>behaviour</em> — and they did not.</p></div>
+</div>
+<p><strong>Local, not hosted — decided.</strong> A stored report holds a real person's name, roll number, institutions and handles, so where the database lives is a question about consent rather than infrastructure. A hosted Postgres would need <em>no code change</em>, which is exactly why the decision has to be deliberate.</p>
+</section>
+
+<section id="cross">
+<h2 class="sec"><span class="num">16</span>Cross-cutting</h2>
+<h3>Logging never carries the CV</h3>
+<p>A log line is the easiest place for personal data to escape — written to disk, shipped to an aggregator, tailed in a shared terminal, kept long after the verification was deleted. Events carry <strong>identifiers and counts</strong>, never content.</p>
+<pre><code>REDACT = frozenset({
+    <span class="cmt">"verbatim", "snippet", "text", "normalised_text", "raw", "document_text",</span>
+    <span class="cmt">"handle", "name", "email", "org", "title", "degree", "roll", "explanation",</span>
+    <span class="cmt">"summary", "prose", "claim_text", "url", "document_url",</span>
+})</code></pre>
+<p>A convention is not an enforcement mechanism, so <code>scrub</code> replaces those keys whatever a caller passed. Output goes to <strong>stderr</strong>, so <code>cvv verify --json &gt; report.json</code> stays a file that parses.</p>
+<h3>Stable identifiers</h3>
+<pre><code>claim_id   = "c" + sha1(f"{graph_id}|{char_start}|{kind}|{discriminator}")[:10]
+finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")[:10]</code></pre>
+<p>The discriminator is load-bearing: one skills line yields several claims sharing a span and a kind, and without it they collide onto one id and all but one vanish.</p>
+</section>
+
+<section id="measure">
+<h2 class="sec"><span class="num">17</span>How the system is measured</h2>
+<p class="lede">A unit test proves a rule does what its author intended, using a fixture that author wrote to exercise it. It cannot prove the system catches a falsified CV.</p>
+<p>The mutation harness takes a real document that ran end to end, corrupts exactly one fact, and asks whether the check responsible notices. Fifteen mutations, one per decisive rule where possible.</p>
+<div class="tw"><table>
+<thead><tr><th>Measure</th><th>What it says</th></tr></thead>
+<tbody>
+<tr><td><strong>Detection</strong></td><td>the quotable number, and the easy one to inflate. "Something fired" does not count — the rule <em>responsible</em> must be the one that noticed</td></tr>
+<tr><td><strong>Collateral</strong></td><td>rules firing on a mutation they had no business noticing. The honest one</td></tr>
+</tbody></table></div>
+<p>Three refinements make the numbers honest: baseline findings are <strong>subtracted</strong> and named; a mutation the document cannot carry is <strong>skipped, not failed</strong>, or the rate measures the document rather than the system; and <strong>an abstention is not a miss</strong> — counting it as one would make detection a measure of how well-connected a candidate is.</p>
+<h3>What it found</h3>
+<ul>
+<li><strong>P3 compared every <code>problems_solved</code> claim against Codeforces</strong>, whatever platform it named. "Solved 800 problems on LeetCode" on an honest CV was decisively contradicted by a Codeforces count of 412 — the exact failure P3's own docstring warned about, committed one level up.</li>
+<li><strong>D11 reported a career gap between two mentions of the same role.</strong> That is D10's finding; a document contradicting itself does not also have a gap.</li>
+</ul>
+<h3>Reproducibility, and its limit</h3>
+<p>Within one model load it is exact: four consecutive extractions of the same CV were byte-identical. <strong>Across loads it is not.</strong> Ollama picks the GPU/CPU layer split from whatever VRAM is free at load time — the same machine reported 100% GPU and later 81% in one session. The filters absorb that variance <em>usually, not always</em>: an audit found a live extraction assertion failing once in three runs.</p>
+</section>
+
+<section id="excluded">
+<h2 class="sec"><span class="num">18</span>Deliberately not built</h2>
+<div class="tw"><table>
+<thead><tr><th>Excluded</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Entrance rank vs. cutoff</td><td>JEE cutoffs vary by reservation category; a category-blind comparison systematically flags reserved-category candidates for a rank that is entirely valid</td></tr>
+<tr><td>AI-generated-CV detection</td><td>using a model to write a CV is not fraud, and detection penalises non-native English speakers hardest</td></tr>
+<tr><td>Contribution authenticity (G12)</td><td>see below</td></tr>
+<tr><td>Identity, employment, degree, CGPA</td><td>no accessible source. A degree can only be confirmed by the institution that awarded it</td></tr>
+<tr><td>Any overall trust score</td><td>a number invites a threshold</td></tr>
+</tbody></table></div>
+<h3>G12 in detail — excluded, not backlogged</h3>
+<p>Cost was never the objection: GraphQL returns 100 commits a query, roughly 40 for a whole account.</p>
+<p><strong>It does not work in either direction.</strong> <em>Farming</em>: 400 commits with a median of one line is a cron job, and it is also <code>fix: typo in README</code> / <code>refactor: rename userId</code> / <code>test: add empty-input case</code> — the atomic-commit habit the industry teaches. <em>Bulk import</em>: one honest <code>npm install</code> writes <code>package-lock.json +14,203 −0</code>, which <strong>is</strong> the signature.</p>
+<div class="note"><p><strong>And it is shaped wrongly, which decides it.</strong> Every other rule tests a <em>claim</em> — P1 tests "peak rating 1495", G7 tests "this is a project". G12 tests no claim: the CV never says its author's commits are of representative size. There is nothing to contradict, only a habit to be suspicious of. It is also defeated by <code>random.randint(1, 400)</code>, so it selects for naive GitHub usage — students, deadline pushes, and people whose real work is private.</p></div>
+</section>
+
+<section id="open">
+<h2 class="sec"><span class="num">19</span>Open decisions and known gaps</h2>
+<h3>Seven fields ahead of the contract</h3>
+<p>Twenty-five of the twenty-seven schema definitions set <code>additionalProperties: false</code>, so a field added here makes our output <strong>invalid</strong> for a consumer validating against the schema. Seven exist, each load-bearing:</p>
+<div class="tw"><table>
+<thead><tr><th>Field</th><th>Needed by</th></tr></thead>
+<tbody>
+<tr><td class="mono">ExtractionMeta.filtered</td><td>D2 2.0 — filtered ≠ ungroundable</td></tr>
+<tr><td class="mono">RepoEvidence.authored_files / authored_bytes</td><td>G7 2.0 — a lock file is not substance</td></tr>
+<tr><td class="mono">RepoEvidence.homepage</td><td>W1 2.0 — ties a deployment to its repo</td></tr>
+<tr><td class="mono">GitHubEvidence.public_repos / public_repo_count</td><td>skills a CV cannot fit</td></tr>
+<tr><td class="mono">RuleOutcome.note</td><td>what a corroborating rule confirmed</td></tr>
+</tbody></table></div>
+<p>A test holds them as a <strong>named list</strong> and fails on anything else — and also fails if an entry stops being an extension, so the list cannot rot. The integration spec predicted this failure mode verbatim: <em>"one person adds a field locally, the other never sees it, and integration breaks in week 7."</em></p>
+<p>Arguably the strongest reading is that the spec itself prescribes <code>schemas/*.schema.json — generated from Pydantic, committed</code>, which makes the models the source of truth and the upstream draft what should be regenerated.</p>
+<h3>Honest gaps</h3>
+<ul>
+<li><strong>No gold set.</strong> Phase 5 specifies two instruments: a mutation engine (built) and a gold set measuring extraction precision and recall per claim kind (not built). <strong>Extraction accuracy is unmeasured</strong>; only rule detection is.</li>
+<li><strong>Three documents is a small corpus</strong>, and one is synthetic. Each new document has found a real bug within minutes.</li>
+<li><strong>A small model.</strong> Several documented failures are <code>qwen3:1.7b</code>'s limits rather than the design's, and a larger model is the intended upgrade path.</li>
+<li><strong>G6 tier 2</strong> is deferred by decision: reading repository files opens a prompt-injection surface whose contents the candidate chooses, for a gain the manifest check already approximates.</li>
+</ul>
+</section>
+
+<section id="invariant">
+<h2 class="sec"><span class="num">20</span>The invariant</h2>
+<blockquote>A CV from someone with no account, no repositories and no contest history must still produce a complete, honest report.</blockquote>
+<p>All eleven document-intrinsic checks need no network at all, so the document-only path is a real path rather than a failure mode. <code>cvv verify --offline</code> is that path, and a test asserts every rule still appears in the report with its reason.</p>
+<p>Everything else follows from this: <strong>abstention is a first-class result</strong>, and evidence gathering lives inside this system rather than arriving from somewhere else.</p>
+</section>
+
+<section id="walkthrough">
+<h2 class="sec"><span class="num">21</span>A worked example, end to end</h2>
+<p class="lede">One document, every stage, with the real intermediate state. Nothing below is reconstructed — each block is the actual output of the stage above it.</p>
+
+<div class="stage">
+<h3><span class="st">Stage 01</span>Ingest</h3>
+<pre class="data"><code>doc_0906632773e2   1 page   5,644 chars   ingest=pdf_text
+producer    iText 2.1.7 by 1T3XT
+created     D:20250704194743+05'30'
+
+sections detected:
+  EDUCATION                      79..259      180 chars
+  PROJECTS                      259..3361    3102 chars
+  SKILLS AND EXPERTISE         3361..3834     473 chars
+  COURSEWORK INFORMATION       3834..4331     497 chars
+  AWARDS AND ACHIEVEMENTS      4331..5148     817 chars
+  EXTRA CURRICULAR ACTIVITIES  5148..5644     496 chars</code></pre>
+<p>The education table has already collapsed into one line — <code>2027 B.TECH IIT Kharagpur 9.34 / 10</code> — which is what makes <code>line_at</code> provenance work later. <code>producer = iText</code> is retained for D4 and is <strong>trust-increasing</strong>: a CV generated by a placement cell's template went through that cell.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 02</span>The regex pre-pass</h3>
+<pre class="data"><code>identifier   '23CS10004'
+profile      'github.com/Ashutosh-Ranjan09/ATMA-Final'</code></pre>
+<p>Two things, both with a grammar rather than a convention. Every other pattern this module once carried is now a model pass.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 03</span>Routing</h3>
+<pre class="data"><code>achievements   4331..5148    817 chars   'AWARDS AND ACHIEVEMENTS • Secured …'
+education        79..259     180 chars   'EDUCATION Year Degree/Exam Institu…'
+projects        259..3361   3102 chars   'PROJECTS Automatic Timetable Manag…'
+skills         3361..3834    473 chars   'SKILLS AND EXPERTISE • Programming…'</code></pre>
+<p><code>COURSEWORK INFORMATION</code> routed to <code>coursework</code> and <code>EXTRA CURRICULAR ACTIVITIES</code> to <code>other</code> — <strong>neither is consumed by any pass.</strong> That is the fix from §6: with no <code>coursework</code> category, the education pass turned "Computer Science" into a degree awarded by "University", and D9 picked that one.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 04</span>What the passes proposed</h3>
+<p>Six proposals from the 817-character achievements window:</p>
+<pre class="data"><code><span class="hit">platform='codeforces' metric='contest_rank' value=873  contest='JEE Advanced 2023' handle='AR009'</span>
+<span class="hit">platform='codeforces' metric='contest_rank' value=809  contest='JEE Main 2023'     handle='AR009'</span>
+platform='codeforces' metric='max_rating'   value=1495 qualifier='Specialist'      handle='AR009'
+platform='codechef'   metric='max_rating'   value=1733 qualifier='3-Star'          handle='ar009'
+platform='codeforces' metric='contest_rank' value=1106 contest='Codeforces Round 998'
+platform='leetcode'   metric='problems_solved' value=500</code></pre>
+<div class="note warn"><p><strong>Two guardrail violations are visible in that block</strong>, and neither is fixable by prompting.</p>
+<p>Rows 1 and 2 are <strong>JEE ranks labelled <code>platform='codeforces'</code></strong>. The design excludes entrance ranks on fairness grounds and the prompt says so; the model returned them anyway, relabelled as a platform it does understand. No label-based filter could catch this.</p>
+<p>The model also stamped <code>handle='AR009'</code> onto both JEE rows, carried over from the Codeforces sentence — the "one answer pasted onto several spans" failure in miniature.</p></div>
+<p>The <strong>handles</strong> pass returned both accounts with the document's own casing — <code>AR009</code> and <code>ar009</code>. <strong>declarations</strong> found the CDC footer in the bottom fifth of the page. <strong>summary</strong> returned nothing, which is the honest answer for a student CV and the answer the pass is built to be able to give.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 05</span>Grounding and the gate</h3>
+<pre class="data"><code>proposed 22  →  kept 20      span_failures=0      filtered={<span class="hit">'excluded_exam': 2</span>}</code></pre>
+<p>Both JEE claims are gone — <strong>dropped by reading the verbatim</strong>, not the label the model supplied. The surviving graph:</p>
+<div class="tw"><table class="tight">
+<thead><tr><th>Claim</th><th>Kind</th><th>Key fields</th></tr></thead>
+<tbody>
+<tr><td class="mono">c2abb329f17</td><td>identifier</td><td class="mono">23CS10004 → admission 2023, dept CS, serial 10004</td></tr>
+<tr><td class="mono">c59d74e1b45</td><td>education</td><td>B.Tech · IIT Kharagpur · 2027 <span class="no">(year precision, a point)</span></td></tr>
+<tr><td class="mono">c2990167c81</td><td>education</td><td>CBSE Class XII · Krishna Public School · 2023</td></tr>
+<tr><td class="mono">cb8a75a6ead</td><td>education</td><td>CBSE Class X · Open Minds A Birla School · 2021</td></tr>
+<tr><td class="mono">c60d8614fec</td><td>project</td><td>ATMA · IIT Kharagpur · 8 technologies · 2025-03 … 2025-04</td></tr>
+<tr><td class="mono">c7440d7fd61</td><td>project</td><td>CF-Connect · 7 technologies · 2025-05 … 2025-06</td></tr>
+<tr><td class="mono">c14539ba26d</td><td>project</td><td>Dijkstra Visualizer · 9 technologies · 2025-06 <span class="no">(a point)</span></td></tr>
+<tr><td class="mono">ca4f6b6adca</td><td>project</td><td>RSA Chat Application · 6 technologies · 2024-06</td></tr>
+<tr><td class="mono">c25c1bf1ef7</td><td>profile</td><td>github · <code>Ashutosh-Ranjan09</code></td></tr>
+<tr><td class="mono">c81fcf2943d</td><td>profile</td><td>codeforces · <code>AR009</code></td></tr>
+<tr><td class="mono">c4a8c311f17</td><td>profile</td><td>codechef · <strong><code>ar009</code></strong></td></tr>
+<tr><td class="mono">c4ac467314f</td><td>achievement</td><td>codeforces · max_rating <strong>1495</strong> · Specialist</td></tr>
+<tr><td class="mono">cbd9f4d98c2</td><td>achievement</td><td>codechef · max_rating <strong>1733</strong> · 3-Star</td></tr>
+<tr><td class="mono">cfc8cb653ac</td><td>achievement</td><td>codeforces · contest_rank <strong>1106</strong> · <code>contest='Codeforces Round 998'</code></td></tr>
+<tr><td class="mono">cc86bcc0b93</td><td>achievement</td><td>leetcode · problems_solved 500 · <code>flags=['aggregate_across_sources']</code></td></tr>
+<tr><td class="mono">c3f51447bdd +2</td><td>skill</td><td>9, 7 and 6 technologies, one claim per source line</td></tr>
+<tr><td class="mono">c9f92f7ff95</td><td>declaration_marker</td><td>the CDC footer</td></tr>
+</tbody></table></div>
+<p>Four gate decisions are visible: the <strong>CodeChef handle survived as <code>ar009</code></strong> though <code>AR009</code> sits two lines above it; the <strong>500-problem claim is flagged, not dropped</strong>, because its sentence names three platforms; the junk employment claim was discarded by the span-conflict stage; and the contest name reached <code>context</code> only because it appears in that claim's own span.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 06</span>Evidence gathered</h3>
+<pre class="data"><code>codeforces   AR009              found   max_rating=1495  solved=164  contests=17
+github       Ashutosh-Ranjan09  ownership=claimed_unverified  created=2024-06-29
+                                public_repos=7   contribution_windows=28
+  ATMA-Final           fork=False  created=<span class="hit">2025-06-24</span>   56 files / 150,238 B  [JavaScript, CSS]
+                                   homepage=https://atma-ar.vercel.app
+  Dijkstra-visualizer  fork=False  created=2025-06-24   14 files /  79,944 B  [JavaScript, CSS]
+  Terminal-Chat-Room   fork=False  created=2024-06-30   <span class="hit"> 3 files /  11,796 B</span>  [Python]
+  cf-connect           fork=False  created=2025-05-09  111 files / 452,428 B  [TypeScript, CSS, JS]
+deploy       atma-ar.vercel.app          <span class="ok">200</span>
+deploy       cf-connect.vercel.app       <span class="ok">200</span>
+deploy       dijkstra-visual.vercel.app  <span class="ok">200</span>
+GAP          codechef  not_supplied  "no API — a scraper is the only route"</code></pre>
+<p>Two of the highlighted figures are the ones that produced guardrail 9. <strong><code>Terminal-Chat-Room</code></strong> is the three-file, 11 KB program G7's first version would have called an empty repository. <strong><code>ATMA-Final</code> was created 2025-06-24</strong>, two months <em>after</em> the project's claimed Mar–Apr window — the comparison G5's first version would have reported as a contradiction, on a course project pushed after the deadline.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 07</span>All 27 rules</h3>
+<div class="tw"><table class="tight">
+<thead><tr><th>Fired</th><th>Clean</th><th>Abstained</th></tr></thead>
+<tbody><tr>
+<td class="mono">D2 D3 G3 P2</td>
+<td class="mono">D4 D7 G2 G4 G5 G6 G7 G8 P1 W1</td>
+<td class="mono">D5 D6 D8 D9 D10 D11 D12 G9 G10 G11 P3 P4 P6</td>
+</tr></tbody></table></div>
+<p>Every abstention carries its reason. The most informative:</p>
+<pre class="data"><code>D9   the CV states no department to compare 23CS10004 against.
+     <span class="ok">Checked: 23CS10004 encodes admission in 2023 and a 4-year B.Tech completes
+     in 2027, which the CV agrees with.</span>
+P3   The claim aggregates 3 platforms (codeforces, geeksforgeeks, leetcode);
+     no single source can confirm or contradict it.
+D5   Fewer than two dated roles are claimed; there is nothing to overlap.
+G11  The CV names no employer to look for.</code></pre>
+<div class="note"><p><strong>D9 is the shape the whole design argues for.</strong> Half the check ran and half could not, and it says which. "Could not check the roll number" and "checked the years, they line up, could not check the department" are different statements, and only one of them is true.</p></div>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 08</span>Findings</h3>
+<pre class="data"><code>[P2] <b>attention · info · conf 1.0 · scoring=True</b>
+     The CV claims rank 1106 in Codeforces Round 998 (Div. 3). The Codeforces API
+     records rank 1109 for 'AR009' in that contest — 3 places lower.
+     though: Ranks shift after system testing and after cheat removals.
+
+[G3] attention · low  · conf 0.55 · scoring=False   ownership never proven
+[D2] attention · low  · conf 1.0  · scoring=False   2 of 22 refused by the filters
+[D3] attention · info · conf 1.0  · scoring=False   the CDC disclaimer</code></pre>
+<p>P2 is the one real signal, and it is the whole design in one line: the API was matched <strong>by contest name</strong>, both numbers are stated, the gap is three places on 1106, and the benign reading travels with it. Its earlier version reported "no contest records rank 1106" — true, useless, and it hid that the named contest was found.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 09</span>Section confidence</h3>
+<pre class="data"><code>[{'section': 'achievements', 'confidence': <b>0.4</b>, 'basis_finding_ids': ['fbb5923211f']}]</code></pre>
+<p>One entry. G3, D2 and D3 are <code>scoring=False</code> and contribute nothing; P2 contributes <code>1.0 × 0.4</code> because it is attention-tier. <strong>No other section appears</strong> — absence means no scoring finding touched it, which is not the same as zero.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 10</span>The buckets</h3>
+<div class="buckets">
+  <div class="bk v"><span class="g">✓</span><span class="nm">verified · 7</span><span class="ds">rating · deployment-to-repo linkage · account · repos · substance · stack · no anachronism</span></div>
+  <div class="bk c"><span class="g">✗</span><span class="nm">contradicted · 0</span><span class="ds">nothing decisive</span></div>
+  <div class="bk n"><span class="g">?</span><span class="nm">needs context · 4</span><span class="ds">P2 · G3 · D2 · D3, each with its innocent reading</span></div>
+  <div class="bk e"><span class="g">–</span><span class="nm">not evaluated · 14</span><span class="ds">every abstention, with its reason</span></div>
+  <div class="bk o"><span class="g">□</span><span class="nm">out of scope · 4</span><span class="ds">degree · employment · identity · entrance rank</span></div>
+</div>
+<p>One of those seven verified lines is a <code>Corroborated</code> note rather than a bare pass: W1 found the repositories' own declared homepages matching the claimed URLs — the difference between "this URL responds" and "this URL is theirs".</p>
+<p><strong>Coverage: 14 of 27 evaluated — 52%</strong>, printed on the first screen, alongside what the number means: it describes the verification, not the candidate.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 11</span>The briefing</h3>
+<pre class="data"><code>0 contradicted · 4 needing context · 7 corroborated · 14 not evaluated.
+<b>No score is produced.</b>
+
+  [P2] The CV claims rank 1106 in Codeforces Round 998 (Div. 3). The Codeforces
+       API records rank 1109 for 'AR009' in that contest — 3 places lower.
+       though: Ranks shift after system testing and after cheat removals, so a
+       CV written from the live standings can be a few places out.</code></pre>
+<p>Every sentence passed per-finding numeral containment. The counts, the ordering and every <code>though:</code> line are Python's.</p>
+<div class="pair">
+  <div class="obs"><h4>Observed while writing this section</h4><p>The model prefixed every sentence with the rule id — <code>"P2 says the CV claims…"</code> — which renders as <code>[P2] P2 says …</code>. Adding "do not name the rule inside the sentence" to the prompt changed nothing, on two separate models.</p></div>
+  <div class="fix"><h4>Guardrail 11, again</h4><p>Stripped by <code>strip_rule_prefix</code>, in code the model cannot reach. Only a <em>leading</em> mention goes — a rule id inside a sentence is a citation and stays.</p></div>
+</div>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 12</span>The M6 projection</h3>
+<pre class="data"><code>11 events, 5 withheld
+
+platform_rating  positive  base 0.90 → <span class="ok">0.90</span>   []
+repo_artifact    positive  base 0.75 → <span class="hit">0.375</span>  ['ownership_unverified']   × 4
+artifact_live    positive  base 0.60 → 0.60   []                          × 3
+cv_claim         positive  base 0.20 → 0.12   ['undated_observation']     × 3
+
+withheld:  non_scoring_rule × 3 · not_a_capability_signal × 1 · institution_disclaimed × 1</code></pre>
+<p>The asymmetry as two numbers. Codeforces is <strong>uncapped at 0.90</strong> — the handle resolved on the platform's own API, so ownership is not in question. Every GitHub repository is <strong>halved to 0.375</strong>, because control of that account was never proven and this is corroborating evidence. A <em>contradicting</em> event from the same account would not have been capped.</p>
+<p><code>institution_disclaimed</code> is the CDC footer scoping the whole document: forwarding those claims as capability signals would launder a caveat the issuer wrote.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 13</span>The worksheet</h3>
+<pre class="data"><code>ASK THE INSTITUTION
+  [MC-c59d74e1b45]  of: IIT Kharagpur — academic / examinations section
+      Confirm that B.TECH was awarded (the CV states 2027), and confirm the CGPA.
+      · as written on the CV: '2027 B.TECH IIT Kharagpur 9.34 / 10'
+      · <span class="ok">roll 23CS10004 decodes to admission year 2023, department CS, serial 10004</span>
+
+ASK THE CANDIDATE
+  [MC-fbb5923211f]  The CV claims rank 1106 … records 1109. Ask how this came about.
+  [MC-ownership]    Prove control of github.com/Ashutosh-Ranjan09 — a gist, a commit,
+                    or a profile-bio string YOU supply.
+
+OPEN AND LOOK
+  [MC-atma-ar.vercel.app]  Open it and confirm it does what ATMA describes.   (W2)
+
+JUDGEMENT ONLY — no machine result exists or should
+  [H1] Does the work match the claimed seniority?   [H2] Is the portfolio substantial?
+  [H3] Code quality in context                      [H6] The hiring decision</code></pre>
+<p>The roll number arrives <strong>already decoded</strong>, so a reviewer phoning the institution does not have to work out what <code>23CS10004</code> means. And D2, D3 and G3 — all <code>scoring=False</code> — produce <strong>no question for the candidate</strong>: nobody should be asked why our extractor dropped a claim, or why their own placement cell wrote a disclaimer.</p>
+</div>
+
+<div class="stage">
+<h3><span class="st">Stage 14</span>What the run cost</h3>
+<div class="tw"><table class="tight">
+<thead><tr><th>Phase</th><th>Work</th><th class="num">Time</th></tr></thead>
+<tbody>
+<tr><td>extraction</td><td>8 model calls + 1 routing call</td><td class="num">≈ 22 s</td></tr>
+<tr><td>gathering</td><td>~20 HTTP requests</td><td class="num">≈ 8 s cold · &lt;1 s warm</td></tr>
+<tr><td>rules</td><td>27 checks</td><td class="num">≈ 3 ms</td></tr>
+</tbody></table></div>
+<p>The model is the entire budget. Everything after extraction is deterministic and effectively free — which is the reason the boundary sits exactly where it does.</p>
+</div>
+</section>
+
+<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 33 modules · 474 tests · 27 checks</footer>
+
+</main>
+</div>
