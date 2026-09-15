@@ -12,7 +12,7 @@
 
 | | Today | Notes |
 |---|---|---|
-| **Checks** | **27 / 34** | machine ceiling; 41 catalogued − 1 excluded − 6 human |
+| **Checks** | **28 / 34** | 27 rules + the narrative (C5); ceiling is 41 catalogued − 1 excluded − 6 human |
 | **Tests** | **474** passing · 484 with Postgres · 5/5 live | 0 failing |
 | **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
 | **Size** | 33 modules · 9,959 lines · 19 test files · 5,161 test lines | |
