@@ -117,6 +117,11 @@ def offline(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, list[str], list[
     monkeypatch.setattr(gather_module, "gather_github", github)
     monkeypatch.setattr(
         gather_module,
+        "gather_codechef",
+        lambda handle: Gap(source="codechef", reason=GapReason.UNREACHABLE, detail="offline"),
+    )
+    monkeypatch.setattr(
+        gather_module,
         "probe",
         lambda url: DeploymentEvidence(
             url=url, reachable=False, status_code=None,

@@ -150,6 +150,31 @@ def _inflate_leetcode(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
     )
 
 
+def _inflate_codechef(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
+    """The P1 mutation on the scraped platform: a CodeChef peak that never happened."""
+    claim = _achievement(g, "codechef", "max_rating")
+    if claim is None or not isinstance(claim.value, int):
+        return None
+    if not any(p.platform is Platform.CODECHEF for p in b.platforms):
+        return None  # no page was read, so there is nothing for P5 to compare against
+    return _replace(g, claim, claim.model_copy(update={"value": claim.value + 305})), b
+
+
+def _codechef_missing(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
+    """The CodeChef handle on the CV does not exist — CodeChef sent it home."""
+    cc = next((p for p in b.platforms if p.platform is Platform.CODECHEF), None)
+    if cc is None:
+        return None
+    gap = Gap(
+        source=Platform.CODECHEF.value,
+        reason=GapReason.NOT_FOUND,
+        detail=f"CodeChef has no user {cc.handle!r}: its profile URL redirects to the "
+        "homepage.",
+    )
+    platforms = [p for p in b.platforms if p is not cc]
+    return g, b.model_copy(update={"platforms": platforms, "gaps": [*b.gaps, gap]})
+
+
 def _account_missing(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
     """The account named on the CV does not exist."""
     if b.github is None:
@@ -318,6 +343,8 @@ CATALOGUE: list[Mutation] = [
     Mutation("rank-inflated", "P2", "contest rank improved to 40", _inflate_rank),
     Mutation("contest-absent", "P2", "the named contest removed from history", _contest_absent),
     Mutation("leetcode-inflated", "P4", "900 LeetCode problems against 310", _inflate_leetcode),
+    Mutation("codechef-inflated", "P5", "CodeChef rating raised by 305", _inflate_codechef),
+    Mutation("codechef-missing", "P5", "the CodeChef handle does not resolve", _codechef_missing),
     Mutation("account-missing", "G2", "the GitHub account does not resolve", _account_missing),
     Mutation("repo-forked", "G4", "every named repository is a fork", _repo_is_a_fork),
     Mutation("repo-empty", "G7", "a named repository holds nothing authored", _repo_is_empty),

@@ -616,6 +616,184 @@ class P4LeetCodeStatistics:
 
 @register
 @dataclass(frozen=True)
+class P5CodeChefStatistics:
+    """Claimed CodeChef rating, contest ranks and problem count against the profile page.
+
+    ATTENTION, never decisive, and the reason is the SOURCE, not the claim. Codeforces'
+    API states its own numbers; a scraper states what it understood a page to say, on
+    a page CodeChef can redesign without notice. So a mismatch here is a question for
+    a reviewer, who can open the profile and look.
+
+    Direction as P1 and P2: the highest rating only rises and a problem count is a
+    floor, so a CV below the record understated — never a finding. A contest rank is
+    matched by the contest's NAME, as P2 does.
+
+    A handle that does not exist is a finding, as G2 is for GitHub — but only when
+    CodeChef sent the profile URL to its homepage. Any other redirect is a gap saying
+    the site changed, so a URL redesign cannot tell every candidate their account is
+    missing.
+    """
+
+    rule_id: str = "P5"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    band: int = 30  # rating points, as P1: rejudging moves a rating by tens
+    scoring: bool = True
+    summary: str = "Claimed CodeChef statistics vs. the public profile page"
+
+    def _innocent(self, handle: str) -> str:
+        return (
+            "CodeChef publishes no API; this was read from the public profile page, "
+            "whose layout can change, and ratings move after rejudging. Open "
+            f"codechef.com/users/{handle} to check."
+        )
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        profiles = [
+            c for c in ctx.claims(ClaimKind.PROFILE)
+            if (c.platform or "").lower() == Platform.CODECHEF.value
+        ]
+        rated = _achievements(ctx, Platform.CODECHEF, "max_rating")
+        solved = [
+            c for c in _achievements(ctx, Platform.CODECHEF, "problems_solved")
+            if not is_aggregate(c.provenance.verbatim)  # the number belongs to several
+        ]
+        ranked = _achievements(ctx, Platform.CODECHEF, "contest_rank")
+
+        for gap in ctx.bundle.gaps:
+            if gap.source == Platform.CODECHEF.value and gap.reason is GapReason.NOT_FOUND:
+                handle = next((c.handle for c in profiles if c.handle), None) or "<handle>"
+                yield Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, []),
+                    rule_id=self.rule_id,
+                    rule_version=self.rule_version,
+                    tier=self.tier,
+                    severity=Severity.HIGH,
+                    confidence=1.0,
+                    scoring=self.scoring,
+                    claim_refs=[c.claim_id for c in [*profiles, *rated, *solved, *ranked]],
+                    evidence_refs=["codechef.users"],
+                    params={"detail": gap.detail},
+                    explanation=gap.detail or "The CodeChef account does not exist.",
+                    innocent_explanation=(
+                        "A mistyped handle on the CV, or an account closed since. "
+                        "CodeChef publishes no API, so this was read from where the "
+                        f"profile URL led. Open codechef.com/users/{handle} to check."
+                    ),
+                )
+                return
+
+        if not (rated or solved or ranked):
+            raise Abstain("No CodeChef statistic is claimed.")
+        cc = ctx.platform(Platform.CODECHEF)
+
+        findings: list[Discrepancy] = []
+        agreed: list[str] = []
+
+        def finding(claim: Claim, severity: Severity, params: dict[str, object],
+                    explanation: str) -> Discrepancy:
+            return Discrepancy(
+                finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                tier=self.tier,
+                severity=severity,
+                confidence=1.0,
+                scoring=self.scoring,
+                claim_refs=[claim.claim_id],
+                evidence_refs=["codechef.users.profile"],
+                params={**params, "handle": cc.handle, "source_quality": "scrape"},
+                explanation=explanation,
+                innocent_explanation=self._innocent(cc.handle),
+            )
+
+        for c in rated:
+            claimed = int(c.value) if isinstance(c.value, int | float) else None
+            if claimed is None or cc.max_rating is None:
+                continue
+            if cc.max_rating >= claimed:
+                agreed.append(f"highest rating {cc.max_rating}, at least the claimed {claimed}")
+                continue
+            overstated = claimed - cc.max_rating
+            findings.append(finding(
+                c,
+                Severity.INFO if overstated <= self.band else Severity.HIGH,
+                {"claimed": claimed, "actual": cc.max_rating, "overstated_by": overstated},
+                f"The CV claims a peak CodeChef rating of {claimed}. The profile page for "
+                f"{cc.handle!r} shows a highest rating of {cc.max_rating} — {overstated} "
+                "points lower.",
+            ))
+
+        for c in solved:
+            claimed = int(c.value) if isinstance(c.value, int | float) else None
+            if claimed is None or cc.problems_solved is None:
+                continue
+            if cc.problems_solved >= claimed:
+                agreed.append(
+                    f"{cc.problems_solved} problems solved, at least the claimed {claimed}"
+                )
+                continue
+            findings.append(finding(
+                c,
+                Severity.MEDIUM,
+                {"claimed": claimed, "actual": cc.problems_solved},
+                f"The CV claims {claimed} problems solved on CodeChef. The profile page for "
+                f"{cc.handle!r} shows {cc.problems_solved}.",
+            ))
+
+        for c in ranked:
+            claimed = int(c.value) if isinstance(c.value, int | float) else None
+            if claimed is None or not cc.contests:
+                continue
+            named = (c.context or {}).get("contest")
+            match = None
+            if isinstance(named, str) and named:
+                match = next((x for x in cc.contests if same_contest(named, x.name)), None)
+            if match is None:
+                if not named and any(x.rank == claimed for x in cc.contests):
+                    agreed.append(f"rank {claimed} is in the contest history")
+                    continue
+                findings.append(finding(
+                    c,
+                    Severity.MEDIUM,
+                    {"claimed_rank": claimed, "contest": named,
+                     "contests_on_record": len(cc.contests)},
+                    f"The CV claims a CodeChef contest rank of {claimed}"
+                    + (f" in {named!r}" if named else "")
+                    + f". No contest in the {len(cc.contests)}-contest rated history on "
+                    f"the profile page for {cc.handle!r} records that rank"
+                    + (", and no contest of that name is in it." if named else "."),
+                ))
+                continue
+            if match.rank <= claimed:
+                agreed.append(f"rank {match.rank} in {match.name}, as good as the claimed {claimed}")
+                continue
+            delta = match.rank - claimed
+            relative = delta / max(match.rank, 1)
+            findings.append(finding(
+                c,
+                Severity.INFO if relative <= 0.02 else
+                Severity.MEDIUM if relative < 0.25 else Severity.HIGH,
+                {"contest": match.name, "claimed_rank": claimed,
+                 "actual_rank": match.rank, "difference": delta},
+                f"The CV claims rank {claimed} in {match.name}. The profile page for "
+                f"{cc.handle!r} records rank {match.rank} — {delta} "
+                + ("place" if delta == 1 else "places") + " lower.",
+            ))
+
+        if findings:
+            yield from findings
+            return
+        if agreed:
+            raise Corroborated(
+                f"CodeChef profile page for {cc.handle!r} (read from the page, not an "
+                "API): " + "; ".join(agreed)
+            )
+        raise Abstain("The CodeChef page carried no statistic matching what the CV claims.")
+
+
+@register
+@dataclass(frozen=True)
 class P6CrossPlatformHandle:
     """The same handle across platforms, as corroboration of one public identity.
 

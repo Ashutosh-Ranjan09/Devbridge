@@ -17,10 +17,10 @@ dependencies = [
     "uvicorn>=0.32",
     "psycopg[binary]>=3.2",
     "psycopg-pool>=3.2",
+    "selectolax>=1.0",   # the CodeChef profile page; lexbor backend (modest is removed in 1.0)
 ]
 
 # Added when the phase that needs them lands, not before:
-#   phase 3  selectolax          (CodeChef scrape, issuer pages)
 #   phase 4  fastapi · psycopg[binary] · psycopg_pool · qdrant-client
 #   phase 5  pandas · matplotlib
 [project.optional-dependencies]

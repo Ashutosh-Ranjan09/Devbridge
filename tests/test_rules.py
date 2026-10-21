@@ -32,12 +32,14 @@ from cvv.models import (
     RepoEvidence,
     RuleStatus,
     Severity,
+    SourceQuality,
     Tier,
 )
 from cvv.report import assemble
 from cvv.rules import REGISTRY, _same_org, same_contest
 from tests.cvdata import (
     AGGREGATE,
+    CC_RATING,
     CF_RANK,
     CF_RATING,
     DISCLAIMER,
@@ -1885,6 +1887,118 @@ class TestP4LeetCodeStatistics:
         result = outcome(report, "P4")
         assert result.status is RuleStatus.ABSTAINED
         assert "No LeetCode account" in (result.reason or "")
+
+
+def codechef(*, peak: int | None = 1746, solved: int | None = 26,
+             contests: tuple[tuple[str, int], ...] = (("Starters 189 (Rated)", 532),),
+             ) -> PlatformEvidence:
+    return PlatformEvidence(
+        platform=Platform.CODECHEF,
+        handle="ar009",
+        found=True,
+        max_rating=peak,
+        problems_solved=solved,
+        contests=[ContestResult(name=n, rank=r) for n, r in contests],
+        source_quality=SourceQuality.SCRAPE,
+    )
+
+
+def cc_claim(verbatim: str = CC_RATING, **fields: object) -> object:
+    return make_claim(verbatim, DOCUMENT, claim_id="ccc001", platform="codechef", **fields)
+
+
+class TestP5CodeChefStatistics:
+    def test_an_agreeing_rating_is_corroborated(self) -> None:
+        graph = make_graph([cc_claim(metric="max_rating", value=1733)], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef(peak=1746)]))
+        result = outcome(report, "P5")
+        assert result.status is RuleStatus.CLEAN
+        assert result.note is not None and "1746, at least the claimed 1733" in result.note
+        assert "not an API" in result.note
+        assert result.note in report.buckets.verified
+
+    def test_an_overstated_rating_is_a_question_never_a_contradiction(self) -> None:
+        """Scraped, so attention whatever the size: a scraper states what it
+        understood a page to say, and the reviewer can open the page and look."""
+        graph = make_graph([cc_claim(metric="max_rating", value=2051)], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef(peak=1746)]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P5")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.severity is Severity.HIGH
+        assert finding.params["overstated_by"] == 305
+        assert "codechef.com/users/ar009" in (finding.innocent_explanation or "")
+        assert finding.finding_id in report.buckets.needs_context
+        assert not report.buckets.contradicted
+
+    def test_an_understated_rating_is_no_finding(self) -> None:
+        graph = make_graph([cc_claim(metric="max_rating", value=1500)], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef(peak=1746)]))
+        assert not [f for f in report.discrepancies if f.rule_id == "P5"]
+
+    def test_problems_solved_above_the_page_is_a_finding(self) -> None:
+        graph = make_graph([cc_claim(metric="problems_solved", value=200)], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef(solved=26)]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P5")
+        assert finding.params["claimed"] == 200 and finding.params["actual"] == 26
+
+    def test_a_count_across_several_platforms_is_not_compared(self) -> None:
+        graph = make_graph(
+            [cc_claim(AGGREGATE, metric="problems_solved", value=500)], DOCUMENT
+        )
+        report = assemble(graph, bundle(graph, platforms=[codechef(solved=26)]))
+        assert not [f for f in report.discrepancies if f.rule_id == "P5"]
+        assert outcome(report, "P5").status is RuleStatus.ABSTAINED
+
+    def test_a_contest_rank_is_matched_by_name(self) -> None:
+        claim = cc_claim(CF_RANK, metric="contest_rank", value=400,
+                         context={"contest": "Starters 189"})
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef()]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P5")
+        assert finding.params["actual_rank"] == 532
+        assert finding.params["contest"] == "Starters 189 (Rated)"
+
+    def test_a_rank_at_least_as_good_as_claimed_is_corroborated(self) -> None:
+        claim = cc_claim(CF_RANK, metric="contest_rank", value=600,
+                         context={"contest": "Starters 189"})
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef()]))
+        assert outcome(report, "P5").status is RuleStatus.CLEAN
+
+    def test_a_named_contest_not_in_the_history_is_a_finding(self) -> None:
+        claim = cc_claim(CF_RANK, metric="contest_rank", value=532,
+                         context={"contest": "Starters 222"})
+        graph = make_graph([claim], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef()]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P5")
+        assert "no contest of that name" in finding.explanation
+
+    def test_a_missing_account_is_a_finding_like_g2(self) -> None:
+        profile = make_claim(CC_RATING, DOCUMENT, kind=ClaimKind.PROFILE,
+                             claim_id="cpro01", platform="codechef", handle="ar009")
+        graph = make_graph([profile], DOCUMENT)
+        gap = Gap(source="codechef", reason=GapReason.NOT_FOUND,
+                  detail="CodeChef has no user 'ar009': its profile URL redirects to "
+                  "the homepage.")
+        report = assemble(graph, bundle(graph, gaps=[gap]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "P5")
+        assert finding.tier is Tier.ATTENTION
+        assert finding.claim_refs == ["cpro01"]
+        assert "mistyped" in (finding.innocent_explanation or "")
+
+    def test_a_changed_site_abstains_rather_than_accusing(self) -> None:
+        graph = make_graph([cc_claim(metric="max_rating", value=1733)], DOCUMENT)
+        gap = Gap(source="codechef", reason=GapReason.NOT_SUPPLIED,
+                  detail="CodeChef may have changed its URLs.")
+        report = assemble(graph, bundle(graph, gaps=[gap]))
+        result = outcome(report, "P5")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "changed its URLs" in (result.reason or "")
+
+    def test_abstains_when_nothing_codechef_is_claimed(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, platforms=[codechef()]))
+        assert outcome(report, "P5").status is RuleStatus.ABSTAINED
 
 
 class TestP6CrossPlatformHandle:

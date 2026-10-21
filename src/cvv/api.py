@@ -206,8 +206,8 @@ TRANSIENT = (GapReason.UNREACHABLE, GapReason.RATE_LIMITED)
 def _status(graph: ClaimGraph, bundle: EvidenceBundle) -> ReportStatus:
     """`completed_degraded` has to MEAN something, or every report carries it.
 
-    Any gap at all was the first definition and it was useless: CodeChef publishes no
-    API, so every run has a gap and every report was degraded. A missing connector is
+    Any gap at all was the first definition and it was useless: before its scraper
+    existed, CodeChef was a gap on every run, so every report was degraded. A missing connector is
     a permanent property of this system, not a degradation of this run — and a
     NOT_FOUND account is a FINDING (G2), not a failure to look.
 

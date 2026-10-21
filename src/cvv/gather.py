@@ -1,12 +1,13 @@
 """Claims to evidence — every outbound request in the system lives here.
 
-Four connectors: Codeforces and LeetCode (public, no auth), GitHub (REST + GraphQL),
-and HTTP liveness. The first two are the best return available in the whole system —
-one unauthenticated call turns "peak rating 1495" from an assertion into a settled
-fact, because the platform is the authority on its own numbers.
+Five connectors: Codeforces and LeetCode (public, no auth), GitHub (REST + GraphQL),
+CodeChef, and HTTP liveness. The first two are the best return available in the whole
+system — one unauthenticated call turns "peak rating 1495" from an assertion into a
+settled fact, because the platform is the authority on its own numbers.
 
-CodeChef is deliberately absent. It publishes no API, so a scraper is the only route,
-and a scraper is a source that breaks silently and answers wrongly.
+CodeChef publishes no API, so its connector reads the public profile page
+(`codechef.py`). A scraper is a source that breaks silently and answers wrongly, so its
+evidence is marked `scrape` and the check reading it (P5) can only ever raise a question.
 
 Every failure path writes a typed Gap and gathering continues. One dead source must
 never fail the bundle: a rule that cannot run abstains with the gap's reason attached,
@@ -21,6 +22,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from cvv.codechef import gather_codechef
 from cvv.github import gather_github
 from cvv.leetcode import gather_leetcode
 from cvv.logs import get
@@ -272,15 +274,8 @@ def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
         (gaps if isinstance(result, Gap) else platforms).append(result)  # type: ignore[arg-type]
 
     if Platform.CODECHEF in handles:
-        gaps.append(
-            Gap(
-                source=Platform.CODECHEF.value,
-                reason=GapReason.NOT_SUPPLIED,
-                detail=f"Handle {handles[Platform.CODECHEF]!r} was found, but CodeChef "
-                "publishes no API — a scraper is the only route and is deliberately "
-                "not built yet.",
-            )
-        )
+        result = gather_codechef(handles[Platform.CODECHEF])
+        (gaps if isinstance(result, Gap) else platforms).append(result)  # type: ignore[arg-type]
 
     urls = sorted(
         {a.url for c in graph.claims for a in c.artefacts if a.type.value == "deployment"}
