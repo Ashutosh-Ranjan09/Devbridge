@@ -22,45 +22,48 @@ because the reasoning is worth more than the conclusion.
 |---|---|---|---|
 | **D** document-intrinsic | D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 — **11/11** | — | complete |
 | **G** GitHub | G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — **10/10** | — | complete |
-| **P** platforms | P1 P2 P3 P4 P6 — **5/6** | P5 | CodeChef publishes no API |
-| **W** deployments | W1 — **1/2** | W2 | human — a reviewer opens the link |
-| **C** credentials | C5 — **1/5** | C1–C4 | per-issuer APIs do not exist for us |
+| **P** platforms | P1 P2 P3 P4 P5 P6 — **6/6** | — | complete; P5 is scraped, so attention-only |
+| **W** deployments | W1 — **1/2** | W2 | human by design — a reviewer opens the link |
+| **C** credentials | C5 — **1/5** | C1–C4 | out of scope for this project |
 | **H** human | — | H1–H6 | human by design |
 
 ```
-41 catalogued  −1 excluded on fairness (G12)  −6 human by design  =  34 machine ceiling
-                                                                      27 built  (79%)
+41 catalogued  −1 excluded (G12)  −7 human (W2, H1–H6)  −4 out of scope (C1–C4)
+                                                       =  29 in scope, 29 built
 ```
 
 ### Code and tests
 
 | | |
 |---|---|
-| source | 33 modules, 9,939 lines |
-| tests | 19 files, **466 passing** (476 with Postgres, 5 live) |
-| quality | `ruff` clean · `mypy --strict` clean across all 33 files |
+| source | 34 modules, 10,967 lines |
+| tests | 22 files, **551 passing** (561 with Postgres, 5 live) |
+| quality | `ruff` clean · `mypy --strict` clean across all 34 files |
+| model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
 | documents measured against | 3 — student CV, synthetic CV, professional CV |
 
 | Test file | Tests | Covers |
 |---|---:|---|
-| `test_rules.py` | 142 | all 27 checks, against recorded evidence |
+| `test_rules.py` | 170 | all 28 checks, against recorded evidence |
+| `test_github.py` | 44 | authored-file detection, repo evidence, manifests |
 | `test_contract.py` | 40 | our models vs. the authoritative JSON Schemas |
 | `test_dates.py` | 36 | the date parser's table |
-| `test_github.py` | 31 | authored-file detection, repo evidence |
-| `test_api.py` | 25 | the HTTP surface |
-| `test_intervals.py` | 21 | three-valued interval algebra |
+| `test_api.py` | 28 | the HTTP surface |
+| `test_store.py` · `test_narrative.py` | 22 each | both store backends · the second LLM site |
+| `test_intervals.py` · `test_filters.py` | 21 each | three-valued interval algebra · the deterministic gate |
 | `test_events.py` · `test_extract.py` | 19 each | M6 projection · extraction internals |
 | `test_logs.py` | 18 | log redaction |
-| `test_filters.py` | 17 | the deterministic gate |
-| `test_spans.py` | 14 | grounding and the numeral guard |
+| `test_spans.py` | 15 | grounding and the numeral guard |
+| `test_codechef.py` | 14 | the scraper, against a synthetic page |
 | `test_structure.py` | 13 | architectural rules, enforced |
-| `test_leetcode.py` · `test_store.py` | 12 each | connector · both store backends |
-| `test_narrative.py` | 12 | the second LLM site |
+| `test_leetcode.py` | 12 | connector |
 | `test_worksheet.py` | 11 | manual-check preparation |
 | `test_ingest.py` | 10 | PDF · DOCX · OCR |
+| `test_gather.py` | 9 | account choice, gaps |
 | `test_evaluate.py` | 8 | the mutation harness |
 | `test_cli.py` | 6 | commands, and the invariant |
+| `test_reference.py` | 3 | roll schemes need the institution named |
 
 ### Measured behaviour
 
@@ -69,9 +72,9 @@ responsible notices.
 
 | Document | claims | coverage | detection | collateral |
 |---|---:|---:|---|---:|
-| student CV (IIT Kharagpur) | 19 | 52% | **15/15** | 0 |
-| synthetic CV (VIT Vellore) | 20 | 44% | **7/7** applicable | 1 (correct) |
-| professional CV (2-page) | 15 | 22% | **2/2** applicable | 0 |
+| student CV (IIT Kharagpur), 21 Oct | 19 | 57% | **17/17** | 0 |
+| synthetic CV (VIT Vellore), 15 Sep | 20 | 44% | **7/7** applicable | 1 (correct) |
+| professional CV (2-page), 15 Sep | 15 | 22% | **2/2** applicable | 0 |
 
 **Collateral is the number that matters** — rules firing on a mutation they had no
 business noticing. It started at 2 and both were real bugs; see §10.
@@ -103,7 +106,8 @@ src/cvv/
   gather.py        orchestrates the connectors
   github.py        REST + GraphQL contributions calendar
   leetcode.py      public GraphQL
-  rules.py         27 checks + the isolating runner
+  codechef.py      the public profile page, scraped
+  rules.py         28 checks + the isolating runner
   report.py        findings → five buckets + section confidence + coverage
   narrative.py     findings → prose (the second and last LLM site)
   worksheet.py     what a human still has to do
@@ -531,9 +535,14 @@ bundle.
 | **LeetCode** | public GraphQL, no auth | P4 |
 | **GitHub** | REST + GraphQL contributions calendar | G2–G11 |
 | **HTTP liveness** | one GET per claimed deployment | W1 |
-| CodeChef | *deliberately absent* | no API; a scraper answers wrongly in silence |
+| **CodeChef** | the public profile page, scraped — no API exists | P5 |
 
-All four are cached on disk with a per-source TTL. Rate limits: GitHub gives 60
+CodeChef's evidence is marked `source_quality: scrape`, and P5 is attention-only for
+that reason. A field the page lacks is `None`, an unrecognised page is a gap, and a
+missing handle is a finding only when CodeChef redirects the profile URL to its
+homepage — any other redirect means the site changed, and says so.
+
+All five are cached on disk with a per-source TTL. Rate limits: GitHub gives 60
 requests an hour unauthenticated and one CV with four named repositories spends about
 twenty.
 
@@ -558,7 +567,7 @@ overstater for a rating that has since fallen.
 
 ## 10. The rules
 
-27 checks, each a frozen dataclass registered by decorator, each declaring its tier and
+28 checks, each a frozen dataclass registered by decorator, each declaring its tier and
 whether it may move a number.
 
 ```python
@@ -870,7 +879,7 @@ stack frame.
 | Decision | Reasoning |
 |---|---|
 | **No queue** | `arq`/Redis are unused; `BackgroundTasks` runs the job here. Honest for one process, first thing to replace when it is not |
-| **`completed_degraded` must mean something** | "any gap" was useless — CodeChef has no API, so *every* report was degraded. It now means something **transient** stopped a check, so re-running may return more |
+| **`completed_degraded` must mean something** | "any gap" was useless — before its scraper, CodeChef was a gap on *every* run, so every report was degraded. It now means something **transient** stopped a check, so re-running may return more |
 | **A failure is still a `VerificationReport`** | empty claims and findings, not absent — a client never needs two shapes, and a vanished verification leaves them polling with nothing to tell the candidate |
 | **501, not an empty success** | resolution needs a registry, attestation needs the issuer. An empty result reads as "resolved to nothing" rather than "never attempted" |
 
@@ -1102,6 +1111,11 @@ gathering lives inside this system rather than arriving from somewhere else.
 One document, every stage, with the real intermediate state. The CV is the author's
 own — a CDC-template single-page PDF from IIT Kharagpur. Nothing below is
 reconstructed; each block is the actual output of the stage above it.
+
+> **Run on 15 September, before P5 and the October fairness fixes.** A run today
+> differs in three places: the CodeChef gap in §21.6 is P5 corroborating a highest
+> rating of 1746 against the claimed 1733; P6 corroborates one handle, `ar009`, on
+> Codeforces and CodeChef; and coverage is 16 of 28 evaluated, 57%.
 
 ### 21.1 Ingest
 

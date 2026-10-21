@@ -5,7 +5,8 @@ needs data it arrives in the EvidenceBundle or the rule abstains with a typed re
 That constraint is what makes every rule testable from a JSON fixture with no token, no
 rate limit and no network.
 
-Four checks for now: P1, P2, P3, W1. The remaining 37 in docs/plan.md.
+Every machine check in scope is here; `cvv rules` lists them and docs/plan.md holds the
+full catalogue of 41.
 """
 
 from __future__ import annotations

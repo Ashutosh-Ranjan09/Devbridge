@@ -1,26 +1,28 @@
 # CV Verification Engine
 
 Verifies developer CVs against the systems the candidate names — GitHub, Codeforces,
-LeetCode, live deployments, credential issuers. Extracts typed claims with verbatim
-spans, gathers evidence, runs 41 deterministic checks, and emits calibrated findings
-with provenance.
+LeetCode, CodeChef, live deployments. Extracts typed claims with verbatim spans,
+gathers evidence, runs deterministic checks from a catalogue of 41, and emits
+calibrated findings with provenance.
 
 **It does not produce a score and it does not produce a verdict.** It reports evidence
 and says explicitly what it could not check. A person decides what any of it means.
 
 ## Current state
 
-**27 of the 41 catalogued checks are built and the pipeline runs end to end** on
-`docs/CV-SDE-AR.pdf` in ~20s on `qwen3:1.7b`. 466 tests, ~9,900 lines across 33
+**29 of the 41 catalogued checks are built — every one in scope — and the pipeline
+runs end to end** on `docs/CV-SDE-AR.pdf`: 28 registered rules plus the narrative
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 551 tests, ~11,000 lines across 34
 modules, ruff and `mypy --strict` clean.
 
-One of the 41 — G12 — is excluded by decision rather than pending, so the buildable
-target is 40. Six more (H1–H6) are human by design, and the system prepares their
-worksheet instead. **The machine ceiling is 34, and 27 of it is built.**
+The other twelve are not pending. **C1–C4 are out of scope** for this project — a
+decision, not a blocker. **W2 and H1–H6 are human by design**, and the system
+prepares their worksheet instead. **G12 is excluded** (below).
 
 **The system is measured, not asserted.** `cvv evaluate` corrupts one fact at a time
-in a real document and asks whether the check responsible notices: **15/15 detection,
-0 collateral**. Collateral — rules firing on a mutation they had no business noticing
+in a real document and asks whether the check responsible notices: **17/17 detection,
+0 collateral**, including an inflated CodeChef rating and a CodeChef handle that does
+not resolve. Collateral — rules firing on a mutation they had no business noticing
 — is the number that matters, and it started at 2. Both were real bugs, and one of
 them would have contradicted an honest CV.
 
@@ -63,8 +65,8 @@ Four decisions worth not re-deriving:
   healthy. `/healthz` names which store is in use, `cvv serve` warns when it is
   memory, and `cvv config` redacts the password out of the DSN.
 - **`completed_degraded` has to mean something.** "Any gap" was the first definition
-  and it was useless: CodeChef publishes no API, so every run has a gap and every
-  report was degraded. A missing connector is a permanent property of the system and
+  and it was useless: before its scraper existed, CodeChef was a gap on every run, so
+  every report was degraded. A missing connector is a permanent property of the system and
   a NOT_FOUND account is a FINDING (G2). Degraded means something TRANSIENT stopped a
   check that could otherwise have run — re-running may return more.
 - **A failure is still a `VerificationReport`**, with empty claims and findings rather
@@ -198,7 +200,8 @@ boundaries are where OCR fails and every reference-table match degrades with the
 
 Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `filters` ·
 `dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` ·
-`gather` (Codeforces · LeetCode · GitHub · liveness) · `github` · `leetcode` ·
+`gather` (Codeforces · LeetCode · CodeChef · GitHub · liveness) · `github` ·
+`leetcode` · `codechef` ·
 `rules` · `report` · `narrative` · `worksheet` · `evaluate` · `events` · `logs` ·
 `store` · `api` · `pipeline` · `cli`.
 
@@ -206,17 +209,10 @@ Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `fi
 |---|---|---|
 | D · document-intrinsic | D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 | — |
 | G · GitHub | G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — **all of them** | G12 is excluded by decision, below |
-| P · platforms | P1 P2 P3 P4 P6 | P5 (CodeChef — no API, scraper only) |
-| W · deployments | W1 | W2 (human — a reviewer opens the link) |
-| C · credentials | C5 (narrative) | C1–C4 — blocked on DATA, not code |
+| P · platforms | P1 P2 P3 P4 P5 P6 — **all of them** | — |
+| W · deployments | W1 | W2 — human, by design: a reviewer opens the link |
+| C · credentials | C5 (narrative) | C1–C4 — out of scope for this project |
 | H · human | — | H1–H6, by design |
-
-**None of the thirteen unbuilt checks is unbuilt because it is hard.** C1–C4 need
-per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
-directories — acquisition problems, not engineering ones. P5 needs a scraper, which
-is a source that breaks silently and answers wrongly. H1–H6 are human by design and
-the system's job there is to prepare the worksheet, not to guess. G12 is excluded
-outright.
 
 **Reproducibility is measured, not assumed, and the measurement has a limit.** Within
 one model load it is exact: four consecutive extractions of the same CV were
@@ -230,12 +226,39 @@ in three runs, so the claim was wrong. Pin `CVV_NUM_GPU` for anything whose resu
 intend to compare. A live run without it warns, so a single failure is not mistaken
 for a regression.
 
-**What is genuinely left** is G6 tier 2, which would read targeted repository files
-to turn "the dependency is installed" into "the dependency is used for the thing
-claimed" — the only remaining check improvement, and deliberately deferred: it opens
-a prompt-injection surface whose contents the candidate chooses, for a gain the
-manifest check already approximates. Everything else outstanding is data acquisition
-(C1–C4), a source that does not exist (P5), or human by design (H1–H6).
+**Two model backends, behind one seam.** `CVV_LLM_BACKEND` picks `ollama` (the
+default, local) or `claude-code` — Claude through the local Claude Code wrapper at
+`CVV_CLAUDE_CODE_URL`, with `CVV_CLAUDE_CODE_API_KEY` and `CVV_CLAUDE_CODE_MODEL`.
+`default_provider()` is the only constructor, so nothing else knows which is running.
+The wrapper has no `format` field, so the schema rides in the prompt and a code fence
+is stripped from the reply; it has no seed either, so a Claude run is NOT
+reproducible, and `model_id` (`claude-code:sonnet`) records which backend produced a
+report. Measured once on the reference CV: Claude 73s, 19 claims, nothing dropped or
+filtered; Ollama 98s, 20 claims, 2 filtered. Claude's project stacks were cleaner,
+and it missed the "500+ problems" aggregate entirely, so P3 abstained.
+`scripts/reproducibility.py` measures Ollama only.
+
+**CodeChef is the one scraped source, and everything about P5 follows from that.**
+There is no API, so `codechef.py` reads `/users/<handle>`, which robots.txt permits
+(`/recent/user` is disallowed and never touched): the highest rating from the header,
+the rated-contest history from the JSON the page embeds, the problems-solved total.
+The evidence carries `source_quality: scrape`, and P5 is attention-only because of the
+SOURCE, not the claim. A scraper fails by answering wrongly after a redesign, so a
+field the page lacks is `None`, never 0, and an unrecognised page is a gap, never an
+empty profile that reads as "solved nothing".
+
+A missing handle is a finding, as G2 is for GitHub — but only when CodeChef redirects
+the profile URL to its homepage, which is how it answers an unknown user (HTTP 200,
+not 404). Any other redirect is a gap saying the site changed, so a URL redesign
+cannot tell every candidate their account does not exist. CodeChef rarely changes its
+URLs, and when it does the fix is the scraper, not the report.
+
+**What is left is not a check.** G6 tier 2 would read targeted repository files to
+turn "the dependency is installed" into "the dependency is used for the thing
+claimed", and is deliberately deferred: it opens a prompt-injection surface whose
+contents the candidate chooses, for a gain the manifest check already approximates.
+Beyond that the gap is measurement — every number above comes from one real CV, there
+is no gold set, and extraction accuracy is unmeasured.
 
 Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 
@@ -341,8 +364,8 @@ someone and one you would not.
    because a heading has no plausible category. Junk output is often a task-framing
    problem before it is a capability one.
 
-9. **A check that is technically correct can still be unfair.** Nine rules, on their
-   first version, would have put a false or misleading finding in front of a reviewer
+9. **A check that is technically correct can still be unfair.** Fifteen rule
+   versions would have put a false or misleading finding in front of a reviewer
    looking at an honest CV. None was a bug in the usual sense; each was a defensible
    reading of available data.
 
@@ -358,13 +381,19 @@ someone and one you would not.
    | G11 | employer absent from public org memberships | org membership is private by default; most members never opt in |
    | D6 | stated total exceeds the dated roles | a CV need not list every role, and one page forces the choice |
    | D5 | any DEFINITE overlap between two full-time roles | a thirteen-day overlap is a notice period. You start the new job while notice at the old one runs, or the last day is on the books after the next has begun |
+   | G4 | investigate the first owner the repository URLs name | a CV linking its own repositories and `apache/kafka` had Apache checked as the candidate. The account is the handle the CV states, else the owner of most linked repos; a repo under another owner is a contribution claim, asked about by commits |
+   | D9 | decode any token shaped like a roll number | every institution's number got IIT Kharagpur's department table. A scheme applies only where the CV names its institution as a whole word — "vit" is in "activities" |
+   | D10 | two non-overlapping mentions of one role disagree | that is a return internship — two stints. It fires when ONE stint is given two irreconcilable accounts |
+   | W1 | a URL that does not answer 200 is dead | a timeout, a login wall or bot protection is not a 404. Only 404 and 410 are decisive; no response at all is a transient gap |
+   | P2 | the claimed number appears in the span | as a substring, `10` is in "1106". Numbers are matched whole, here and in the grounding guard |
+   | G6 | no stack match is a contradiction | with no manifest read, a language census cannot see a library or a database. G6 reads all five manifest formats wherever they sit, and abstains when it read none |
 
    So: **state both numbers, not just the mismatch**; scale severity to the size of
    the gap; and where half a check can run and half cannot, say which — "could not
    check the roll number" and "checked the years, they line up, could not check the
    department" are different statements, and only one of them is true.
 
-   Four of those nine survive as **corroboration-only** rules — G10, G11, P6 and the
+   Four of those survive as **corroboration-only** rules — G10, G11, P6 and the
    confirming half of G9. They can raise nothing and confirm something, which is not
    a weakened check but the correct shape when absence is the ordinary state of an
    honest candidate. `Corroborated` is the control signal, symmetric with `Abstain`,
@@ -485,32 +514,33 @@ three, and the four pipeline directories for the rest. Full annotated tree in
 
 ```
 core      python 3.12 · uv · pydantic v2 · pydantic-settings
-llm       pydantic-ai → ollama (qwen3:1.7b) · nomic-embed-text
-vectors   qdrant (local mode, no server)
+llm       httpx → ollama (qwen3:1.7b) · or the local Claude Code wrapper
 web       fastapi · uvicorn · typer · httpx
 data      postgres 16 · psycopg 3 + psycopg_pool — JSONB, plain SQL, no ORM
 ingest    pymupdf · python-docx · rapidocr-onnxruntime [extra] · rapidfuzz
-scrape    selectolax
+scrape    selectolax (lexbor backend) — the CodeChef profile page
 test      pytest · pytest-asyncio · hypothesis · respx
-eval      pandas · matplotlib
 ops       structlog — stderr, JSON off a terminal
 quality   ruff · mypy --strict — installed, NOT gating
 ```
 
-**Not used:** SQLAlchemy · Alembic · arq · Redis · MinIO · Celery · LangChain ·
+**Planned, not installed:** qdrant · nomic-embed-text · pandas · matplotlib.
+
+**Not used:** pydantic-ai · SQLAlchemy · Alembic · arq · Redis · MinIO · Celery · LangChain ·
 OpenTelemetry · Docker Compose · gRPC.
 
 Two hazards in that list:
 
 - **`num_ctx` defaults to 4096 and truncates silently.** Set it explicitly on every model
   call, with a pre-send assertion that the prompt fits. Claims from the bottom of a CV
-  vanish with no error otherwise. Verify pydantic-ai actually passes it through to Ollama
-  before relying on it.
+  vanish with no error otherwise. `OllamaProvider` does both itself, over Ollama's HTTP
+  API — there is no framework in between to lose the parameter.
 - **No `dateutil` for date parsing.** It is permissive by design and reads `2022-26` as
   June 2022 — a confidently wrong precision. The parser is table-driven and explicit, so
   an unrecognised format fails visibly.
 
-`temperature: 0` and a fixed `seed` for reproducibility.
+`temperature: 0` and a fixed `seed` for reproducibility — on Ollama. The Claude backend
+has neither, and says so in `model_id`.
 
 ## Source documents
 

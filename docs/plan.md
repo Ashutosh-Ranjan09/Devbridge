@@ -25,15 +25,13 @@ before seeing one is guesswork.
 **Where the build actually is.** Phases 0-5 are done for everything reachable.
 Phase 2 reads PDF, DOCX and scanned PDF; phase 4 has the five buckets, the narrative
 renderer and the manual-check worksheet; phase 5 is the mutation harness, reporting
-15/15 detection and 0 collateral on the reference CV. What is left sits outside the
-catalogue: an HTTP surface and Postgres persistence, both declared in the stack and
-unbuilt because nothing needs them yet.
+17/17 detection and 0 collateral on the reference CV. The HTTP surface and Postgres
+persistence are built too (`cvv serve`, `CVV_DATABASE_URL`).
 
-The fourteen unbuilt checks are not unbuilt because they are hard. C1-C4 need
-per-issuer credential APIs, AICTE/UGC registry data and institutional faculty
-directories; P5 needs a scraper; H1-H6 are human by design. G12 is not unbuilt but
-EXCLUDED — see `CLAUDE.md`. Every one of the rest is an acquisition or policy problem
-rather than an engineering one, and `CLAUDE.md` carries the current table.
+Every check in scope is built — 29 of the 41. C1-C4 are out of scope for this project;
+W2 and H1-H6 are human by design; G12 is EXCLUDED — see `CLAUDE.md`, which carries the
+current table. P5 reads CodeChef's public profile page, since no API exists. What phase
+5 still lacks is the gold set, so extraction accuracy is unmeasured.
 
 ### Phase 0 — contracts
 
@@ -68,7 +66,9 @@ one id.
 
 What it answers, which no amount of planning will: whether `qwen3:1.7b` returns usable
 claims on a real CV, how often grounding fails on a real PDF, whether the handle is
-extracted at all, and whether `num_ctx` reaches Ollama through pydantic-ai.
+extracted at all, and whether `num_ctx` reaches Ollama through pydantic-ai. (Resolved:
+pydantic-ai was never adopted; `providers.py` calls Ollama's HTTP API and sets `num_ctx`
+on every call.)
 
 ## The catalogue — 41 checks
 
@@ -324,6 +324,8 @@ institution region and phrasing register · source ablation · model-tier ablati
    heavy dependency. Write the clustering, test it on real two-column CVs in the spike,
    reach for Docling only if it demonstrably fails — a wrong reading order corrupts every
    span offset in the document, silently.
-3. **Does `num_ctx` survive pydantic-ai → Ollama?** It is not a standard OpenAI parameter.
+3. **Resolved — no pydantic-ai.** `providers.py` posts to Ollama directly and sets
+   `num_ctx` itself, with a pre-send overflow check. The original question, kept for the
+   record: does `num_ctx` survive pydantic-ai → Ollama? It is not a standard OpenAI parameter.
    First test to write: send a prompt longer than 4096 tokens and assert the model saw the
    end of it. If it does not survive, drop to a raw `httpx.post` for that call site.

@@ -1,7 +1,7 @@
 # cvv — CV Verification Engine
 
 Verifies developer CVs against the systems the candidate names: GitHub, Codeforces,
-LeetCode, live deployments. Extracts typed claims with verbatim spans, gathers
+LeetCode, CodeChef, live deployments. Extracts typed claims with verbatim spans, gathers
 evidence, runs deterministic checks, and emits findings with provenance.
 
 **It produces no score and no verdict.** It reports evidence and says explicitly what
@@ -64,7 +64,13 @@ uv run cvv inspect cv.pdf               # read a document without calling a mode
 uv sync --extra ocr                     # scanned PDFs (~100 MB of model weights)
 export CVV_GITHUB_TOKEN=...             # 60 → 5000 API requests an hour
 export CVV_DATABASE_URL=postgresql:///cvv
+export CVV_LLM_BACKEND=claude-code      # Claude via the local Claude Code wrapper
+                                        # (+ CVV_CLAUDE_CODE_API_KEY, _MODEL, _URL)
 ```
+
+`ollama` is the default backend: local, seeded, reproducible. `claude-code` is faster
+and cleaner on the reference CV, has no seed, and records itself in the report's
+`model_id`, so a stored report always says which model produced it.
 
 Configuration lives in `.env` (prefix `CVV_`); `.env.example` documents every setting
 and what leaving it unset actually means. **`CVV_GITHUB_TOKEN` is the operator's
@@ -75,17 +81,23 @@ phishing pattern, and nothing here needs one.
 
 ## What it checks
 
-27 of a catalogue of 41. Six are human by design, one is excluded on fairness
-grounds, and the rest are blocked on data nobody publishes.
+29 of a catalogue of 41 — every one in scope. Seven are human by design, one is
+excluded on fairness grounds, and the four credential checks are out of scope for this
+project.
 
 | Group | Built | What it reads |
 |---|---:|---|
 | **D** document-intrinsic | 11/11 | the CV alone — dates, roll number, internal contradictions |
 | **G** GitHub | 10/10 | REST + the GraphQL contributions calendar |
-| **P** platforms | 5/6 | Codeforces and LeetCode public APIs |
-| **W** deployments | 1/2 | an HTTP request, and the repo's declared homepage |
-| **C** credentials | 1/5 | — issuer APIs do not exist |
+| **P** platforms | 6/6 | Codeforces and LeetCode public APIs; CodeChef's profile page, scraped |
+| **W** deployments | 1/2 | an HTTP request, and the repo's declared homepage — W2 is human |
+| **C** credentials | 1/5 | the narrative; C1–C4 out of scope |
 | **H** human | 0/6 | — by design; `--worksheet` prepares them |
+
+CodeChef publishes no API, so its numbers come from the public profile page and are
+marked as scraped. Its check (P5) can therefore only ever raise a question, never a
+contradiction, and a page it cannot recognise is reported as a gap rather than read
+as an empty profile.
 
 The eleven **D** checks need no network at all. That is the invariant: *a CV from
 someone with no account, no repositories and no contest history must still produce a
@@ -119,10 +131,12 @@ uv run cvv evaluate cv.pdf --save-baseline out/
 takes a real document, corrupts exactly one fact, and asks whether the check
 responsible notices.
 
-| | student CV | synthetic CV | professional CV |
+| | student CV | synthetic CV ¹ | professional CV ¹ |
 |---|---|---|---|
-| **detection** | 15/15 | 7/7 of applicable | 2/2 of applicable |
+| **detection** | 17/17 | 7/7 of applicable | 2/2 of applicable |
 | **collateral** | 0 | 1 (correct) | 0 |
+
+¹ measured 15 September, before the CodeChef check and the October fairness fixes.
 
 **Collateral** — rules firing on a mutation they had no business noticing — is the
 number that matters. It started at 2, and both were real bugs: one would have
@@ -196,8 +210,10 @@ src/cvv/
   spans        two-tier recovery with the numeral guard
   extract      8 narrow model passes, model-routed sections
   filters      the deterministic gate — seven filters, each from an observed failure
-  gather       Codeforces · LeetCode · GitHub · liveness, all cached
-  rules        27 checks, isolated, every one accounted for
+  gather       Codeforces · LeetCode · CodeChef · GitHub · liveness, all cached
+  codechef     the one scraped source — the public profile page
+  providers    the model seam: Ollama, or Claude via the Claude Code wrapper
+  rules        28 checks, isolated, every one accounted for
   report       findings → five buckets
   narrative    findings → prose, one sentence per finding
   worksheet    what a person still has to do
@@ -219,7 +235,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 466 tests, no server needed
+uv run pytest                                   # 551 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy
@@ -235,13 +251,16 @@ whatever a caller passes.
 
 Every phase is complete for what is reachable. What remains is honest to state:
 
-- **Measured against three documents**, one of them synthetic. Each new one has found
+- **One document measured end to end since October.** The other two figures predate
+  the CodeChef check and the fairness fixes.
+- **Measured against three documents** in all, one of them synthetic. Each new one has found
   a real bug within minutes: the second, a section-routing failure; the third, a date
   format that silently disabled every employment check and a decisive finding fired on
   a thirteen-day notice period. More CVs is still the highest-value thing this project
   could be given.
 - **No gold set.** Extraction *accuracy* is unmeasured; only rule detection is.
 - **`qwen3:1.7b` is a small model.** Several failures documented in `CLAUDE.md` are
-  its limits, not the design's, and a larger model is the intended upgrade path.
+  its limits, not the design's. The Claude backend is the larger model; its runs are
+  not seeded, so they are not reproducible run to run.
 - **Personal data.** A stored report contains a real person's name, roll number,
   institutions and handles. Persistence is local by decision.

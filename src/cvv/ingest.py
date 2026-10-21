@@ -329,7 +329,7 @@ def read(path: Path) -> Document:
             "document that grounds cleanly and is missing half its content."
         )
     raise NotImplementedError(
-        f"{suffix} not supported — .pdf and .docx are. Scanned documents need OCR, "
-        "which is unbuilt. A document that cannot be read fails fast rather than "
-        "being guessed at."
+        f"{suffix} not supported — .pdf and .docx are. A scanned PDF is read by OCR "
+        "automatically (uv sync --extra ocr). A document that cannot be read fails "
+        "fast rather than being guessed at."
     )

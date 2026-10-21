@@ -14,9 +14,11 @@ Three things this module learned from running against a real CV:
    JEE ranks, returned them anyway. Anything the design excludes is dropped by code
    after extraction.
 
-3. **Some things need no model at all.** Both models missed the roll number, every
-   profile handle, and the institution's own disclaimer. Those have exact syntax, so a
-   regex finds them every time.
+3. **Some things need no model at all — but only two.** Both models missed the roll
+   number and the repository URLs. Those have a grammar rather than a phrasing, so a
+   pattern finds them every time. Handles and the institution's disclaimer used to be
+   regexes too, and each one encoded how one CV happened to be worded; they are model
+   passes now (guardrail 10, and `regex_claims` below).
 """
 
 from __future__ import annotations

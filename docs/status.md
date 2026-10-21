@@ -1,10 +1,10 @@
-# Status — 15 September 2026
+# Status — 21 October 2026
 
-**CV Verification Engine · DevBridge M5 · day 11**
+**CV Verification Engine · DevBridge M5**
 
-> **Feature-complete for everything reachable, every gate green.** What stands between
-> this and a submittable project is not code: one decision, a larger corpus, and the
-> fact that the whole thing currently exists on one machine.
+> **Every check in scope is built, and every gate is green.** What stands between this
+> and a submittable project is not code: a backup, a larger corpus, and one decision
+> about the contract.
 
 ---
 
@@ -12,31 +12,14 @@
 
 | | Today | Notes |
 |---|---|---|
-| **Checks** | **28 / 34** | 27 rules + the narrative (C5); ceiling is 41 catalogued − 1 excluded − 6 human |
-| **Tests** | **474** passing · 484 with Postgres · 5/5 live | 0 failing |
-| **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
-| **Size** | 33 modules · 9,959 lines · 19 test files · 5,161 test lines | |
-| **Documents measured** | 3 | student · synthetic · professional |
+| **Checks** | **29 / 29 in scope** | 28 rules + the narrative (C5). 41 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human |
+| **Tests** | **551** passing · 561 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Gates** | ruff ✅ · `mypy --strict` ✅ | 34 source files |
+| **Size** | 34 modules · 10,967 lines · 22 test files · 5,918 test lines | |
+| **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
+| **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 7 fields ahead of the upstream schema | awaiting a decision |
-| **Commits** | 50, since 4 Sep | **no remote** |
-
----
-
-## Phases
-
-| # | Phase | State | |
-|---|---|---|---|
-| 0 | Contracts | ✅ done | round-trip test restored on 8 Sep |
-| 1 | Spike | ✅ done | |
-| 2 | Ingest & extraction | ✅ done | PDF · DOCX · OCR · 8 passes · model routing |
-| 3 | Connectors & rules | ✅ done | all reachable checks |
-| 4 | Report, narrative, API, persistence | ✅ done | |
-| 5 | Evaluation | ⚠️ **half** | mutation harness built; **gold set not built** |
-
-Phase 5 specifies two instruments. The mutation engine measures whether rules
-**detect** a falsified fact. The gold set — hand-labelled CVs scored for precision and
-recall per claim kind — would measure whether extraction is **correct**. Only the first
-exists, so extraction accuracy is currently unmeasured.
+| **Commits** | 56, since 4 Sep | **no remote** |
 
 ---
 
@@ -46,26 +29,21 @@ exists, so extraction accuracy is currently unmeasured.
 |---|---|---|---|
 | D · document-intrinsic | 11 / 11 | — | |
 | G · GitHub | 10 / 10 | — | G12 excluded on fairness grounds |
-| P · platforms | 5 / 6 | P5 | CodeChef has no API |
-| W · deployments | 1 / 2 | W2 | human — a reviewer opens the link |
-| C · credentials | 1 / 5 | C1–C4 | no issuer APIs available |
-| H · human | 0 / 6 | H1–H6 | by design |
+| P · platforms | 6 / 6 | — | P5 reads CodeChef's profile page — scraped, so attention-only |
+| W · deployments | 1 / 2 | W2 | human by design — a reviewer opens the link |
+| C · credentials | 1 / 5 | C1–C4 | out of scope for this project |
+| H · human | 0 / 6 | H1–H6 | by design; `--worksheet` prepares them |
 
 ---
 
 ## Gates, run today
 
 ```
-ruff check src tests scripts          PASS
-mypy --strict                         33 files, no issues
-pytest                                474 passed · 10 skipped · 0 failed
-pytest  (CVV_DATABASE_URL set)        484 passed · 0 failed
-pytest -m live                        5 passed  · 3m 34s
+ruff check src tests                  PASS
+mypy --strict                         34 files, no issues
+pytest                                551 passed · 10 skipped (Postgres-only) · 0 failed
+cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 ```
-
-The live suite has failed **once in four runs** over the past week. The cause is known
-and documented — Ollama chooses the GPU/CPU layer split at load time — and a live run
-now warns when `CVV_NUM_GPU` is unpinned.
 
 ---
 
@@ -73,29 +51,30 @@ now warns when `CVV_NUM_GPU` is unpinned.
 
 | Document | Claims | Filtered | Coverage | Detection | Collateral |
 |---|---:|---:|---:|---|---:|
-| student CV — IIT Kharagpur | 20 | 2 | 52% | **15/15** | 0 |
-| synthetic CV — VIT Vellore | 20 | 1 | 44% | **7/7** applicable | 1 |
-| professional CV — 2 pages | 15 | 6 | 22% | **2/2** applicable | 0 |
+| student CV — IIT Kharagpur (21 Oct, Claude) | 19 | 0 | 57% | **17/17** | 0 |
+| synthetic CV — VIT Vellore (15 Sep) | 20 | 1 | 44% | **7/7** applicable | 1 |
+| professional CV — 2 pages (15 Sep) | 15 | 6 | 22% | **2/2** applicable | 0 |
 
-- **Zero claims dropped at grounding on all three.** Every loss is the gate refusing
-  real text, not the model inventing it.
-- **Collateral 1 on the synthetic CV is correct**: stretching a degree to 2020–2027 also
-  genuinely contradicts a 2021 admission year.
-- **The professional CV's 22%** is mostly structural — it names no GitHub repository and
-  no competitive-programming account, so 13 of 15 mutations have nothing to act on.
-  The document-intrinsic checks all ran.
+- **The student CV now contradicts nothing.** Three questions remain, each printed
+  with its benign reading: P2 (rank 1106 claimed, 1109 recorded — a standings-timing
+  artefact), G3 (the GitHub account is inferred, not proven), D3 (the institution's
+  own disclaimer).
+- **CodeChef corroborates**: highest rating 1746 against the claimed 1733, and P6
+  now sees one handle, `ar009`, on Codeforces and CodeChef.
+- **The other two rows predate October.** They should be re-run before they are
+  quoted alongside the first.
 
 ---
 
-## Since the last audit (8 Sep)
+## Since 15 September
 
 | Area | Change |
 |---|---|
-| **Contract** | round-trip test restored; five fields the schema defines and we lacked, added |
-| **Architecture** | purity and isolation rules now enforced by an AST-walking test |
-| **Third CV** | slash-date convention inferred from the whole document; D5 handover band (a 13-day notice period is not a contradiction); D2 split into ungroundable vs. filtered |
-| **Narrative** | the model echoed the rule id into every sentence; a prompt instruction did nothing on two models, so it is now stripped in code |
-| **Documentation** | design record (`docs/design.md`, `.html`, 35-page `.pdf`) including a 14-stage worked example |
+| **Second model backend** | `CVV_LLM_BACKEND=claude-code` sends each pass to Claude through the local Claude Code wrapper. Same seam, same filters. On the reference CV: 73s vs 98s, nothing filtered, cleaner stacks; it missed the "500+ problems" aggregate. Not seeded, so not reproducible |
+| **Seven fairness fixes** | each would have flagged an honest CV: G4 investigated `apache` as the candidate; D9 decoded any roll-number-shaped token with IIT Kharagpur's table; D10 called a return internship a contradiction; W1 called a timeout a dead site; P2 matched `10` inside "1106"; G6 contradicted with no manifest read; D9 lost a finding when it then abstained |
+| **P5 — CodeChef** | the public profile page, scraped: peak rating, contest ranks by name, problems solved. Attention-only. A missing handle is a finding only when CodeChef redirects home; any other redirect is a "site changed" gap |
+| **Three bugs** | D7/G6/G9 lost a second finding on one claim (shared id); the narrative was rejected whenever a rule fired twice; `POST /v1/verifications` ignored a JSON body and multipart `options` |
+| **Scope** | C1–C4 out of scope; W2 human by design |
 
 ---
 
@@ -110,21 +89,14 @@ our output invalid for a consumer validating against that schema:
 · `RepoEvidence.homepage` · `GitHubEvidence.public_repos` ·
 `GitHubEvidence.public_repo_count` · `RuleOutcome.note`
 
-Each is load-bearing for a check. The integration spec prescribes
-`schemas/*.schema.json — generated from Pydantic, committed`, which reads as: our
-models are the source of truth, and the upstream draft is what gets regenerated.
-
 **Recommended:** generate `contracts/schemas/` from the models at version `2.0.0` and
-retire the extension list. Needs your call because it changes what "the contract" means.
+retire the extension list.
 
 ### 2. Non-competitive-programming achievements
 
-The achievements pass asks only about contests and ratings. On the professional CV,
-six real claims — patents, 38K GitHub stars, published books — were extracted and then
-correctly refused as unattributable. They are lost, not wrong.
-
-"38K GitHub stars" is checkable: the API reports stargazer counts. **This would be a new
-check, not a fix** — which is why it is here rather than done.
+On the professional CV, six real claims — patents, 38K GitHub stars, published books —
+were extracted and correctly refused as unattributable. "38K GitHub stars" is
+checkable from the API. **A new check, not a fix.**
 
 ---
 
@@ -132,47 +104,16 @@ check, not a fix** — which is why it is here rather than done.
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 50 commits and 11 days of work exist on one laptop. A disk failure loses the project |
-| 2 | **Personal data in git history** | 🔴 high | blocks any public push as-is — see below |
-| 3 | **Response cache tracked in git** | 🟠 medium | 21 files since 5 Sep; every run dirties the tree |
-| 4 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set — the thesis can quote detection but not extraction quality |
-| 5 | **Three-document corpus** | 🟠 medium | each new document found a real bug within minutes |
-| 6 | **Live-suite flake** | 🟡 low | known cause, now self-diagnosing |
+| 1 | **No git remote** | 🔴 high | 56 commits exist on one laptop |
+| 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push |
+| 3 | **Response cache tracked in git** | 🟠 medium | every run dirties the tree; it now also holds a scraped CodeChef profile page |
+| 4 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
+| 5 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |
+| 6 | **Scraper drift** | 🟡 low | a CodeChef redesign turns P5 into a gap, never a false finding; the fix is the scraper |
 
-### Risks 1–3 interact
-
-The obvious fix for risk 1 — push to GitHub — is blocked by risks 2 and 3 **if the
-repository is public**:
-
-| Tracked file | Contains |
-|---|---|
-| `docs/CV-SDE-AR.pdf` | the author's CV: name, roll number, handles, institutions |
-| `docs/demo_resume.pdf` | a second person's CV |
-| `docs/design.pdf` | the worked example — roll number 6×, Codeforces handle 12×, GitHub account 4× |
-| `.cache/http/github/*.json` | 21 raw GitHub API responses about the candidate's account |
-
-`.gitignore` does not cover `.cache/`, which is how the cache got committed on 5 Sep
-along with the GitHub connector.
-
-**Recommended order:**
-
-1. **A private remote, today.** Solves the backup risk without exposing anything.
-2. **Stop tracking the cache**: add `.cache/` to `.gitignore` and `git rm -r --cached .cache`.
-   Non-destructive — the files stay on disk.
-3. **Before anything goes public**, remove the CVs and the cache from history. That is a
-   history rewrite (`git filter-repo`), it is destructive and it changes every commit
-   hash, so it should be a deliberate step rather than a side effect of a cleanup.
-
----
-
-## Housekeeping found today
-
-| Item | Detail |
-|---|---|
-| **A stack claim that is wrong** | CLAUDE.md lists `pydantic-ai → ollama` as the LLM layer and warns to verify pydantic-ai passes `num_ctx` through. **pydantic-ai is not installed**: `providers.py` calls Ollama's HTTP API directly with `httpx`, and sets `num_ctx` explicitly on every call. The warning is moot and the stack line is inaccurate |
-| **Stale counts** | CLAUDE.md and README say 466 tests; it is 474 |
-| **Stack entries not yet installed** | qdrant, pandas, matplotlib, selectolax — correctly deferred to later phases in `pyproject.toml`, but listed in CLAUDE.md's stack as though present |
-| **Deprecation warnings** | two, both third-party: `starlette.testclient` over `httpx`, and an `anyio` alias. Not ours; revisit on the next dependency bump |
+**Recommended order:** a private remote first; then `.cache/` into `.gitignore` and
+`git rm -r --cached .cache` (non-destructive); a history rewrite only if the repository
+is ever made public.
 
 ---
 
@@ -180,13 +121,14 @@ along with the GitHub connector.
 
 | | Work | Effort | Unblocks |
 |---|---|---|---|
-| 1 | Private git remote | 10 min | removes the single largest risk |
-| 2 | Untrack `.cache/`, fix `.gitignore` | 5 min | clean tree after every run |
-| 3 | Decide the contract (§ Decisions 1) | a conversation | retires the extension list |
-| 4 | Correct CLAUDE.md's stack and counts | 10 min | future sessions start from true context |
-| 5 | **Gold set** — 10–20 hand-labelled CVs | days | the missing half of phase 5; extraction metrics for the thesis |
-| 6 | More real CVs, other institutions | ongoing | every one so far has found a bug |
-| 7 | History rewrite, if going public | 30 min + care | a public repository |
+| 1 | Private git remote | 10 min | removes the largest risk |
+| 2 | Untrack `.cache/` | 5 min | a clean tree after every run |
+| 3 | Re-run the two September documents | 15 min | a measurement table from one version of the system |
+| 4 | Decide the contract (§ Decisions 1) | a conversation | retires the extension list |
+| 5 | **Gold set** — 10–20 hand-labelled CVs | days | extraction metrics for the thesis |
+| 6 | Honest-variation tests in `cvv evaluate` | a day | the seven fairness bugs were invisible to a harness that only corrupts |
 
-Items 1, 2 and 4 are small enough to do in one sitting. Item 5 is the only remaining
-work that is genuinely large, and it is what the evaluation chapter needs.
+Known and left alone for a college project: SSRF on the probe, `document_url` and
+webhooks; no retention or delete; Postgres rows that can stay `pending`; webhooks that
+always say "completed". The narrative also prints each benign reading twice — once in
+the model's sentence, once by Python.
