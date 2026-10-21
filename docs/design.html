@@ -189,13 +189,13 @@ pre.data .ok{color:var(--verified);font-weight:500}
   <div class="masthead-in">
     <p class="eyebrow">DevBridge M5 · design record</p>
     <h1>CV Verification Engine</h1>
-    <p class="thesis">Verifies developer CVs against the systems the candidate names — GitHub, Codeforces, LeetCode, live deployments — extracting typed claims with verbatim spans and running 27 deterministic checks.</p>
+    <p class="thesis">Verifies developer CVs against the systems the candidate names — GitHub, Codeforces, LeetCode, CodeChef, live deployments — extracting typed claims with verbatim spans and running 28 deterministic checks.</p>
     <p class="refusal">It produces <strong>no score</strong> and <strong>no verdict</strong>. It reports evidence and says explicitly what it could not check. A person decides what any of it means.</p>
     <div class="figures">
-      <div class="fig"><span class="n">27<span style="color:var(--faint);font-size:18px">/34</span></span><span class="l">checks built, of the machine ceiling</span></div>
-      <div class="fig"><span class="n">474</span><span class="l">tests passing</span></div>
-      <div class="fig"><span class="n">9,939</span><span class="l">lines across 33 modules</span></div>
-      <div class="fig"><span class="n">15/15</span><span class="l">mutation detection, 0 collateral</span></div>
+      <div class="fig"><span class="n">29<span style="color:var(--faint);font-size:18px">/29</span></span><span class="l">checks built, every one in scope</span></div>
+      <div class="fig"><span class="n">551</span><span class="l">tests passing</span></div>
+      <div class="fig"><span class="n">10,967</span><span class="l">lines across 34 modules</span></div>
+      <div class="fig"><span class="n">17/17</span><span class="l">mutation detection, 0 collateral</span></div>
     </div>
   </div>
 </header>
@@ -232,16 +232,16 @@ pre.data .ok{color:var(--verified);font-weight:500}
 
 <section id="status">
 <h2 class="sec"><span class="num">01</span>Status</h2>
-<p class="lede">Twenty-seven of a catalogue of forty-one checks. Six are human by design and one is excluded on fairness grounds, so the machine ceiling is thirty-four.</p>
+<p class="lede">Twenty-nine of a catalogue of forty-one checks — every one in scope. Seven are human by design, one is excluded on fairness grounds, and the four credential checks are out of scope for this project.</p>
 
 <div class="tw"><table>
 <thead><tr><th>Group</th><th>Built</th><th>Not built</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><strong>D</strong> document-intrinsic</td><td class="mono">D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 — <strong>11/11</strong></td><td>—</td><td>complete</td></tr>
 <tr><td><strong>G</strong> GitHub</td><td class="mono">G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — <strong>10/10</strong></td><td>—</td><td>complete</td></tr>
-<tr><td><strong>P</strong> platforms</td><td class="mono">P1 P2 P3 P4 P6 — <strong>5/6</strong></td><td class="mono">P5</td><td>CodeChef publishes no API</td></tr>
-<tr><td><strong>W</strong> deployments</td><td class="mono">W1 — <strong>1/2</strong></td><td class="mono">W2</td><td>human — a reviewer opens the link</td></tr>
-<tr><td><strong>C</strong> credentials</td><td class="mono">C5 — <strong>1/5</strong></td><td class="mono">C1–C4</td><td>per-issuer APIs do not exist for us</td></tr>
+<tr><td><strong>P</strong> platforms</td><td class="mono">P1 P2 P3 P4 P5 P6 — <strong>6/6</strong></td><td>—</td><td>complete; P5 is scraped, so attention-only</td></tr>
+<tr><td><strong>W</strong> deployments</td><td class="mono">W1 — <strong>1/2</strong></td><td class="mono">W2</td><td>human by design — a reviewer opens the link</td></tr>
+<tr><td><strong>C</strong> credentials</td><td class="mono">C5 — <strong>1/5</strong></td><td class="mono">C1–C4</td><td>out of scope for this project</td></tr>
 <tr><td><strong>H</strong> human</td><td>—</td><td class="mono">H1–H6</td><td>human by design</td></tr>
 </tbody></table></div>
 
@@ -250,9 +250,9 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <div class="tw"><table>
 <thead><tr><th>Document</th><th class="num">Claims</th><th class="num">Coverage</th><th class="num">Detection</th><th class="num">Collateral</th></tr></thead>
 <tbody>
-<tr><td>student CV — IIT Kharagpur</td><td class="num">19</td><td class="num">52%</td><td class="num"><strong>15/15</strong></td><td class="num">0</td></tr>
-<tr><td>synthetic CV — VIT Vellore</td><td class="num">20</td><td class="num">44%</td><td class="num"><strong>7/7</strong></td><td class="num">1 <span class="no">(correct)</span></td></tr>
-<tr><td>professional CV — 2 pages</td><td class="num">15</td><td class="num">22%</td><td class="num"><strong>2/2</strong></td><td class="num">0</td></tr>
+<tr><td>student CV — IIT Kharagpur, 21 Oct</td><td class="num">19</td><td class="num">57%</td><td class="num"><strong>17/17</strong></td><td class="num">0</td></tr>
+<tr><td>synthetic CV — VIT Vellore, 15 Sep</td><td class="num">20</td><td class="num">44%</td><td class="num"><strong>7/7</strong></td><td class="num">1 <span class="no">(correct)</span></td></tr>
+<tr><td>professional CV — 2 pages, 15 Sep</td><td class="num">15</td><td class="num">22%</td><td class="num"><strong>2/2</strong></td><td class="num">0</td></tr>
 </tbody></table></div>
 <div class="note"><p><strong>Collateral is the number that matters</strong> — rules firing on a mutation they had no business noticing. A system that flags six things when one number changes is noisy, not sensitive, and every extra finding lands on a real person. It started at 2; both were real bugs invisible to 294 passing tests.</p></div>
 
@@ -260,19 +260,20 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <div class="tw"><table>
 <thead><tr><th>File</th><th class="num">Tests</th><th>Covers</th></tr></thead>
 <tbody>
-<tr><td class="mono">test_rules.py</td><td class="num">142</td><td>all 27 checks, against recorded evidence</td></tr>
+<tr><td class="mono">test_rules.py</td><td class="num">170</td><td>all 28 checks, against recorded evidence</td></tr>
+<tr><td class="mono">test_github.py</td><td class="num">44</td><td>authored-file detection, repo evidence, manifests</td></tr>
 <tr><td class="mono">test_contract.py</td><td class="num">40</td><td>our models vs. the authoritative JSON Schemas</td></tr>
 <tr><td class="mono">test_dates.py</td><td class="num">36</td><td>the date parser's table</td></tr>
-<tr><td class="mono">test_github.py</td><td class="num">31</td><td>authored-file detection, repo evidence</td></tr>
-<tr><td class="mono">test_api.py</td><td class="num">25</td><td>the HTTP surface</td></tr>
-<tr><td class="mono">test_intervals.py</td><td class="num">21</td><td>three-valued interval algebra</td></tr>
+<tr><td class="mono">test_api.py</td><td class="num">28</td><td>the HTTP surface</td></tr>
+<tr><td class="mono">test_store.py · test_narrative.py</td><td class="num">22</td><td>both store backends · the second LLM site</td></tr>
+<tr><td class="mono">test_intervals.py · test_filters.py</td><td class="num">21</td><td>three-valued interval algebra · the deterministic gate</td></tr>
 <tr><td class="mono">test_events.py · test_extract.py</td><td class="num">19</td><td>M6 projection · extraction internals</td></tr>
 <tr><td class="mono">test_logs.py</td><td class="num">18</td><td>log redaction</td></tr>
-<tr><td class="mono">test_filters.py</td><td class="num">17</td><td>the deterministic gate</td></tr>
-<tr><td class="mono">test_spans.py</td><td class="num">14</td><td>grounding and the numeral guard</td></tr>
+<tr><td class="mono">test_spans.py</td><td class="num">15</td><td>grounding and the numeral guard</td></tr>
+<tr><td class="mono">test_codechef.py</td><td class="num">14</td><td>the scraper, against a synthetic page</td></tr>
 <tr><td class="mono">test_structure.py</td><td class="num">13</td><td>architectural rules, enforced</td></tr>
-<tr><td class="mono">test_leetcode · test_store · test_narrative</td><td class="num">12</td><td>connector · both backends · the second LLM site</td></tr>
-<tr><td class="mono">test_worksheet · test_ingest · test_evaluate · test_cli</td><td class="num">11–6</td><td>manual prep · PDF/DOCX/OCR · the harness · commands</td></tr>
+<tr><td class="mono">test_leetcode · test_worksheet · test_ingest</td><td class="num">12–10</td><td>connector · manual prep · PDF/DOCX/OCR</td></tr>
+<tr><td class="mono">test_gather · test_evaluate · test_cli · test_reference</td><td class="num">9–3</td><td>account choice · the harness · commands · roll schemes</td></tr>
 </tbody></table></div>
 </section>
 
@@ -509,8 +510,9 @@ neither                  → NONE</code></pre>
 <tr><td><strong>LeetCode</strong></td><td>public GraphQL, no auth</td><td class="mono">P4</td></tr>
 <tr><td><strong>GitHub</strong></td><td>REST + GraphQL contributions calendar</td><td class="mono">G2–G11</td></tr>
 <tr><td><strong>HTTP liveness</strong></td><td>one GET per claimed deployment</td><td class="mono">W1</td></tr>
-<tr><td>CodeChef</td><td><em>deliberately absent</em></td><td>no API; a scraper answers wrongly in silence</td></tr>
+<tr><td><strong>CodeChef</strong></td><td>the public profile page, scraped — no API exists</td><td class="mono">P5</td></tr>
 </tbody></table></div>
+<p>CodeChef's evidence is marked <code>source_quality: scrape</code>, and P5 is attention-only for that reason. A field the page lacks is <code>None</code>, an unrecognised page is a gap, and a missing handle is a finding only when CodeChef redirects the profile URL to its homepage — any other redirect means the site changed, and says so.</p>
 
 <h3>Server-side timestamps only</h3>
 <p><code>git commit --date=</code> and <code>GIT_COMMITTER_DATE</code> are attacker-controlled. Only <code>repo.created_at</code>, <code>pushed_at</code> and the contributions calendar are trustworthy; where no server-side value exists the field stays <code>null</code> and a gap opens. <code>RepoEvidence.first_commit</code> is therefore permanently <code>None</code>.</p>
@@ -695,7 +697,7 @@ POST /v1/resolve /attest            501, with the reason</code></pre>
 <thead><tr><th>Decision</th><th>Reasoning</th></tr></thead>
 <tbody>
 <tr><td><strong>No queue</strong></td><td><code>BackgroundTasks</code> runs the job here. Honest for one process, first thing to replace when it is not</td></tr>
-<tr><td><strong><code>completed_degraded</code> must mean something</strong></td><td>"any gap" was useless — CodeChef has no API, so <em>every</em> report was degraded. It now means something <strong>transient</strong> stopped a check</td></tr>
+<tr><td><strong><code>completed_degraded</code> must mean something</strong></td><td>"any gap" was useless — before its scraper, CodeChef was a gap on <em>every</em> run, so every report was degraded. It now means something <strong>transient</strong> stopped a check</td></tr>
 <tr><td><strong>A failure is still a report</strong></td><td>empty claims and findings, not absent — a client never needs two shapes, and a vanished verification leaves them with nothing to tell the candidate</td></tr>
 <tr><td><strong>501, not an empty success</strong></td><td>an empty result reads as "resolved to nothing" rather than "never attempted"</td></tr>
 </tbody></table></div>
@@ -796,6 +798,7 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 <section id="walkthrough">
 <h2 class="sec"><span class="num">21</span>A worked example, end to end</h2>
 <p class="lede">One document, every stage, with the real intermediate state. Nothing below is reconstructed — each block is the actual output of the stage above it.</p>
+<div class="note"><p><strong>Run on 15 September, before P5 and the October fairness fixes.</strong> A run today differs in three places: the CodeChef gap in stage 06 is P5 corroborating a highest rating of 1746 against the claimed 1733; P6 corroborates one handle, <code>ar009</code>, on Codeforces and CodeChef; and coverage is 16 of 28 evaluated, 57%.</p></div>
 
 <div class="stage">
 <h3><span class="st">Stage 01</span>Ingest</h3>
@@ -1006,7 +1009,7 @@ JUDGEMENT ONLY — no machine result exists or should
 </div>
 </section>
 
-<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 33 modules · 474 tests · 27 checks</footer>
+<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 34 modules · 551 tests · 28 checks · 21 October 2026</footer>
 
 </main>
 </div>
