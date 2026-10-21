@@ -1777,6 +1777,45 @@ class TestD6DurationArithmetic:
         assert "dates no role" in (result.reason or "")
 
 
+class TestOneClaimManyFindings:
+    """A rule that loops inside one claim must give each finding its own id. D7, G6
+    and G9 built the id from the claim alone, so two findings shared one and the
+    report kept only one of them — the CLI printed the survivor twice."""
+
+    @staticmethod
+    def ids(report, rule_id: str) -> list[str]:
+        return [f.finding_id for f in report.discrepancies if f.rule_id == rule_id]
+
+    def assert_both_kept(self, report, rule_id: str) -> None:
+        ids = self.ids(report, rule_id)
+        assert len(ids) == 2 and len(set(ids)) == 2, ids
+        assert set(ids) <= set(report.buckets.contradicted + report.buckets.needs_context)
+
+    def test_d7_two_anachronisms_in_one_project(self) -> None:
+        graph = make_graph(
+            [project("Portal", "2011-2012", tech=("React", "Docker"))], DOCUMENT
+        )
+        self.assert_both_kept(assemble(graph, bundle(graph)), "D7")
+
+    def test_g6_one_project_linking_two_mismatched_repositories(self) -> None:
+        claim = project("Cache", "May '25 - Jun '25", URL.format("cache"), tech=("Go",))
+        claim = claim.model_copy(update={"artefacts": [
+            *claim.artefacts, Artefact(type=ArtefactType.REPO, url=URL.format("cache-ui")),
+        ]})
+        graph = make_graph([claim], DOCUMENT)
+        gh = github(repos=(
+            repo("cache", languages=("TypeScript",), frameworks=("next",)),
+            repo("cache-ui", languages=("TypeScript",), frameworks=("react",)),
+        ))
+        self.assert_both_kept(assemble(graph, bundle(graph, github=gh)), "G6")
+
+    def test_g9_one_skill_claim_naming_two_languages(self) -> None:
+        graph = make_graph([skill_years(8, "Python", "Java")], DOCUMENT)
+        gh = github(created="2015-01-01",
+                    first_seen={"Python": "2024-03-01", "Java": "2024-05-01"})
+        self.assert_both_kept(assemble(graph, bundle(graph, github=gh)), "G9")
+
+
 class TestD7TechnologyAnachronism:
     """A date against a date — no judgement about a career anywhere in it."""
 

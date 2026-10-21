@@ -1036,6 +1036,10 @@ def run_all(ctx: Context) -> tuple[list[Discrepancy], list[RuleOutcome]]:
             continue
 
         findings.extend(produced)
+        if len({f.finding_id for f in produced}) < len(produced):
+            # Two findings under one id and the report keeps only one of them,
+            # silently. D7, G6 and G9 did that until their ids named the inner key.
+            log.error("rule.duplicate_finding_id", rule_id=rule.rule_id)
         outcomes.append(
             RuleOutcome(
                 rule_id=rule.rule_id,
@@ -1573,7 +1577,11 @@ class G6StackVsRepository:
                 checked = True
 
                 yield Discrepancy(
-                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    # Per repository: one project can link several, and a claim-only
+                    # id collapsed two findings into one.
+                    finding_id=finding_id(
+                        ctx.report_id, self.rule_id, [claim.claim_id, repo.name]
+                    ),
                     rule_id=self.rule_id,
                     rule_version=self.rule_version,
                     tier=self.tier,
@@ -1671,7 +1679,8 @@ class G9LanguageTenure:
                     continue
 
                 yield Discrepancy(
-                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    # Per technology: one skill claim can name several.
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id, tech]),
                     rule_id=self.rule_id,
                     rule_version=self.rule_version,
                     tier=self.tier,
@@ -1842,7 +1851,8 @@ class D7TechnologyAnachronism:
                     continue
 
                 yield Discrepancy(
-                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
+                    # Per technology: one project can name several anachronisms.
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id, tech]),
                     rule_id=self.rule_id,
                     rule_version=self.rule_version,
                     tier=self.tier,

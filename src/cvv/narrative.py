@@ -29,12 +29,13 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 from cvv.models import Discrepancy, FindingsReport, Tier
 from cvv.providers import LLMProvider
 
-PROMPT_VERSION = "narrative/v2"
+PROMPT_VERSION = "narrative/v3"
 
 _NUMERAL = re.compile(r"\d+(?:\.\d+)?")
 
@@ -47,7 +48,7 @@ Rules, all of them absolute:
   - Where a finding carries an innocent reading, put it in the same sentence, with
     the same weight. "X, though Y" — never X alone.
   - State no verdict. Do not say whether anything is good, bad, or hiring-relevant.
-  - Copy the `rule` value exactly into the `rule` field.
+  - Copy the `ref` value exactly into the `ref` field.
   - Do NOT name the rule inside the sentence. The id is printed beside it already,
     so "P2 says the CV claims..." renders as "[P2] P2 says the CV claims...".\
 """
@@ -59,8 +60,8 @@ SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"rule": {"type": "string"}, "sentence": {"type": "string"}},
-                "required": ["rule", "sentence"],
+                "properties": {"ref": {"type": "string"}, "sentence": {"type": "string"}},
+                "required": ["ref", "sentence"],
             },
         }
     },
@@ -82,7 +83,24 @@ class Narrative:
     rejected_because: str | None = None
 
 
-def facts(finding: Discrepancy) -> dict[str, object]:
+def refs(findings: list[Discrepancy]) -> dict[str, Discrepancy]:
+    """A key per finding the model copies back. The rule id when it is unique, so the
+    common case is unchanged; `P2#1`, `P2#2` when a rule fired more than once.
+
+    Version 2 keyed sentences by rule id, so a rule firing twice overwrote its own
+    first finding, one finding never got a sentence, and every such narrative was
+    rejected for omission.
+    """
+    counts = Counter(f.rule_id for f in findings)
+    seen: Counter[str] = Counter()
+    out: dict[str, Discrepancy] = {}
+    for f in findings:
+        seen[f.rule_id] += 1
+        out[f.rule_id if counts[f.rule_id] == 1 else f"{f.rule_id}#{seen[f.rule_id]}"] = f
+    return out
+
+
+def facts(finding: Discrepancy, ref: str | None = None) -> dict[str, object]:
     """Exactly what the model may see about one finding.
 
     No claim text, no document, no evidence bundle. A fact absent here cannot be
@@ -91,6 +109,7 @@ def facts(finding: Discrepancy) -> dict[str, object]:
     construction rather than by intention.
     """
     return {
+        "ref": ref or finding.rule_id,
         "rule": finding.rule_id,
         "says": finding.explanation,
         "innocent_reading": finding.innocent_explanation,
@@ -178,11 +197,11 @@ def narrate(report: FindingsReport, provider: LLMProvider) -> Narrative:
         # whole briefing, and it is already true.
         return Narrative("\n".join(_frame(report, {})), faithful=True)
 
-    payloads = {f.finding_id: json.dumps(facts(f), default=str) for f in findings}
-    by_rule = {f.rule_id: f for f in findings}
+    by_ref = refs(findings)
+    payloads = {f.finding_id: json.dumps(facts(f, r), default=str) for r, f in by_ref.items()}
     prompt = (
         f"{INSTRUCTION}\n\nFindings:\n"
-        + json.dumps([facts(f) for f in findings], default=str, indent=2)
+        + json.dumps([facts(f, r) for r, f in by_ref.items()], default=str, indent=2)
         + "\n\nReturn JSON only."
     )
 
@@ -195,13 +214,13 @@ def narrate(report: FindingsReport, provider: LLMProvider) -> Narrative:
     for point in answer.get("points") or []:
         if not isinstance(point, dict):
             continue
-        finding = by_rule.get(str(point.get("rule", "")).strip())
+        finding = by_ref.get(str(point.get("ref", "")).strip())
         if finding is None:
             return Narrative(
                 summarise(report),
                 faithful=False,
                 rejected_because=(
-                    f"a sentence cites {point.get('rule')!r}, which produced no finding"
+                    f"a sentence cites {point.get('ref')!r}, which is no finding's ref"
                 ),
             )
         sentence = strip_rule_prefix(str(point.get("sentence", "")).strip(), finding.rule_id)
@@ -209,7 +228,7 @@ def narrate(report: FindingsReport, provider: LLMProvider) -> Narrative:
             return Narrative(summarise(report), faithful=False, rejected_because=reason)
         sentences[finding.finding_id] = sentence
 
-    missing = [f.rule_id for f in findings if f.finding_id not in sentences]
+    missing = [r for r, f in by_ref.items() if f.finding_id not in sentences]
     if missing:
         # Omission is how the previous version lied: given four attention findings it
         # opened with "all claimed information is verified" and cited nothing.

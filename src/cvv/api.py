@@ -16,6 +16,7 @@ single-process service and is the first thing to replace when it stops being one
 from __future__ import annotations
 
 import datetime
+import json
 import secrets
 import uuid
 from pathlib import Path
@@ -27,13 +28,15 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     FastAPI,
-    File,
     Header,
     HTTPException,
+    Request,
     Response,
     UploadFile,
     status,
 )
+from pydantic import ValidationError
+from starlette.datastructures import UploadFile as StarletteUpload
 
 from cvv import __version__
 from cvv.config import settings
@@ -291,13 +294,48 @@ def _fire_webhooks(verification_id: str) -> None:
 # --------------------------------------------------------------------------- #
 
 
+async def _incoming(http: Request) -> tuple[VerificationRequest, UploadFile | None]:
+    """The spec's body, "multipart or JSON". In multipart, `document` is the file and
+    `options` / `external_signals` / `document_url` are form fields, the first two
+    JSON-encoded. Anything malformed is a 422 that says which field.
+
+    A dependency rather than parameters because FastAPI cannot take a file and a JSON
+    model in one signature: the first version declared both, so a JSON body never
+    reached `body` and a multipart upload's `options` were silently dropped.
+    """
+    kind = http.headers.get("content-type", "")
+    try:
+        if kind.startswith("multipart/form-data"):
+            form = await http.form()
+            upload = form.get("document")
+            fields: dict[str, Any] = {
+                k: v
+                for k in ("options", "external_signals", "document_url")
+                if isinstance(v := form.get(k), str)
+            }
+            for k in ("options", "external_signals"):
+                if k in fields:
+                    fields[k] = json.loads(fields[k])
+            return (
+                VerificationRequest.model_validate(fields),
+                upload if isinstance(upload, StarletteUpload) else None,  # type: ignore[return-value]
+            )
+        if kind.startswith("application/json"):
+            return VerificationRequest.model_validate(await http.json()), None
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=ApiError(error="invalid_request", detail=str(exc)).model_dump(),
+        ) from exc
+    return VerificationRequest(), None  # nothing usable: _payload says "no_document"
+
+
 @app.post("/v1/verifications", status_code=status.HTTP_202_ACCEPTED)
 def create_verification(
     _: Auth,
     background: BackgroundTasks,
     response: Response,
-    document: Annotated[UploadFile | None, File()] = None,
-    body: VerificationRequest | None = None,
+    incoming: Annotated[tuple[VerificationRequest, UploadFile | None], Depends(_incoming)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> VerificationAccepted:
     """Accept a CV and start verifying it. 202, always — the work takes ~20 seconds.
@@ -313,7 +351,7 @@ def create_verification(
             verification_id=known, status="known", estimated_seconds=0
         )
 
-    request = body or VerificationRequest()
+    request, document = incoming
     suffix, payload = _payload(document, request)
 
     verification_id = "vr_" + stable_id(uuid.uuid4().hex)[:12]

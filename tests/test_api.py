@@ -11,6 +11,7 @@ import datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -152,6 +153,63 @@ class TestAcceptingADocument:
         assert second.json()["verification_id"] == first.json()["verification_id"]
         assert second.json()["status"] == "known"
         assert len(started) == 1, "the pipeline must run once"
+
+
+class TestTheRequestBody:
+    """The spec's body is "multipart or JSON". The first version declared a file and a
+    JSON model in one signature, which FastAPI cannot honour: a JSON body was a 422
+    `no_document` and a multipart upload's options were dropped without a word."""
+
+    @pytest.fixture
+    def started(self, monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+        calls: list[dict[str, Any]] = []
+        monkeypatch.setattr(api, "run_verification", lambda vid, path, **k: calls.append(k))
+        return calls
+
+    def test_a_json_body_with_a_document_url_and_options(
+        self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        fetched: list[str] = []
+
+        def fake_get(url: str, **_: object) -> httpx.Response:
+            fetched.append(url)
+            return httpx.Response(200, content=b"%PDF-", request=httpx.Request("GET", url))
+
+        monkeypatch.setattr(api.httpx, "get", fake_get)
+        r = client.post(
+            "/v1/verifications",
+            headers=auth,
+            json={"document_url": "https://example.com/cv.pdf", "options": {"offline": True}},
+        )
+        assert r.status_code == 202
+        assert fetched == ["https://example.com/cv.pdf"]
+        assert started == [{"offline": True, "want_narrative": True}]
+
+    def test_multipart_options_reach_the_pipeline(
+        self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
+    ) -> None:
+        r = client.post(
+            "/v1/verifications",
+            headers=auth,
+            files={"document": ("cv.pdf", b"%PDF-", "application/pdf")},
+            data={"options": '{"offline": true, "narrative": false}'},
+        )
+        assert r.status_code == 202
+        assert started == [{"offline": True, "want_narrative": False}]
+
+    def test_malformed_options_are_a_422_that_says_so(
+        self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
+    ) -> None:
+        r = client.post(
+            "/v1/verifications",
+            headers=auth,
+            files={"document": ("cv.pdf", b"%PDF-", "application/pdf")},
+            data={"options": "{offline: yes"},
+        )
+        assert r.status_code == 422
+        assert r.json()["detail"]["error"] == "invalid_request"
+        assert started == []
 
 
 class TestReadingOneBack:

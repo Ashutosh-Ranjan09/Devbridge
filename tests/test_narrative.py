@@ -80,7 +80,7 @@ def report(*findings: Discrepancy) -> FindingsReport:
 
 
 def points(*pairs: tuple[str, str]) -> dict[str, Any]:
-    return {"points": [{"rule": r, "sentence": s} for r, s in pairs]}
+    return {"points": [{"ref": r, "sentence": s} for r, s in pairs]}
 
 
 class TestWhatTheModelIsShown:
@@ -89,7 +89,7 @@ class TestWhatTheModelIsShown:
         text, no document and no evidence bundle in what the model sees, so a fact
         nobody computed cannot be written."""
         seen = facts(P1)
-        assert set(seen) == {"rule", "says", "innocent_reading", "details"}
+        assert set(seen) == {"ref", "rule", "says", "innocent_reading", "details"}
 
     def test_the_prompt_contains_only_the_findings(self) -> None:
         provider = FakeProvider(points(("P1", "Claimed 1495 against 1180.")))
@@ -129,7 +129,7 @@ class TestContainment:
         provider = FakeProvider(points(("D9", "The roll number does not add up.")))
         out = narrate(report(P1), provider)
         assert not out.faithful
-        assert "produced no finding" in (out.rejected_because or "")
+        assert "no finding's ref" in (out.rejected_because or "")
 
     def test_an_omitted_finding_is_rejected(self) -> None:
         """The failure that forced this design. Asked for free prose about four
@@ -141,6 +141,31 @@ class TestContainment:
         out = narrate(report(P1, G5), provider)
         assert not out.faithful
         assert "G5" in (out.rejected_because or "")
+
+    def test_a_rule_firing_twice_gets_a_sentence_per_finding(self) -> None:
+        """Version 2 keyed sentences by rule id, so the second P2 overwrote the
+        first, one finding never got a sentence, and the narrative was rejected for
+        omission on every report where any rule fired twice."""
+        first = finding("P2", Tier.ATTENTION, "Rank 1106 claimed, 1109 recorded.")
+        second = finding("P2", Tier.ATTENTION, "Rank 532 claimed, 540 recorded.")
+        second = second.model_copy(update={"finding_id": "fd_p2_b"})
+        provider = FakeProvider(points(
+            ("P2#1", "Claimed 1106 against 1109."), ("P2#2", "Claimed 532 against 540."),
+        ))
+        out = narrate(report(first, second), provider)
+        assert out.faithful, out.rejected_because
+        assert '"ref": "P2#1"' in provider.prompt and '"ref": "P2#2"' in provider.prompt
+        assert "Claimed 1106 against 1109." in out.text
+        assert "Claimed 532 against 540." in out.text
+
+    def test_one_sentence_for_a_rule_that_fired_twice_is_an_omission(self) -> None:
+        first = finding("P2", Tier.ATTENTION, "Rank 1106 claimed, 1109 recorded.")
+        second = finding("P2", Tier.ATTENTION, "Rank 532 claimed, 540 recorded.")
+        second = second.model_copy(update={"finding_id": "fd_p2_b"})
+        provider = FakeProvider(points(("P2#1", "Claimed 1106 against 1109.")))
+        out = narrate(report(first, second), provider)
+        assert not out.faithful
+        assert "P2#2" in (out.rejected_because or "")
 
     def test_a_model_outage_never_fails_the_report(self) -> None:
         out = narrate(report(P1), FakeProvider(RuntimeError("connection refused")))
