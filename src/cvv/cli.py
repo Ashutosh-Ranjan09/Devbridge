@@ -22,7 +22,7 @@ from cvv.ingest import document_info, read, sections
 from cvv.logs import configure
 from cvv.models import ClaimGraph, EvidenceBundle
 from cvv.narrative import narrate
-from cvv.providers import OllamaProvider
+from cvv.providers import OllamaProvider, default_provider
 from cvv.report import assemble, coverage, render
 from cvv.rules import REGISTRY
 from cvv.worksheet import render_worksheet
@@ -74,7 +74,7 @@ def verify(
     document = read(path)
     graph, _ = extract(
         document,
-        provider=OllamaProvider(model),
+        provider=default_provider(model),
         graph_id=f"cg_{document.document_id[4:]}",
     )
 
@@ -160,7 +160,7 @@ def verify(
         return
 
     if brief:
-        note = narrate(report, OllamaProvider(model))
+        note = narrate(report, default_provider(model))
         typer.echo("\n" + "=" * 78)
         typer.echo("  BRIEFING" + ("" if note.faithful else "  (model output rejected)"))
         typer.echo("=" * 78)
@@ -209,7 +209,7 @@ def evaluate(
         document = read(path)
         graph, _ = extract(
             document,
-            provider=OllamaProvider(model),
+            provider=default_provider(model),
             graph_id=f"cg_{document.document_id[4:]}",
         )
         bundle = gather(graph, bundle_id=f"eb_{document.document_id[4:]}")
@@ -307,6 +307,7 @@ def config() -> None:
     values = settings.model_dump()
     values["github_token"] = "set" if values.get("github_token") else None
     values["api_key"] = "set" if values.get("api_key") else None
+    values["claude_code_api_key"] = "set" if values.get("claude_code_api_key") else None
     # A DSN carries a password. Show the shape, never the credential.
     if dsn := values.get("database_url"):
         values["database_url"] = re.sub(r"//[^@]*@", "//***@", str(dsn))

@@ -48,7 +48,7 @@ from cvv.models import (
     SourceInfo,
     SpanProvenance,
 )
-from cvv.providers import LLMProvider, OllamaProvider
+from cvv.providers import LLMProvider, default_provider
 from cvv.reference import roll_patterns
 from cvv.spans import recover_span, recover_token
 
@@ -949,7 +949,7 @@ def extract(
     doc: Document, *, provider: LLMProvider | None = None, graph_id: str = "cg_001"
 ) -> tuple[ClaimGraph, dict[str, int]]:
     """Document to ClaimGraph: propose, ground, filter."""
-    provider = provider or OllamaProvider()
+    provider = provider or default_provider()
     proposed, counts = propose(doc, provider)
     graph = ground(proposed, doc, model_id=provider.model_id, graph_id=graph_id)
     return graph, counts

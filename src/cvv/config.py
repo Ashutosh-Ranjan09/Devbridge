@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # removes the variance at source rather than relying on that holding.
     num_gpu: int | None = None
 
+    # Which model backend extraction and narration use: "ollama" (local) or
+    # "claude-code" (the Claude Code wrapper's /api/chat). See providers.py.
+    llm_backend: str = "ollama"
+    claude_code_url: str = "http://127.0.0.1:8000"
+    claude_code_api_key: str | None = None  # the wrapper's WRAPPER_API_KEY
+    claude_code_model: str | None = None  # e.g. "sonnet"; None uses the wrapper's default
+
     github_token: str | None = None  # a PAT is enough; App auth is not needed yet
 
     # The HTTP surface's bearer token. Unset generates one at startup and prints it:

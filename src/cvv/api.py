@@ -59,7 +59,7 @@ from cvv.models import (
     Webhook,
 )
 from cvv.narrative import PROMPT_VERSION, narrate
-from cvv.providers import OllamaProvider
+from cvv.providers import default_provider
 from cvv.report import assemble
 from cvv.rules import REGISTRY
 from cvv.store import STORE, Duplicate
@@ -146,7 +146,7 @@ def run_verification(
         document = read(path)
         graph, _ = extract(
             document,
-            provider=OllamaProvider(),
+            provider=default_provider(),
             graph_id=f"cg_{document.document_id[4:]}",
         )
         bundle = (
@@ -257,7 +257,7 @@ def _failed(verification_id: str, created: datetime.datetime, reason: str) -> Ve
 
 
 def _narrative(findings: FindingsReport) -> Narrative:
-    provider = OllamaProvider()
+    provider = default_provider()
     result = narrate(findings, provider)
     return Narrative(
         summary=result.text,

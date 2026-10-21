@@ -116,3 +116,41 @@ class OllamaProvider:
                 if total:
                     return f"{round(100 * gpu / total)}% GPU ({gpu / 1e9:.1f} of {total / 1e9:.1f} GB)"
         return None
+
+
+class ClaudeCodeProvider:
+    """Claude through the local Claude Code wrapper. Same contract as OllamaProvider.
+
+    No `format` field exists here, so the schema rides in the prompt. No seed or
+    temperature either, so runs are not reproducible — model_id says which backend
+    produced a report. Each call is a fresh conversation (no session_id), so no pass
+    sees another pass's section.
+    """
+
+    def __init__(self, model_id: str | None = None) -> None:
+        self.model = model_id or settings.claude_code_model
+        self.model_id = f"claude-code:{self.model or 'default'}"
+        self.url = f"{settings.claude_code_url.rstrip('/')}/api/chat"
+
+    def complete_json(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
+        response = httpx.post(
+            self.url,
+            timeout=settings.request_timeout,
+            headers={"Authorization": f"Bearer {settings.claude_code_api_key}"},
+            json={
+                "message": f"{prompt}\n\nReply with JSON only, matching this schema:\n"
+                f"{json.dumps(schema)}",
+                **({"model": self.model} if self.model else {}),
+            },
+        )
+        response.raise_for_status()
+        text = response.json()["response"].strip()
+        text = text.removeprefix("```json").removeprefix("```").removesuffix("```")
+        parsed: dict[str, Any] = json.loads(text)
+        return parsed
+
+
+def default_provider(model_id: str | None = None) -> LLMProvider:
+    if settings.llm_backend == "claude-code":
+        return ClaudeCodeProvider(model_id)
+    return OllamaProvider(model_id)
