@@ -118,6 +118,16 @@ def _overlaps(a: Claim, b: Claim) -> bool:
     return pa.char_start < pb.char_end and pb.char_start < pa.char_end
 
 
+# A number as a CV writes it, grouping commas included — "1,80,000" is the Indian
+# grouping of 180000, and "38,000+" is 38000.
+_NUMBER = re.compile(r"\d+(?:,\d+)*(?:\.\d+)?")
+
+
+def numbers_in(text: str) -> set[str]:
+    """Every whole number in a text, commas removed."""
+    return {n.replace(",", "") for n in _NUMBER.findall(text)}
+
+
 def value_is_in_its_own_span(claim: Claim) -> bool:
     """The number a claim asserts must appear in the sentence the claim cites.
 
@@ -130,10 +140,22 @@ def value_is_in_its_own_span(claim: Claim) -> bool:
     Grounding cannot catch this. Every verbatim is genuine and 1495 is a genuine
     rating; only the pairing is invented. Checking the document is not enough — the
     number has to be in THIS span.
+
+    As a whole NUMBER, not a substring. Version 1 asked `str(value) in verbatim`, so
+    a value of 10 "appeared" in "Ranked 1106" and 149 in "rating of 1495" — a model
+    truncating a number passed the very check that exists to catch it. In P2 a lower
+    rank is a stronger claim, so rank 10 against a recorded 1109 would have been a
+    decisive contradiction of an honest candidate.
     """
-    if claim.value is None:
+    value = claim.value
+    if value is None:
         return True
-    return str(claim.value) in claim.provenance.verbatim
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)  # 1495.0 is the number 1495, not the text "1495.0"
+    wanted = numbers_in(str(value))
+    if not wanted:
+        return str(value) in claim.provenance.verbatim  # a value with no number in it
+    return wanted <= numbers_in(claim.provenance.verbatim)
 
 
 def proficiency_from_span(claim: Claim) -> Proficiency | None:

@@ -252,7 +252,13 @@ def _concurrent_roles(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
 
 
 def _same_role_twice(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
-    """One role, two mentions, dates that cannot both be true."""
+    """One stint of one role, given two accounts that cannot both be true.
+
+    This mutation used to be a role held in 2022 and again in 2024 — which is a return
+    internship, an honest career, and the false positive D10 v1 fired on. The harness
+    was measuring the bug as the detection. Overlapping accounts that disagree about
+    the start and the end are what a self-contradicting CV actually looks like.
+    """
     from cvv.models import EmploymentType
 
     base = next(iter(_claims(g, ClaimKind.ACHIEVEMENT)), None)
@@ -268,9 +274,9 @@ def _same_role_twice(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
         "value": None,
     }
     a = base.model_copy(update={**common, "claim_id": "cmut_d1",
-                                "interval": Interval(start=_year(2022), end=_year(2022))})
+                                "interval": Interval(start=_year(2021), end=_year(2023))})
     c = base.model_copy(update={**common, "claim_id": "cmut_d2",
-                                "interval": Interval(start=_year(2024), end=_year(2024))})
+                                "interval": Interval(start=_year(2022), end=_year(2024))})
     return _with_claims(g, [*g.claims, a, c]), b
 
 

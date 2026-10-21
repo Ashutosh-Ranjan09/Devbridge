@@ -20,6 +20,7 @@ import calendar as calendar_module
 import datetime
 import json
 import re
+import tomllib
 from typing import Any
 
 import httpx
@@ -40,6 +41,18 @@ SOURCE = "github"
 
 # Dependency manifests, and how to pull framework names out of each.
 MANIFESTS = ("package.json", "requirements.txt", "pyproject.toml", "go.mod", "Cargo.toml")
+# A monorepo carries one per package — `client/` and `server/` is the commonest
+# student layout there is — so they are read wherever they sit, nearest the root
+# first. Capped, because each is a request against a 60-an-hour unauthenticated
+# budget, and four manifests have said what a repository is built on.
+MAX_MANIFESTS = 4
+
+# A requirement's distribution name: requirements.txt lines and PEP 508 strings alike.
+_REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9_.-]+)")
+# A go.mod requirement: a module path with a host, then a version. Matches inside a
+# `require (...)` block and on a one-line `require`, and not the `module` line, which
+# carries no version.
+_GO_REQUIRE = re.compile(r"^\s*(?:require\s+)?([a-z0-9.-]+\.[a-z]{2,}/\S+)\s+v\d", re.M | re.I)
 
 # Files that carry no work. Everything else counts as substance, however small —
 # G7 asks whether there is anything here but a README, not whether the file count is
@@ -139,33 +152,93 @@ def _as_date(value: str | None) -> datetime.date | None:
         return None
 
 
-def _frameworks(client: httpx.Client, owner: str, repo: str, files: set[str]) -> list[str]:
-    """Parsed from dependency manifests.
+def dependencies(name: str, text: str) -> set[str]:
+    """Dependency names one manifest declares, lowercased. No network.
+
+    Five formats, because a stack is declared in whichever one its ecosystem uses.
+    Version 1 listed all five in MANIFESTS and parsed two, so a Django project
+    declaring its dependencies in pyproject.toml looked to G6 like a repository
+    built on nothing — and G6 is decisive.
+
+    A manifest that does not parse declares nothing, and never raises: one malformed
+    file must not cost the rest of the repository's evidence.
+    """
+    found: set[str] = set()
+    try:
+        if name == "package.json":
+            pkg = json.loads(text)
+            for section in ("dependencies", "devDependencies"):
+                found.update(k.lower() for k in (pkg.get(section) or {}))
+        elif name == "requirements.txt":
+            for line in text.splitlines():
+                if m := _REQUIREMENT.match(line):
+                    found.add(m.group(1).lower())
+        elif name == "pyproject.toml":
+            data = tomllib.loads(text)
+            project = data.get("project") or {}
+            specs = list(project.get("dependencies") or [])
+            for group in (project.get("optional-dependencies") or {}).values():
+                specs.extend(group)
+            for group in (data.get("dependency-groups") or {}).values():
+                specs.extend(s for s in group if isinstance(s, str))
+            for spec in specs:
+                if m := _REQUIREMENT.match(str(spec)):
+                    found.add(m.group(1).lower())
+            poetry = (data.get("tool") or {}).get("poetry") or {}
+            tables = [poetry.get("dependencies") or {}, poetry.get("dev-dependencies") or {}]
+            tables += [g.get("dependencies") or {} for g in (poetry.get("group") or {}).values()]
+            for table in tables:
+                found.update(k.lower() for k in table if k.lower() != "python")
+        elif name == "go.mod":
+            for module in _GO_REQUIRE.findall(text):
+                # github.com/gin-gonic/gin -> "gin"; github.com/redis/go-redis/v9 ->
+                # "go-redis". The path is kept too, for a claim that names it whole.
+                parts = [p for p in module.lower().split("/") if not re.fullmatch(r"v\d+", p)]
+                found.update({module.lower(), parts[-1]})
+        elif name == "Cargo.toml":
+            data = tomllib.loads(text)
+            tables = [data.get(k) or {} for k in ("dependencies", "dev-dependencies", "build-dependencies")]
+            tables.append((data.get("workspace") or {}).get("dependencies") or {})
+            for table in tables:
+                found.update(k.lower() for k in table)
+    except (ValueError, TypeError, AttributeError):  # JSON and TOML errors are ValueErrors
+        return set()
+    return found
+
+
+def manifest_paths(tree: list[dict[str, Any]]) -> list[str]:
+    """Every dependency manifest in a repository tree, nearest the root first.
+
+    Vendored and installed copies are skipped — `node_modules/react/package.json`
+    describes React, not the project.
+    """
+    paths = [
+        entry["path"]
+        for entry in tree
+        if entry.get("type") == "blob"
+        and entry["path"].split("/")[-1] in MANIFESTS
+        and not any(d in entry["path"] for d in GENERATED_DIRS)
+    ]
+    return sorted(paths, key=lambda p: (p.count("/"), p))[:MAX_MANIFESTS]
+
+
+def _frameworks(client: httpx.Client, owner: str, repo: str, manifests: list[str]) -> list[str]:
+    """Parsed from the repository's dependency manifests.
 
     The languages endpoint gives LANGUAGES, not frameworks: a Next.js application
     reports as TypeScript. Any rule comparing a claimed stack against `languages`
     alone reports a contradiction on every React project, which is why this exists.
     """
     found: set[str] = set()
-
-    if "package.json" in files:
-        raw = _get(client, f"/repos/{owner}/{repo}/contents/package.json")
-        if isinstance(raw, dict) and raw.get("content"):
-            try:
-                pkg = json.loads(base64.b64decode(raw["content"]).decode("utf-8", "replace"))
-            except (ValueError, json.JSONDecodeError):
-                pkg = {}
-            for section in ("dependencies", "devDependencies"):
-                found.update(k.lower() for k in (pkg.get(section) or {}))
-
-    if "requirements.txt" in files:
-        raw = _get(client, f"/repos/{owner}/{repo}/contents/requirements.txt")
-        if isinstance(raw, dict) and raw.get("content"):
+    for path in manifests:
+        raw = _get(client, f"/repos/{owner}/{repo}/contents/{path}")
+        if not (isinstance(raw, dict) and raw.get("content")):
+            continue
+        try:
             text = base64.b64decode(raw["content"]).decode("utf-8", "replace")
-            for line in text.splitlines():
-                if name := re.match(r"^\s*([A-Za-z0-9_.-]+)", line):
-                    found.add(name.group(1).lower())
-
+        except ValueError:
+            continue
+        found |= dependencies(path.split("/")[-1], text)
     return sorted(found)
 
 
@@ -202,11 +275,6 @@ def _repo_evidence(
 
     branch = data.get("default_branch", "HEAD")
     tree = _get(client, f"/repos/{owner}/{name}/git/trees/{branch}?recursive=1")
-    files = {
-        entry["path"].split("/")[-1]
-        for entry in (tree or {}).get("tree", [])
-        if entry.get("type") == "blob"
-    }
     # "Is there anything here a person wrote" — NOT "are there few files". Counting
     # files marked a real 11 KB Python chat application as readme-only because it
     # lives in two files, which would have produced a false G7 finding. A small
@@ -222,7 +290,9 @@ def _repo_evidence(
     evidence["authored_files"] = len(authored)
     evidence["authored_bytes"] = sum(entry.get("size", 0) for entry in authored)
     evidence["is_readme_only"] = not authored
-    evidence["frameworks"] = _frameworks(client, owner, name, files & set(MANIFESTS))
+    evidence["frameworks"] = _frameworks(
+        client, owner, name, manifest_paths((tree or {}).get("tree", []))
+    )
 
     return RepoEvidence(**evidence)
 
@@ -338,8 +408,45 @@ def _first_commit_by_language(repos: list[RepoEvidence]) -> dict[str, datetime.d
     return earliest
 
 
-def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
-    """The account, the repositories it names, and the rest of the account shallowly."""
+# Commits by the named account are counted up to this many — one request. Past it the
+# report says "100+": the question is whether the account contributed, not how much.
+COMMIT_PAGE = 100
+
+
+def _linked_elsewhere(
+    client: httpx.Client, owner: str, name: str, *, login: str
+) -> RepoEvidence:
+    """A repository the CV links under ANOTHER account: has `login` committed to it?
+
+    Shallow on purpose. The file tree of `apache/kafka` is enormous, and whether it
+    holds a file a person wrote is not the question — whether the named account did
+    any of that writing is. `commit_count` carries the answer, counted by GitHub's
+    own attribution of commits to the account (by the email addresses linked to it).
+    None means the question could not be asked; 0 means it was, and the answer was
+    none. Never conflate them.
+    """
+    evidence = _repo_evidence(client, owner, name, deep=False)
+    full = f"{owner}/{name}"
+    if not evidence.exists:
+        return evidence.model_copy(update={"name": full})
+    try:
+        commits = _get(client, f"/repos/{owner}/{name}/commits?author={login}&per_page={COMMIT_PAGE}")
+    except httpx.HTTPStatusError:
+        commits = None  # 409 for an empty repository: unknown, not zero
+    return evidence.model_copy(
+        update={
+            "name": full,
+            "owner_matches": False,
+            "commit_count": len(commits) if isinstance(commits, list) else None,
+        }
+    )
+
+
+def gather_github(
+    owner: str, named_repos: list[str], *, elsewhere: list[tuple[str, str]] | None = None
+) -> GitHubEvidence | Gap:
+    """The account, the repositories it names, the rest of the account shallowly, and
+    any linked repository under another owner, checked for this account's commits."""
     with _client() as client:
         try:
             user = _get(client, f"/users/{owner}")
@@ -370,6 +477,10 @@ def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
                 _repo_evidence(client, owner, name, deep=True)
                 for name in dict.fromkeys(named_repos)
             ]
+            named += [
+                _linked_elsewhere(client, other, name, login=owner)
+                for other, name in dict.fromkeys(elsewhere or [])
+            ]
 
             # PUBLIC memberships only. GitHub hides membership by default and a
             # member must opt in to being listed, so an empty list is the normal
@@ -399,5 +510,9 @@ def gather_github(owner: str, named_repos: list[str]) -> GitHubEvidence | Gap:
         # repositories, which is a finding. Never conflate them.
         public_repo_count=user.get("public_repos", len(public)),
         org_memberships=[o["login"] for o in orgs if o.get("login")],
-        first_commit_by_language=_first_commit_by_language(public + named),
+        # The account's own repositories only. Apache's kafka was created in 2011 and
+        # is Java; counting it would date this account's Java to 2011.
+        first_commit_by_language=_first_commit_by_language(
+            public + [r for r in named if r.owner_matches is not False]
+        ),
     )

@@ -41,11 +41,18 @@ def _roll_context(graph: ClaimGraph) -> list[str]:
         if claim.kind is not ClaimKind.IDENTIFIER or not claim.parsed:
             continue
         parsed = claim.parsed
-        out.append(
-            f"roll {claim.provenance.verbatim} decodes to admission year "
-            f"{parsed.get('admission_year')}, department code "
-            f"{parsed.get('dept_code')}, serial {parsed.get('serial')}"
-        )
+        # Only what the scheme encodes. "admission year None" is a sentence the roll
+        # number never said.
+        fields = [
+            f"{label} {parsed[key]}"
+            for key, label in (
+                ("admission_year", "admission year"),
+                ("dept_code", "department code"),
+                ("serial", "serial"),
+            )
+            if parsed.get(key) is not None
+        ]
+        out.append(f"roll {claim.provenance.verbatim} decodes to " + ", ".join(fields))
     return out
 
 
@@ -155,11 +162,22 @@ def candidate_tasks(graph: ClaimGraph, report: FindingsReport) -> list[Task]:
     ]
 
     # G3: the one manual step that CHANGES a machine result rather than replacing it.
-    handles = [
-        c.handle
-        for c in graph.claims
-        if c.kind is ClaimKind.PROFILE and (c.platform or "") == "github" and c.handle
-    ]
+    # The account G3 is about, when its finding says which. A CV can link a
+    # repository somebody else owns, and asking a candidate to prove control of
+    # github.com/apache is a question with no honest answer.
+    checked = {
+        str(f.params.get("handle", "")).lower() for f in report.discrepancies if f.rule_id == "G3"
+    }
+    handles = list(
+        dict.fromkeys(
+            c.handle
+            for c in graph.claims
+            if c.kind is ClaimKind.PROFILE
+            and (c.platform or "") == "github"
+            and c.handle
+            and (not checked or c.handle.lower() in checked)
+        )
+    )
     if any(o.rule_id == "G3" and o.status.value == "fired" for o in report.rule_outcomes):
         tasks.append(
             Task(

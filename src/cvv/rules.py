@@ -10,6 +10,7 @@ Four checks for now: P1, P2, P3, W1. The remaining 37 in docs/plan.md.
 
 from __future__ import annotations
 
+import calendar
 import datetime
 import itertools
 import re
@@ -40,11 +41,14 @@ from cvv.models import (
     DocumentInfo,
     EmploymentType,
     EvidenceBundle,
+    FuzzyDate,
     GapReason,
     GitHubEvidence,
+    Interval,
     Ownership,
     Platform,
     PlatformEvidence,
+    Precision,
     RuleOutcome,
     RuleStatus,
     Severity,
@@ -52,9 +56,9 @@ from cvv.models import (
 )
 from cvv.reference import (
     department_matches,
+    named_scheme,
     programme_years,
     roll_schemes,
-    scheme_for,
     tech_releases,
 )
 from cvv.reference import (
@@ -116,13 +120,20 @@ class Context:
         raise Abstain("No GitHub evidence was gathered.")
 
     def named_repos(self) -> dict[str, str]:
-        """Repository name -> the claim that named it."""
-        return {
-            a.url.rstrip("/").split("/")[-1]: c.claim_id
-            for c in self.graph.claims
-            for a in c.artefacts
-            if a.type.value == "repo"
-        }
+        """Repository name -> the claim that named it, by bare name and by owner/name.
+
+        The bare name is how a repository under the named account is recorded; the
+        owner/name form is how one linked under another account is.
+        """
+        out: dict[str, str] = {}
+        for c in self.graph.claims:
+            for a in c.artefacts:
+                if a.type.value != "repo":
+                    continue
+                path = a.url.rstrip("/").split("github.com/", 1)[-1]
+                out[path.split("/")[-1]] = c.claim_id
+                out[path] = c.claim_id
+        return out
 
 
 class Rule(Protocol):
@@ -681,8 +692,13 @@ class W1DeploymentLiveness:
     """
 
     rule_id: str = "W1"
-    rule_version: str = "2.0"
+    rule_version: str = "3.0"
     tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
+    # The only answers that say the deployment is GONE. Everything else that fails —
+    # a refusal, a login wall, a server error — is the host answering something
+    # other than "nothing here".
+    gone: frozenset[int] = frozenset({404, 410})
     scoring: bool = True
     summary: str = "Claimed live deployments respond to an HTTP request"
 
@@ -700,18 +716,28 @@ class W1DeploymentLiveness:
         # Built as a list, not yielded straight out: `Corroborated` below is raised
         # only when nothing fired, and a generator that yields before raising loses
         # everything it yielded.
+        #
+        # Version 2 called every failure decisive, a timeout included. A timeout is
+        # this machine's network as much as the site's, and a 403 is very often a
+        # bot-protection layer refusing an automated request that a person's browser
+        # would be shown the site for. Neither says the product is not there.
         findings: list[Discrepancy] = []
+        silent = 0
         for d in ctx.bundle.deployments:
             if d.reachable:
                 continue
+            if d.status_code is None:
+                silent += 1  # no answer at all; gather has opened a transient gap
+                continue
             claim = by_url.get(d.url)
             refs = [claim.claim_id] if claim else []
+            gone = d.status_code in self.gone
             findings.append(Discrepancy(
                 finding_id=finding_id(ctx.report_id, self.rule_id, refs or [d.url]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
-                tier=self.tier,
-                severity=Severity.MEDIUM,
+                tier=self.tier if gone else self.soft_tier,
+                severity=Severity.MEDIUM if gone else Severity.LOW,
                 confidence=1.0,
                 scoring=self.scoring,
                 claim_refs=refs,
@@ -719,15 +745,29 @@ class W1DeploymentLiveness:
                 params={"url": d.url, "status_code": d.status_code},
                 explanation=(
                     f"The live URL claimed for "
-                    f"{(claim.title if claim else None) or 'a project'} does not respond: "
-                    f"{d.url} returned "
-                    + (f"HTTP {d.status_code}." if d.status_code else "no response.")
+                    f"{(claim.title if claim else None) or 'a project'} "
+                    + ("is gone: " if gone else "did not serve a page: ")
+                    + f"{d.url} returned HTTP {d.status_code}."
+                ),
+                innocent_explanation=None
+                if gone
+                else (
+                    "Bot protection refuses automated requests that a browser would be "
+                    "shown the site for, a login wall answers 401 or 403 to anyone "
+                    "signed out, and a server error is often temporary. Opening the "
+                    "link settles it, and the worksheet asks a reviewer to."
                 ),
             ))
 
         if findings:
             yield from findings
             return
+        if silent == len(ctx.bundle.deployments):
+            raise Abstain(
+                f"None of the {silent} claimed live URL(s) answered this machine — a "
+                "timeout or a refused connection, which can be either side's network. "
+                "Nothing is concluded; re-running may settle it."
+            )
 
         linked = self._linked(ctx)
         if linked:
@@ -880,17 +920,25 @@ class G2AccountExists:
 @register
 @dataclass(frozen=True)
 class G4RepoExistsOwnedNotFork:
-    """Three facts about a named repository, each settled by the API.
+    """Facts about each linked repository, each settled by the API.
 
     A fork is the one that matters most: presenting someone else's work as a project
     is a different claim from writing it, and GitHub records the distinction.
+
+    A repository linked under ANOTHER owner is not a fork and not a contradiction —
+    `apache/kafka` on a CV is a claim to have contributed, not to own. So the
+    question for it is whether the account the CV names has commits there. Yes is
+    corroboration. No is a question, never a contradiction: GitHub attributes a
+    commit to an account only through an email address linked to it, and a team or
+    organisation repository can carry work pushed by another member.
     """
 
     rule_id: str = "G4"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
     scoring: bool = True
-    summary: str = "Named repositories exist, are owned, and are not forks"
+    summary: str = "Linked repositories exist, are not forks, and belong to or carry the account"
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
         gh = ctx.github()
@@ -898,46 +946,91 @@ class G4RepoExistsOwnedNotFork:
             raise Abstain("No repositories named on the CV.")
         by_claim = ctx.named_repos()
 
+        # Built as a list: `Corroborated` below is raised only when nothing fired, and
+        # a generator that yields before raising loses everything it yielded.
+        findings: list[Discrepancy] = []
+        contributed: list[str] = []
         for repo in gh.repos:
             refs = [by_claim[repo.name]] if repo.name in by_claim else []
             common = {
                 "rule_id": self.rule_id,
                 "rule_version": self.rule_version,
-                "tier": self.tier,
                 "confidence": 1.0,
                 "scoring": self.scoring,
                 "claim_refs": refs,
                 "evidence_refs": [f"github.repos[{repo.name}]"],
             }
+            # Under another owner: recorded as owner/name by the connector.
+            elsewhere = "/" in repo.name
             if not repo.exists:
-                yield Discrepancy(
+                where = (
+                    f"github.com/{repo.name}" if elsewhere else f"github.com/{gh.handle}/{repo.name}"
+                )
+                findings.append(Discrepancy(
                     finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name]),
+                    tier=self.tier,
                     severity=Severity.HIGH,
                     params={"repo": repo.name},
                     explanation=(
-                        f"The repository {repo.name!r} named on the CV does not exist at "
-                        f"github.com/{gh.handle}/{repo.name}."
+                        f"The repository {repo.name!r} named on the CV does not exist at {where}."
                     ),
                     **common,
-                )
-            elif repo.is_fork:
-                yield Discrepancy(
+                ))
+            elif repo.is_fork and not elsewhere:
+                findings.append(Discrepancy(
                     finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name, "fork"]),
+                    tier=self.tier,
                     severity=Severity.HIGH,
                     params={"repo": repo.name, "is_fork": True},
                     explanation=(
                         f"{repo.name!r} is a fork of another repository, not original work."
                     ),
                     **common,
-                )
+                ))
+            elif elsewhere:
+                if repo.commit_count is None:
+                    continue  # the question could not be asked; nothing is concluded
+                if repo.commit_count > 0:
+                    count = (
+                        f"{repo.commit_count}+" if repo.commit_count >= 100 else str(repo.commit_count)
+                    )
+                    contributed.append(f"{gh.handle!r} has {count} commit(s) in {repo.name}")
+                    continue
+                findings.append(Discrepancy(
+                    finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name, "commits"]),
+                    tier=self.soft_tier,
+                    severity=Severity.LOW,
+                    params={"repo": repo.name, "account": gh.handle, "commits": 0},
+                    explanation=(
+                        f"{repo.name!r} is linked on the CV and belongs to another account. "
+                        f"GitHub attributes no commits in it to {gh.handle!r}."
+                    ),
+                    innocent_explanation=(
+                        "GitHub credits a commit to an account only through an email "
+                        "address linked to that account, so commits made with a work or "
+                        "university address are invisible here. A team or organisation "
+                        "repository can also hold work another member pushed."
+                    ),
+                    **common,
+                ))
             elif repo.owner_matches is False:
-                yield Discrepancy(
+                findings.append(Discrepancy(
                     finding_id=finding_id(ctx.report_id, self.rule_id, [repo.name, "owner"]),
+                    tier=self.tier,
                     severity=Severity.MEDIUM,
                     params={"repo": repo.name},
                     explanation=f"{repo.name!r} is not owned by {gh.handle!r}.",
                     **common,
-                )
+                ))
+
+        if findings:
+            yield from findings
+            return
+        if contributed:
+            raise Corroborated(
+                "Contribution corroborated by GitHub's own attribution — "
+                + "; ".join(contributed)
+            )
 
 
 @register
@@ -1264,7 +1357,7 @@ class G6StackVsRepository:
     """
 
     rule_id: str = "G6"
-    rule_version: str = "1.0"
+    rule_version: str = "1.1"
     tier: Tier = Tier.DECISIVE
     scoring: bool = True
     summary: str = "A project's claimed stack against the repository it links"
@@ -1273,6 +1366,7 @@ class G6StackVsRepository:
         gh = ctx.github()
         by_name = {r.name.lower(): r for r in gh.repos if r.exists}
         checked = False
+        blind: list[str] = []
 
         for claim in ctx.claims(ClaimKind.PROJECT):
             if not claim.skill_refs:
@@ -1285,11 +1379,20 @@ class G6StackVsRepository:
                 # repository is empty. Never conflate them.
                 if repo is None or not repo.languages:
                     continue
-                checked = True
 
                 observed = [_norm(x) for x in (*repo.languages, *repo.frameworks)]
                 if any(_matches(_norm(tech), observed) for tech in claim.skill_refs):
+                    checked = True
                     continue
+                # No dependency manifest was read, so the only observation is the
+                # language census — and it cannot see a library, a database or a
+                # service. An OpenCV project reports as C++. "Nothing matches" is
+                # then a statement about what GitHub can show, not about the
+                # repository, and a decisive finding cannot rest on it.
+                if not repo.frameworks:
+                    blind.append(repo.name)
+                    continue
+                checked = True
 
                 yield Discrepancy(
                     finding_id=finding_id(ctx.report_id, self.rule_id, [claim.claim_id]),
@@ -1317,6 +1420,12 @@ class G6StackVsRepository:
                 )
 
         if not checked:
+            if blind:
+                raise Abstain(
+                    f"No dependency manifest could be read for {', '.join(sorted(set(blind)))}, "
+                    "and a language census alone cannot see a library, a database or a "
+                    "service — an OpenCV project reports as C++. Nothing is concluded."
+                )
             raise Abstain(
                 "No project both names a stack and links a repository whose language "
                 "census was gathered."
@@ -1603,37 +1712,50 @@ class D9RollNumberStructure:
     """
 
     rule_id: str = "D9"
-    rule_version: str = "1.1"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
     scoring: bool = True
     summary: str = "Roll-number structure against the claimed programme and dates"
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
-        identifiers = [
-            c for c in ctx.claims(ClaimKind.IDENTIFIER) if (c.parsed or {}).get("dept_code")
-        ]
+        # Any decoded field will do. Version 1 required a department code, so a
+        # scheme encoding only a year switched the whole rule off — and one encoding
+        # only a department crashed it on the missing year.
+        identifiers = [c for c in ctx.claims(ClaimKind.IDENTIFIER) if c.parsed]
         if not identifiers:
-            raise Abstain("No structured identifier found in the document.")
+            raise Abstain(
+                "No roll number was decoded. Most CVs carry none, and one is decoded "
+                "only where the CV names an institution whose format is on record."
+            )
         degrees = [c for c in ctx.claims(ClaimKind.EDUCATION) if c.degree]
         if not degrees:
             raise Abstain("No degree claimed to check the roll number against.")
 
         skipped: list[str] = []
         checked: list[str] = []
+        # A generator that yields and then raises loses what it yielded: run_all sees
+        # only the Abstain. So the final abstention is for a rule that found nothing.
+        # Version 1 dropped a real department mismatch whenever the timeline half
+        # then had to skip.
+        fired = False
+        # The document's own words, plus the institutions as extracted — a model may
+        # write "IIT Kharagpur" for "Indian Institute of Technology Kharagpur", and the
+        # scheme lists both.
+        named_text = " ".join([ctx.graph.source.normalised_text, *(d.org or "" for d in degrees)])
 
         for ident in identifiers:
             parsed = ident.parsed or {}
             roll = ident.provenance.verbatim
-            scheme = scheme_for(roll, next((d.org for d in degrees if d.org), None))
+            scheme = named_scheme(roll, named_text)
             if scheme is None:
                 skipped.append(
-                    f"{roll!r} matches no scheme in data/roll-schemes.json, so nothing "
-                    "about it can be decoded"
+                    f"{roll!r} has the shape of a format on record, but no institution "
+                    "the CV names uses it, so nothing is read into it"
                 )
                 continue
 
-            code = str(parsed["dept_code"])
-            admission = int(parsed["admission_year"])
+            code = str(parsed["dept_code"]) if parsed.get("dept_code") else None
+            admission = int(parsed["admission_year"]) if parsed.get("admission_year") else None
 
             # Departments the CV actually names, searched across each education
             # claim's degree, institution and its own span — the document's words.
@@ -1646,8 +1768,11 @@ class D9RollNumberStructure:
                 )
             }
 
-            if named and code not in named:
+            if code is None:
+                skipped.append(f"{scheme.get('label', 'this')} roll numbers encode no department")
+            elif named and code not in named:
                 subject = next(iter(named.values()))
+                fired = True
                 yield Discrepancy(
                     finding_id=finding_id(ctx.report_id, self.rule_id, [ident.claim_id]),
                     rule_id=self.rule_id,
@@ -1682,7 +1807,10 @@ class D9RollNumberStructure:
             # The timeline sub-check, independent of the above. Prefer the degree
             # whose department matches, else one at the scheme's own institution,
             # else the longest programme claimed.
-            subject = named.get(code) or _degree_at(scheme, degrees) or degrees[0]
+            if admission is None:
+                skipped.append(f"{roll} encodes no admission year")
+                continue
+            subject = (named.get(code) if code else None) or _degree_at(scheme, degrees) or degrees[0]
             years = programme_years(scheme, subject.degree or "")
             if years is None:
                 skipped.append(f"{subject.degree!r} has no standard duration on record")
@@ -1690,7 +1818,23 @@ class D9RollNumberStructure:
             if subject.interval is None:
                 skipped.append(f"{subject.degree!r} carries no year to check against")
                 continue
+            if subject.interval.ongoing:
+                # "2023 - Present" states no completion year. Version 1 read the START
+                # as the end and told a second-year student their four-year degree
+                # "completes in 2023", decisively — on the most common way a current
+                # student dates one. The start is still worth saying when it agrees.
+                skipped.append(
+                    f"{subject.degree!r} is dated as ongoing, so the CV states no "
+                    f"completion year to check {roll} against"
+                )
+                if subject.interval.start.year == admission:
+                    checked.append(
+                        f"{roll} encodes admission in {admission}, which is when the CV "
+                        f"says the {subject.degree} began"
+                    )
+                continue
 
+            # A single year with no range is the completion year, not an open range.
             end = subject.interval.end or subject.interval.start
             expected = admission + years
             if end.year == expected:
@@ -1731,7 +1875,7 @@ class D9RollNumberStructure:
             )
             return
 
-        if skipped:
+        if skipped and not fired:
             reason = "; ".join(dict.fromkeys(skipped)) + "."
             if checked:
                 reason += " Checked: " + "; ".join(dict.fromkeys(checked)) + "."
@@ -1743,8 +1887,8 @@ def _degree_at(scheme: dict[str, object], degrees: list[Claim]) -> Claim | None:
     institutions = scheme.get("institutions", [])
     assert isinstance(institutions, list)
     for d in degrees:
-        org = (d.org or "").lower()
-        if any(name in org for name in institutions):
+        # Whole words, for the reason named_scheme gives: "vit" is inside "activities".
+        if any(re.search(rf"\b{re.escape(n)}\b", d.org or "", re.I) for n in institutions):
             return d
     return None
 
@@ -1785,10 +1929,14 @@ class G3OwnershipProof:
         if gh.ownership in (Ownership.VERIFIED_OAUTH, Ownership.VERIFIED_CHALLENGE):
             return  # proven; nothing to caveat
 
+        # Only the account that was checked. A CV linking someone else's repository
+        # carries a profile claim for that owner too, and this caveat is not about
+        # them.
         profiles = [
             c.claim_id
             for c in ctx.claims(ClaimKind.PROFILE)
             if (c.platform or "").lower() == "github"
+            and (c.handle or "").lower() == gh.handle.lower()
         ]
         yield Discrepancy(
             finding_id=finding_id(ctx.report_id, self.rule_id, profiles),
@@ -1850,7 +1998,7 @@ class D5IntervalOverlap:
     """
 
     rule_id: str = "D5"
-    rule_version: str = "2.0"
+    rule_version: str = "2.1"
     tier: Tier = Tier.DECISIVE
     soft_tier: Tier = Tier.ATTENTION
     # Long enough to cover a notice period and a late final payroll date, short
@@ -1872,6 +2020,11 @@ class D5IntervalOverlap:
             )
 
         for (a, a_interval), (b, b_interval) in itertools.combinations(roles, 2):
+            # One role written twice is not two jobs at once. Whether its two
+            # accounts agree is D10's question, and answering it here as well would
+            # describe one fact twice.
+            if _same_role(a, b):
+                continue
             # Concurrency is normal for anything but two full-time roles. Not a
             # tolerance — a genuine statement that these combinations are not
             # contradictions.
@@ -2210,19 +2363,34 @@ class D8DegreeDuration:
 @register
 @dataclass(frozen=True)
 class D10InternalContradiction:
-    """The same role given different dates in different places on the same page.
+    """One stint of one role, given two accounts that cannot both be true.
 
-    Decisive, and unusually so for a document-intrinsic check: the document contradicts
-    ITSELF, which needs no external source and admits no innocent reading about the
-    world. Only DEFINITE disagreement counts — two year-precision mentions of the same
-    role are not a contradiction.
+    Version 1 fired when two mentions of a role did NOT overlap — and that is the
+    shape of an honest career. "SDE Intern, Google" in the summer of 2023 and again
+    in 2024 is a return offer; a rehire looks the same. It was reported decisively as
+    "dates that cannot both be true" when both were true. The mutation harness could
+    not see it, because its D10 mutation WAS a return internship: the false positive
+    had been written down as the fabrication.
+
+    Disjoint mentions are two stints, and say nothing. What a document cannot do is
+    give ONE stint two irreconcilable accounts: mentions that overlap, so they cover
+    the same period of the same role, and still disagree about when it began or
+    ended — "2021 to 2023" in one place and "2022 to 2024" in another. Precision is
+    not disagreement: "2022" and "Jan 2022 to Dec 2022" are one stint written twice,
+    and a bare year is a single mention compatible with any range it falls inside.
+
+    Employment type decides the tier, as it does in D5. Two full-time accounts of one
+    job contradict each other. Anything else is posed as a question, because one
+    title can honestly cover two concurrent engagements — a teaching assistant for
+    two courses in one term — and the dates alone cannot tell those apart.
     """
 
     rule_id: str = "D10"
-    rule_version: str = "1.0"
+    rule_version: str = "2.0"
     tier: Tier = Tier.DECISIVE
+    soft_tier: Tier = Tier.ATTENTION
     scoring: bool = True
-    summary: str = "The same role dated differently in two places"
+    summary: str = "One stint of a role dated two irreconcilable ways"
 
     def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
         dated = [
@@ -2234,33 +2402,95 @@ class D10InternalContradiction:
             raise Abstain("Fewer than two dated roles are claimed.")
 
         for (a, ia), (b, ib) in itertools.combinations(dated, 2):
-            same_role = (a.org or "").strip().lower() == (b.org or "").strip().lower() and (
-                (a.title or "").strip().lower() == (b.title or "").strip().lower()
-            )
-            if not same_role:
+            if not _same_role(a, b):
                 continue
-            # The same role, mentioned twice. If the two spans cannot both be true,
-            # the document disagrees with itself.
             relation, _ = overlap(ia, ib, today=ctx.today)
-            if relation is not Rel.NONE:
-                continue
+            if relation is Rel.NONE:
+                continue  # two stints of one role: a return offer, a rehire
+            if _one_stint(ia, ib, today=ctx.today):
+                continue  # the same stint, written twice at different precisions
 
+            decisive = (
+                a.employment_type is EmploymentType.FULL_TIME
+                and b.employment_type is EmploymentType.FULL_TIME
+            )
             yield Discrepancy(
                 finding_id=finding_id(ctx.report_id, self.rule_id, [a.claim_id, b.claim_id]),
                 rule_id=self.rule_id,
                 rule_version=self.rule_version,
-                tier=self.tier,
-                severity=Severity.HIGH,
+                tier=self.tier if decisive else self.soft_tier,
+                severity=Severity.HIGH if decisive else Severity.LOW,
                 confidence=1.0,
                 scoring=self.scoring,
                 claim_refs=[a.claim_id, b.claim_id],
                 evidence_refs=[],
-                params={"org": a.org, "title": a.title},
+                params={
+                    "org": a.org,
+                    "title": a.title,
+                    "dated_a": _written(ia),
+                    "dated_b": _written(ib),
+                },
                 explanation=(
-                    f"{a.title!r} at {a.org!r} appears twice with dates that cannot "
-                    "both be true."
+                    f"{a.title!r} at {a.org!r} is dated {_written(ia)} in one place and "
+                    f"{_written(ib)} in another. The two overlap, so they describe the "
+                    "same period of the same role, and they disagree about when it "
+                    "began or ended."
+                ),
+                innocent_explanation=(
+                    None
+                    if decisive
+                    else "One title can cover two concurrent engagements — a teaching "
+                    "assistant for two courses in one term, an internship extended past "
+                    "its original dates. Neither mention says the role was full-time, "
+                    "so the dates alone cannot tell that apart from a contradiction."
                 ),
             )
+
+
+def _same_role(a: Claim, b: Claim) -> bool:
+    """The same employer and the same title, as written. D5 and D10 share it.
+
+    Requires an employer: two mentions with no org are not known to be one role, and
+    treating them as one would let D5 skip a real overlap.
+    """
+    return bool(a.org) and (a.org or "").strip().lower() == (b.org or "").strip().lower() and (
+        (a.title or "").strip().lower() == (b.title or "").strip().lower()
+    )
+
+
+def _one_stint(a: Interval, b: Interval, *, today: datetime.date) -> bool:
+    """Could two date ranges be one stint written twice?
+
+    Yes when every bound admits a common reading: the starts could be the same day,
+    and so could the ends. A single date with no range is one mention of a year or a
+    month, not a range of its own, so it agrees with any range it falls inside — the
+    overlap test before this has already established that it does.
+    """
+    if (a.end is None and not a.ongoing) or (b.end is None and not b.ongoing):
+        return True
+
+    def meets(x: tuple[datetime.date, datetime.date], y: tuple[datetime.date, datetime.date]) -> bool:
+        return x[0] <= y[1] and y[0] <= x[1]
+
+    def end(iv: Interval) -> tuple[datetime.date, datetime.date]:
+        return (today, today) if iv.ongoing else bounds(iv.end or iv.start)
+
+    return meets(bounds(a.start), bounds(b.start)) and meets(end(a), end(b))
+
+
+def _written(iv: Interval) -> str:
+    """An interval as a reader would write it back — "2021 to 2023", "Jan 2022 to
+    present" — so a finding states both accounts rather than only that they differ."""
+
+    def one(d: FuzzyDate) -> str:
+        if d.precision is Precision.YEAR or d.month is None:
+            return str(d.year)
+        month = calendar.month_abbr[d.month]
+        return f"{month} {d.year}" if d.precision is Precision.MONTH else f"{d.day} {month} {d.year}"
+
+    if iv.ongoing:
+        return f"{one(iv.start)} to present"
+    return one(iv.start) if iv.end is None else f"{one(iv.start)} to {one(iv.end)}"
 
 
 @register
@@ -2277,7 +2507,7 @@ class D11TimelineGap:
     """
 
     rule_id: str = "D11"
-    rule_version: str = "1.0"
+    rule_version: str = "1.1"
     tier: Tier = Tier.ATTENTION
     scoring: bool = False
     summary: str = "Gap between claimed roles (displayed, never scored)"
@@ -2294,13 +2524,11 @@ class D11TimelineGap:
 
         ordered = sorted(dated, key=lambda pair: bounds(pair[1].start)[0])
         for (a, ia), (b, ib) in itertools.pairwise(ordered):
-            # The SAME role mentioned twice with incompatible dates is D10's finding,
-            # and a document that contradicts itself does not also have a career gap.
-            # Reporting both describes one corruption twice.
-            if (a.org or "").strip().lower() == (b.org or "").strip().lower() and (
-                (a.title or "").strip().lower() == (b.title or "").strip().lower()
-            ):
-                continue
+            # Two stints of one role are two stints, and the time between them is a
+            # gap like any other. Version 1.0 skipped the pair because D10 reported
+            # it as a contradiction; D10 no longer does, and a gap D10 is silent about
+            # must not vanish. An irreconcilable account of ONE stint overlaps itself,
+            # so it has no gap to report.
             days = gap_between(ia, ib, today=ctx.today)
             if days is None or days < self.threshold_days:
                 continue

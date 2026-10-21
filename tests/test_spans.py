@@ -53,6 +53,12 @@ class TestNumeralGuard:
         assert numerals_present("rating of 1495", DOCUMENT)
         assert not numerals_present("rating of 1595", DOCUMENT)
 
+    def test_a_dropped_digit_is_not_present(self) -> None:
+        """149 is inside 1495 and is not in the document. Dropping a digit is a
+        one-character edit — what the fuzzy tier forgives and this guard refuses."""
+        assert not numerals_present("rating of 149", DOCUMENT)
+        assert recover_span("Achieved a peak Codeforces rating of 149 (Specialist)", DOCUMENT) is None
+
 
 class TestTokenRecovery:
     """A model works in tokens and normalises. It will return `ar-009` for `AR009`,

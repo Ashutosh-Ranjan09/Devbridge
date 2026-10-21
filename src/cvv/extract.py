@@ -49,7 +49,7 @@ from cvv.models import (
     SpanProvenance,
 )
 from cvv.providers import LLMProvider, default_provider
-from cvv.reference import roll_patterns
+from cvv.reference import named_scheme, roll_patterns
 from cvv.spans import recover_span, recover_token
 
 log = get("cvv.extract")
@@ -752,28 +752,29 @@ def _norm_text(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 
-def _decode_roll(token: str) -> dict[str, Any] | None:
-    """Named groups from whichever institution's scheme matches, or None.
+def _decode_roll(token: str, text: str) -> dict[str, Any] | None:
+    """Named groups from the scheme of an institution the CV names, or None.
 
-    The groups a scheme declares are the groups it gets — `year`, `dept` and `serial`
-    here, and a scheme that encodes something else contributes what it encodes. D9
-    reads what is present and abstains on what is not, so an institution with no
-    department in its roll number costs a sub-check rather than the whole rule.
+    Every group is optional. A scheme contributes exactly what its pattern declares —
+    `year`, `dept` and `serial` for IIT Kharagpur — and a scheme that encodes less
+    contributes less. D9 reads what is present and abstains on what is not.
+
+    A roll-shaped token under no named institution is NOT decoded. It stays an
+    identifier claim, because it is real text, and nothing is read into it.
     """
-    for _, pattern in roll_patterns():
-        m = pattern.fullmatch(token)
-        if m is None:
-            continue
-        groups = m.groupdict()
-        parsed: dict[str, Any] = {}
-        if year := groups.get("year"):
-            parsed["admission_year"] = 2000 + int(year) if len(year) == 2 else int(year)
-        if dept := groups.get("dept"):
-            parsed["dept_code"] = dept
-        if serial := groups.get("serial"):
-            parsed["serial"] = int(serial)
-        return parsed or None
-    return None
+    scheme = named_scheme(token, text)
+    m = re.match(str(scheme["pattern"]), token) if scheme else None
+    if m is None:
+        return None
+    groups = m.groupdict()
+    parsed: dict[str, Any] = {}
+    if year := groups.get("year"):
+        parsed["admission_year"] = 2000 + int(year) if len(year) == 2 else int(year)
+    if dept := groups.get("dept"):
+        parsed["dept_code"] = dept
+    if serial := groups.get("serial"):
+        parsed["serial"] = int(serial)
+    return parsed or None
 
 
 def scope_technologies(
@@ -843,7 +844,7 @@ def ground(
         handle = recover_token(p.handle, doc.text, within=span) if p.handle else None
 
         urls = [u for u in p.urls if recover_token(u, doc.text) is not None]
-        parsed = _decode_roll(p.verbatim) if p.kind is ClaimKind.IDENTIFIER else None
+        parsed = _decode_roll(p.verbatim, doc.text) if p.kind is ClaimKind.IDENTIFIER else None
 
         # The model returned the date TEXT; our parser reads it. An unrecognised
         # format drops the INTERVAL and keeps the claim: a project with an unreadable

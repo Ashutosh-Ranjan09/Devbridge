@@ -47,8 +47,14 @@ def numerals_present(verbatim: str, text: str) -> bool:
     out of fifty-three. Similarity is blind to precisely the character that matters,
     and numbers are where the decisive checks live: ratings, ranks, problem counts,
     roll numbers, years.
+
+    Each digit run must occur as a whole RUN, not as part of a longer one. A
+    substring test let "rating of 149" through against a document saying 1495 —
+    dropping a digit is a one-character edit, which is exactly what the fuzzy tier
+    forgives and exactly what this guard exists to refuse.
     """
-    return all(n in text for n in _NUMERALS.findall(verbatim))
+    present = set(_NUMERALS.findall(text))
+    return all(n in present for n in _NUMERALS.findall(verbatim))
 
 
 def recover_span(

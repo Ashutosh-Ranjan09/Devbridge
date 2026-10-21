@@ -123,22 +123,26 @@ def excluded_exams() -> re.Pattern[str]:
     return re.compile(rf"\b(?:{alternation})\b", re.I)
 
 
-def scheme_for(roll: str, org: str | None) -> dict[str, Any] | None:
-    """The scheme whose pattern matches this roll number.
+def named_scheme(roll: str, text: str) -> dict[str, Any] | None:
+    r"""The scheme that decodes this roll number, only if the CV names its institution.
 
-    Institution name is a hint, not a requirement — a CV may abbreviate it or omit
-    it, and the pattern is the stronger signal. Where several schemes match the shape
-    and an institution IS named, the named one wins.
+    A pattern alone is not enough. `\d{2}[A-Z]{2}\d{5}` is IIT Kharagpur's shape and
+    also any other college's register number of that shape, and decoding one with
+    Kharagpur's department table and programme lengths would contradict a student of
+    a different institution, decisively. The previous version took the first scheme
+    whose pattern fit and treated the institution as a hint.
+
+    Most CVs carry no roll number at all. The ones that do are decoded only where the
+    document itself says whose format applies. Names match as whole words, so "vit"
+    never matches "activities".
     """
-    matching = [s for s in roll_schemes().values() if re.match(s["pattern"], roll)]
-    if not matching:
-        return None
-    if org and len(matching) > 1:
-        lowered = org.lower()
-        named = [s for s in matching if any(n in lowered for n in s.get("institutions", []))]
-        if named:
-            return named[0]
-    return matching[0]
+    for scheme in roll_schemes().values():
+        if not re.match(str(scheme["pattern"]), roll):
+            continue
+        names = scheme.get("institutions", [])
+        if any(re.search(rf"\b{re.escape(n)}\b", text, re.I) for n in names):
+            return scheme
+    return None
 
 
 def department_matches(scheme: dict[str, Any], code: str, text: str) -> bool | None:

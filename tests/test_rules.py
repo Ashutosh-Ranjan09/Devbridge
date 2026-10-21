@@ -332,6 +332,37 @@ class TestW1DeploymentLiveness:
         assert "CF-Connect" in finding.explanation
         assert "404" in finding.explanation
 
+    def test_a_refused_request_is_a_question_not_a_contradiction(self) -> None:
+        """403 is very often bot protection refusing an automated request that a
+        browser would be shown the site for. The host answered; it did not say the
+        product is gone."""
+        claim = make_claim(
+            CF_RATING, DOCUMENT, kind=ClaimKind.PROJECT, title="CF-Connect",
+            artefacts=[Artefact(type=ArtefactType.DEPLOYMENT, url="https://cf-connect.vercel.app")],
+        )
+        graph = make_graph([claim], DOCUMENT)
+        refused = DeploymentEvidence(
+            url="https://cf-connect.vercel.app", reachable=False, status_code=403, checked_at=NOW
+        )
+        report = assemble(graph, bundle(graph, deployments=[refused]))
+        finding = next(f for f in report.discrepancies if f.rule_id == "W1")
+        assert finding.tier is Tier.ATTENTION
+        assert "Bot protection" in (finding.innocent_explanation or "")
+        assert finding.finding_id not in report.buckets.contradicted
+
+    def test_no_response_at_all_concludes_nothing(self) -> None:
+        """A timeout is this machine's network as much as the site's. Gather opens a
+        transient gap for it; W1 says nothing about the deployment."""
+        graph = make_graph([], DOCUMENT)
+        silent = DeploymentEvidence(
+            url="https://cf-connect.vercel.app", reachable=False, status_code=None, checked_at=NOW
+        )
+        report = assemble(graph, bundle(graph, deployments=[silent]))
+        assert not [f for f in report.discrepancies if f.rule_id == "W1"]
+        result = outcome(report, "W1")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "either side's network" in (result.reason or "")
+
     def test_clean_when_the_url_responds(self) -> None:
         graph = make_graph([], DOCUMENT)
         live = DeploymentEvidence(
@@ -817,7 +848,66 @@ class TestD9RollNumberStructure:
         graph = make_graph([degree("B.TECH", "IIT Kharagpur", "2027")], DOCUMENT)
         result = outcome(assemble(graph, bundle(make_graph([], DOCUMENT))), "D9")
         assert result.status is RuleStatus.ABSTAINED
-        assert "identifier" in (result.reason or "")
+        assert "No roll number was decoded" in (result.reason or "")
+
+    def test_a_known_shape_under_an_unnamed_institution_is_not_read(self) -> None:
+        """23CS10004 is IIT Kharagpur's shape and also any other college's register
+        number of that shape. Decoding it with Kharagpur's tables would contradict a
+        student elsewhere, so a CV naming no listed institution gets nothing read in."""
+        graph = make_graph(
+            [roll(), degree("B.Tech", "Some Other College", "2025")], DOCUMENT
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D9"]
+        result = outcome(report, "D9")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "no institution the CV names uses it" in (result.reason or "")
+
+    def test_a_scheme_without_a_department_still_checks_the_years(self) -> None:
+        """Every field is optional. Version 1 needed a department code to run at all."""
+        graph = make_graph(
+            [
+                make_claim(
+                    ROLL, DOCUMENT, claim_id="cid001", kind=ClaimKind.IDENTIFIER,
+                    parsed={"admission_year": 2023},
+                ),
+                degree("B.TECH", "IIT Kharagpur", "2025"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D9")
+        assert finding.params["expected_completion"] == 2027
+
+    def test_a_scheme_without_a_year_still_checks_the_department(self) -> None:
+        graph = make_graph(
+            [
+                make_claim(
+                    ROLL, DOCUMENT, claim_id="cid001", kind=ClaimKind.IDENTIFIER,
+                    parsed={"dept_code": "ME"},
+                ),
+                degree("B.Tech in Computer Science and Engineering", "IIT Kharagpur", "2027"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D9")
+        assert finding.params["dept_code"] == "ME"
+
+    def test_an_ongoing_degree_states_no_completion_year(self) -> None:
+        """"2023 - Present" is how a current student dates a degree. Version 1 read
+        its start as its end and reported a four-year B.Tech completing in 2023,
+        decisively. The start still agrees with the roll number, and the reader is
+        told so."""
+        graph = make_graph(
+            [roll(), degree("B.TECH", "IIT Kharagpur", "2023 - Present")], DOCUMENT
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D9"]
+        result = outcome(report, "D9")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "dated as ongoing" in (result.reason or "")
+        assert "which is when the CV says the B.TECH began" in (result.reason or "")
 
 
 def role(
@@ -910,6 +1000,44 @@ class TestD5IntervalOverlap:
         result = outcome(assemble(graph, bundle(graph)), "D5")
         assert result.status is RuleStatus.ABSTAINED
         assert "nothing to overlap" in (result.reason or "")
+
+
+class TestG4UnderAnotherOwner:
+    """A repository linked under another owner is a contribution claim: checked for
+    the named account's commits, and never called a fork or a contradiction."""
+
+    def elsewhere(self, commits: int | None) -> RepoEvidence:
+        return RepoEvidence(
+            name="apache/kafka", exists=True, is_fork=False, owner_matches=False,
+            commit_count=commits,
+        )
+
+    def test_commits_by_the_account_corroborate(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        gh = github(repos=(self.elsewhere(12),))
+        result = outcome(assemble(graph, bundle(graph, github=gh)), "G4")
+        assert result.status is RuleStatus.CLEAN
+        assert "has 12 commit(s) in apache/kafka" in (result.note or "")
+
+    def test_no_commits_is_a_question_not_a_contradiction(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(repos=(self.elsewhere(0),))))
+        finding = next(f for f in report.discrepancies if f.rule_id == "G4")
+        assert finding.tier is Tier.ATTENTION
+        assert "email address" in (finding.innocent_explanation or "")
+        assert finding.finding_id not in report.buckets.contradicted
+
+    def test_an_unanswered_question_concludes_nothing(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        report = assemble(graph, bundle(graph, github=github(repos=(self.elsewhere(None),))))
+        assert not [f for f in report.discrepancies if f.rule_id == "G4"]
+
+    def test_a_missing_repository_names_its_own_owner(self) -> None:
+        graph = make_graph([], DOCUMENT)
+        missing = RepoEvidence(name="apache/kafka", exists=False)
+        report = assemble(graph, bundle(graph, github=github(repos=(missing,))))
+        finding = next(f for f in report.discrepancies if f.rule_id == "G4")
+        assert "github.com/apache/kafka" in finding.explanation
 
 
 class TestG3OwnershipProof:
@@ -1166,11 +1294,36 @@ class TestD8DegreeDuration:
 class TestD10InternalContradiction:
     """Decisive without a network call, because the document contradicts ITSELF."""
 
-    def test_the_same_role_dated_two_incompatible_ways(self) -> None:
+    @pytest.mark.parametrize(
+        ("first", "second", "kind"),
+        [
+            ("May 2023 - Jul 2023", "May 2024 - Jul 2024", EmploymentType.INTERNSHIP),
+            ("Jan 2019 - Dec 2020", "Mar 2022 - present", EmploymentType.FULL_TIME),
+        ],
+        ids=["a return internship", "a rehire"],
+    )
+    def test_one_role_held_twice_is_two_stints(
+        self, first: str, second: str, kind: EmploymentType
+    ) -> None:
+        """Version 1 fired here, decisively, as "dates that cannot both be true". Both
+        are true: a return offer and a rehire are ordinary careers."""
         graph = make_graph(
             [
-                role("Acme", "Jan 2022 - Jun 2022", claim_id="ca1"),
-                role("Acme", "Jan 2024 - Jun 2024", claim_id="ca2"),
+                role("Google", first, kind, claim_id="cg1", title="SDE Intern"),
+                role("Google", second, kind, claim_id="cg2", title="SDE Intern"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        assert not [f for f in report.discrepancies if f.rule_id == "D10"]
+
+    def test_one_stint_given_two_irreconcilable_accounts(self) -> None:
+        """Overlapping, so the same period of the same role, and disagreeing about
+        when it began and ended. Both accounts are stated, not just the mismatch."""
+        graph = make_graph(
+            [
+                role("Acme", "2021 - 2023", EmploymentType.FULL_TIME, claim_id="ca1"),
+                role("Acme", "2022 - 2024", EmploymentType.FULL_TIME, claim_id="ca2"),
             ],
             DOCUMENT,
         )
@@ -1179,6 +1332,26 @@ class TestD10InternalContradiction:
         assert finding.tier is Tier.DECISIVE
         assert finding.finding_id in report.buckets.contradicted
         assert {"ca1", "ca2"} == set(finding.claim_refs)
+        assert "2021 to 2023" in finding.explanation
+        assert "2022 to 2024" in finding.explanation
+        assert not [f for f in report.discrepancies if f.rule_id == "D5"], (
+            "one role written twice is not two jobs at once; D5 reporting it as well "
+            "would describe one fact twice"
+        )
+
+    def test_without_a_stated_type_it_is_a_question(self) -> None:
+        """One title can cover two concurrent engagements — a TA for two courses."""
+        graph = make_graph(
+            [
+                role("IIT Kharagpur", "Jul 2023 - Nov 2023", claim_id="ct1", title="TA"),
+                role("IIT Kharagpur", "Aug 2023 - Dec 2023", claim_id="ct2", title="TA"),
+            ],
+            DOCUMENT,
+        )
+        report = assemble(graph, bundle(graph))
+        finding = next(f for f in report.discrepancies if f.rule_id == "D10")
+        assert finding.tier is Tier.ATTENTION
+        assert "concurrent" in (finding.innocent_explanation or "")
 
     def test_two_mentions_that_can_both_be_true_are_not_a_contradiction(self) -> None:
         graph = make_graph(
@@ -1239,9 +1412,10 @@ class TestD11TimelineGap:
         report = assemble(graph, bundle(graph))
         assert not [f for f in report.discrepancies if f.rule_id == "D11"]
 
-    def test_one_role_mentioned_twice_is_not_a_career_gap(self) -> None:
-        """D10's finding, and reporting a gap alongside it describes one corruption
-        twice. A document that contradicts itself does not also have a gap."""
+    def test_two_stints_of_one_role_can_have_a_gap_between_them(self) -> None:
+        """Version 1.0 skipped this pair because D10 called it a contradiction. D10 now
+        reads it as two stints, and the time between them is a gap like any other —
+        shown, and never scored."""
         graph = make_graph(
             [
                 role("Acme", "2020", claim_id="ca1"),
@@ -1250,8 +1424,9 @@ class TestD11TimelineGap:
             DOCUMENT,
         )
         report = assemble(graph, bundle(graph))
-        assert not [f for f in report.discrepancies if f.rule_id == "D11"]
-        assert any(f.rule_id == "D10" for f in report.discrepancies)
+        gap = next(f for f in report.discrepancies if f.rule_id == "D11")
+        assert gap.scoring is False
+        assert not [f for f in report.discrepancies if f.rule_id == "D10"]
 
     def test_abstains_with_one_role(self) -> None:
         graph = make_graph([role("Acme", "2022")], DOCUMENT)
@@ -1438,6 +1613,22 @@ class TestG6StackVsRepository:
                                 frameworks=("react", "jsonwebtoken")),))
         report = assemble(graph, bundle(graph, github=gh))
         assert not [f for f in report.discrepancies if f.rule_id == "G6"]
+
+    def test_a_census_without_a_manifest_cannot_contradict(self) -> None:
+        """An OpenCV project reports as C++, and OpenCV has no manifest to declare it.
+        With no dependency manifest read, "nothing matches" describes what GitHub can
+        show, not what the repository holds — and G6 is decisive."""
+        graph = make_graph(
+            [project("Vision", "May '25 - Jun '25", URL.format("vision"),
+                     tech=("OpenCV", "CMake"))],
+            DOCUMENT,
+        )
+        gh = github(repos=(repo("vision", languages=("C++",)),))
+        report = assemble(graph, bundle(graph, github=gh))
+        assert not [f for f in report.discrepancies if f.rule_id == "G6"]
+        result = outcome(report, "G6")
+        assert result.status is RuleStatus.ABSTAINED
+        assert "No dependency manifest could be read for vision" in (result.reason or "")
 
     def test_abstains_when_no_language_census_was_gathered(self) -> None:
         """An empty language map means the census was not fetched, never that the

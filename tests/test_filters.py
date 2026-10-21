@@ -61,6 +61,31 @@ class TestValueCorroboration:
         assert kept == []
         assert dropped["value_not_in_span"] == 1
 
+    @pytest.mark.parametrize("truncated", [10, 110, 106])
+    def test_a_number_inside_a_longer_one_is_not_in_the_span(
+        self, document: str, truncated: int
+    ) -> None:
+        """10 is a substring of "1106" and is not in the sentence. As a contest rank,
+        10 against a recorded 1109 would have been a decisive P2 contradiction."""
+        claim = make_claim(
+            CF_RANK, document, platform="codeforces", metric="contest_rank", value=truncated
+        )
+        kept, dropped = filters.apply([claim])
+        assert kept == []
+        assert dropped["value_not_in_span"] == 1
+
+    def test_digit_grouping_is_read_as_one_number(self, document: str) -> None:
+        """"38,000+" is 38000 — the comma groups digits, it does not split a number."""
+        sentence = (
+            "Ranked 1106 globally in Codeforces Round 998 (Div. 3), placing in the top 3% "
+            "among 38,000+ competitve programmers worldwide"
+        )
+        claim = make_claim(
+            sentence, document, platform="codeforces", metric="contest_rank", value=38000
+        )
+        kept, _ = filters.apply([claim])
+        assert [c.value for c in kept] == [38000]
+
     def test_a_value_present_in_its_own_span_survives(self, document: str) -> None:
         claim = make_claim(
             CF_RANK, document, platform="codeforces", metric="contest_rank", value=1106
@@ -90,7 +115,10 @@ class TestPlatformCorrection:
             document,
             platform="codeforces",
             metric="max_rating",
-            value=1,
+            # The number the span really holds, so the claim reaches the platform
+            # check. It used to be 1, which passed the value check only because "1"
+            # is a substring of "1,80,000".
+            value=180000,
         )
         kept, dropped = filters.apply([claim])
         assert kept == []
