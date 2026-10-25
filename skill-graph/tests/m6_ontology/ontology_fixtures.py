@@ -17,7 +17,7 @@ import yaml  # noqa: E402
 
 from m6_ontology import SeedOntology  # noqa: E402
 
-SEED_PATH = ROOT / "contracts" / "ontology-seed.yaml"
+SEED_PATH = ROOT.parent / "schemas" / "skills" / "ontology.yaml"
 
 # A graph small enough to reason about entirely, with one edge of each shape the
 # real seed uses. Tests that are about VALIDATION mutate a copy of this rather

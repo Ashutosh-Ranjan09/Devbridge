@@ -4,16 +4,63 @@ here takes plain values so each rule is testable on its own.
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Iterable, Mapping
+import re
+from typing import Any, Callable, Iterable, Iterator, Mapping
 
 from .params import Rules
 
 
-def normalise_skill(name: str, rules: Rules) -> str:
-    """Lower-case and resolve through the alias table. `mongoose` and `next` are
-    build-tool names, not skills."""
-    key = name.strip().lower()
-    return rules.aliases.get(key, key.replace(" ", "_"))
+# A version a CV appends to a name: "Next.js 14", "Python 3.11", "Angular v17".
+# Only after whitespace here — a version run INTO a name ("HTML5", "Python3") is
+# tried separately, and only kept if what remains is a skill that exists.
+_VERSION = re.compile(r"\s+v?\d+(?:\.\d+)*$")
+_TRAILING_DIGITS = re.compile(r"\d+(?:\.\d+)*$")
+# Separators a name may be written with. Never `+` or `#`: C++, C# and C are three
+# languages, and folding them together would credit one for another.
+_SEPARATORS = re.compile(r"[\s._-]+")
+
+Known = Callable[[str], bool]
+
+
+def normalise_skill(name: str, rules: Rules, known: Known | None = None) -> str:
+    """A skill as a report spells it -> the ontology's id, or the key to hold it by.
+
+    Lower-cased, a trailing version dropped, then the shared alias table. With the
+    ontology's `knows()`, spelling variants resolve too — "Next JS", "ReactJS",
+    "Mongo DB", "HTML5" — by trying separator-free, `js`-suffix and digit-free
+    forms, each kept ONLY if it names a skill that exists. A guess that lands
+    nowhere is never returned; the name keeps the key it always had, and is
+    quarantined under it.
+
+    This is the fallback. A report from M5 carries `skill_resolution`, which is
+    consulted first; this runs for a name it does not cover — an old report, an
+    offline run, or a model that was unavailable.
+    """
+    key = _VERSION.sub("", name.strip().lower())
+    if key in rules.aliases:
+        return rules.aliases[key]
+    fallback = key.replace(" ", "_")
+    if known is None or known(fallback):
+        return fallback
+    for candidate in _variants(key):
+        resolved = rules.aliases.get(candidate, candidate)
+        if known(resolved):
+            return resolved
+    return fallback
+
+
+def _variants(key: str) -> Iterator[str]:
+    """Spellings of one name, most literal first."""
+    yield _SEPARATORS.sub("_", key)            # "data-structures" -> data_structures
+    compact = _SEPARATORS.sub("", key)         # "next js", "next.js"  -> nextjs
+    yield compact
+    if compact.endswith("js") and len(compact) > 2:
+        yield compact[:-2]                     # "reactjs", "react.js" -> react
+    else:
+        yield compact + "js"                   # "node" -> nodejs
+    bare = _TRAILING_DIGITS.sub("", compact)
+    if bare and bare != compact:
+        yield bare                             # "html5", "python3" -> html, python
 
 
 def substance_band(repo: Mapping[str, Any], rules: Rules) -> tuple[str, int]:
@@ -54,7 +101,8 @@ def repo_strength(band_index: int, rules: Rules) -> float:
     return round(base + per * band_index, 4)
 
 
-def language_relevances(languages: Mapping[str, int], rules: Rules) -> dict[str, float]:
+def language_relevances(languages: Mapping[str, int], rules: Rules,
+                        known: Known | None = None) -> dict[str, float]:
     """Bytes per language into skill relevance.
 
     A language below `min_bytes_share` of the repository is incidental — a CSS
@@ -72,7 +120,7 @@ def language_relevances(languages: Mapping[str, int], rules: Rules) -> dict[str,
         if share < cfg["min_bytes_share"]:
             continue
         rel = cfg["intercept"] + cfg["slope"] * share
-        out[normalise_skill(lang, rules)] = round(min(max(rel, cfg["min"]), cfg["max"]), 4)
+        out[normalise_skill(lang, rules, known)] = round(min(max(rel, cfg["min"]), cfg["max"]), 4)
     return out
 
 

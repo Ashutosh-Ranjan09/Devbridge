@@ -1,0 +1,41 @@
+# Other names for skills in ontology.yaml — one target per name.
+#
+# Shared by both modules. M5's skill resolver (cv-verification/src/cvv/skills.py)
+# answers from this file before it asks a model anything, and M6's projection uses
+# it to resolve names a report did not resolve itself. Keys are compared lowercased.
+#
+# Grown by review: `cvv aliases` lists names the model mapped, and
+# `cvv aliases --promote NAME` appends an approved one here, so it is a rule from
+# then on and no model is asked again. Only add a name whose meaning is not in
+# doubt — a wrong line here credits a skill on every CV that writes that name.
+aliases_version: "1.0.0"
+
+aliases:
+  mongoose: mongodb
+  next: nextjs
+  "c++": cpp
+  golang: go
+  # How the first real M5 report spelled skills the ontology already holds.
+  # Not "competitive programming" or "data structures and algorithms": a skill
+  # claim is corroborated here only by repository languages, never by a platform
+  # rating, so either would enter as a cv_claim at 0.45 and pull down an
+  # algorithms estimate a Codeforces rating had already established.
+  "next.js": nextjs
+  "node.js": nodejs
+  "express.js": express
+  "c++ stl": cpp
+  "object-oriented programming": oop
+  "git/github": git
+  "tailwind css": tailwindcss
+  # Names that differ, not spellings — no normalising rule can derive these.
+  postgres: postgresql
+  pg: postgresql
+  tailwind: tailwindcss
+  mongo: mongodb
+  ioredis: redis
+  js: javascript
+  ts: typescript
+  k8s: kubernetes
+  # GitHub's own language names.
+  shell: bash
+  dockerfile: docker

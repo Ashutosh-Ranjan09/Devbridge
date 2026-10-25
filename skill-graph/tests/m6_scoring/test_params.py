@@ -73,12 +73,12 @@ def test_a_changed_parameter_changes_the_score():
 
 
 def test_the_two_contracts_agree_about_every_shared_skill_tier():
-    """m6-parameters.yaml carries skill_tiers and ontology-seed.yaml carries a
+    """m6-parameters.yaml carries skill_tiers and schemas/skills/ontology.yaml carries a
     tier per skill. The ontology is authoritative; this asserts the fallback
     never contradicts it, because a skill silently changing tier changes its
     half-life by an order of magnitude."""
     params = default_parameters().skill_tiers
-    seed = yaml.safe_load((ROOT / "contracts" / "ontology-seed.yaml").read_text())
+    seed = yaml.safe_load((ROOT.parent / "schemas" / "skills" / "ontology.yaml").read_text())
     onto = {k: v["tier"] for k, v in seed["skills"].items()}
     disagreements = {s: (params[s], onto[s]) for s in set(params) & set(onto)
                      if params[s] != onto[s]}

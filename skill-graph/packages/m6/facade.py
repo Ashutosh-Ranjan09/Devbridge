@@ -58,7 +58,8 @@ class M6:
     # ── writing ─────────────────────────────────────────────────────────────
     def project(self, report: Mapping[str, Any]) -> dict[str, Any]:
         """6.0 alone — useful when you want to see the events before storing."""
-        return project(report, module_version=self.module_version).to_dict()
+        return project(report, module_version=self.module_version,
+                       ontology=self.ontology).to_dict()
 
     def ingest_report(self, report: Mapping[str, Any]) -> Receipt:
         """6.0 then 6.2. Idempotent: the same report twice stores one copy."""

@@ -15,6 +15,14 @@ from typing import Any
 import yaml
 
 DEFAULT_RULES = pathlib.Path(__file__).resolve().parents[2] / "contracts" / "projection-rules.yaml"
+# Shared with M5's skill resolver at the repository root.
+DEFAULT_ALIASES = pathlib.Path(__file__).resolve().parents[3] / "schemas" / "skills" / "aliases.yaml"
+
+
+def load_aliases(path: pathlib.Path | str | None = None) -> dict[str, str]:
+    """Other names for ontology skills, from the shared aliases.yaml."""
+    doc = yaml.safe_load(pathlib.Path(path or DEFAULT_ALIASES).read_text()) or {}
+    return {str(k): str(v) for k, v in (doc.get("aliases") or {}).items()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,8 +36,11 @@ class Priors:
 class Rules:
     """Typed accessors over projection-rules.yaml."""
 
-    def __init__(self, raw: dict[str, Any]) -> None:
+    def __init__(self, raw: dict[str, Any], aliases: dict[str, str] | None = None) -> None:
         self._raw = raw
+        # The alias table is its own file, shared with M5, so a contract edit here
+        # cannot change what a skill name means on one side of the seam only.
+        self._aliases = aliases if aliases is not None else load_aliases()
         self._t = raw["thresholds"]
         self._emit = {r["id"]: r for r in raw["emit"]}
         self._factors = {f["factor"]: f for f in raw["reliability_factors"]}
@@ -83,6 +94,12 @@ class Rules:
         return f
 
     @property
+    def manifest_known_only(self) -> bool:
+        """Credit only manifest dependencies that are skills on the list."""
+        cfg = self._t.get("manifest_dependencies") or {}
+        return bool(cfg.get("known_only", False))
+
+    @property
     def deployment_frameworks(self) -> tuple[str, ...]:
         """Frameworks a live deployment may credit, most specific first."""
         cfg = self._t.get("deployment_framework") or {}
@@ -90,7 +107,7 @@ class Rules:
 
     @property
     def aliases(self) -> dict[str, str]:
-        return {str(k).lower(): str(v) for k, v in self._t["aliases"].items()}
+        return {str(k).lower(): str(v) for k, v in self._aliases.items()}
 
     def claim_discount_factors(self, flags: Any, bound: Any) -> tuple[str, ...]:
         """Reliability factors earned by M5's own flags on a claim.

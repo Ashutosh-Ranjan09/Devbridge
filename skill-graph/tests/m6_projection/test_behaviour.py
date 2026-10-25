@@ -245,3 +245,117 @@ def test_an_api_platform_reading_is_not_discounted():
     event = by_kind(project(full()), "platform_rating")[0]
     assert event.reliability_factors == ()
     assert event.reliability == 0.90
+
+
+def test_one_skill_named_twice_on_a_line_does_not_refuse_the_report():
+    """"Next.js | next" resolved to nextjs twice, the event id is claim:skill, and
+    the invariant check refused the whole report — every capability signal lost
+    for a CV that did nothing wrong."""
+    report = full()
+    claim = next(c for c in report["claim_graph"]["claims"] if c["kind"] == "skill")
+    claim["skill_refs"] = ["Next.js", "next", "React", "React.js"]
+    batch = project(report)
+    ids = [e.event_id for e in batch.events]
+    assert len(ids) == len(set(ids))
+    mine = {r.skill_id for e in batch.events if claim["claim_id"] in e.source.claim_refs
+            for r in e.skill_refs}
+    assert {"nextjs", "react"} <= mine
+
+
+# ── skill_resolution: what M5 already decided a name means ───────────────────
+
+def _skill_claim(report: dict, *names: str) -> dict:
+    claim = next(c for c in report["claim_graph"]["claims"] if c["kind"] == "skill")
+    claim["skill_refs"] = list(names)
+    return claim
+
+
+def test_the_report_s_resolution_is_used_before_the_spelling_rules():
+    """No rule knows "Amazon Web Services" is aws. The report says so."""
+    report = full()
+    claim = _skill_claim(report, "Amazon Web Services")
+    report["skill_resolution"] = {"Amazon Web Services": {"id": "aws", "by": "model"}}
+    skills_on_claim = {r.skill_id for e in project(report).events
+                       if claim["claim_id"] in e.source.claim_refs for r in e.skill_refs}
+    assert skills_on_claim == {"aws"}
+
+
+def test_a_skill_reached_only_through_the_model_is_labelled():
+    report = full()
+    claim = _skill_claim(report, "Amazon Web Services")
+    report["skill_resolution"] = {"Amazon Web Services": {"id": "aws", "by": "model"}}
+    event = next(e for e in project(report).events if claim["claim_id"] in e.source.claim_refs)
+    assert event.payload["mapped_by_model"] == {"aws": ["Amazon Web Services"]}
+
+
+def test_a_skill_a_rule_also_reaches_is_not_labelled():
+    """"React" beside "React.js": a rule established react, so the model's
+    mapping of the second name adds nothing a reviewer needs to check."""
+    report = full()
+    _skill_claim(report, "React", "React.js")
+    report["skill_resolution"] = {"React": {"id": "react", "by": "rule"},
+                                  "React.js": {"id": "react", "by": "model"}}
+    assert not any("mapped_by_model" in e.payload for e in project(report).events)
+
+
+def test_a_none_from_the_model_falls_back_to_the_rules():
+    """A model saying "none" for a name the rules CAN place does not get the last
+    word: the rules are deterministic, and they only ever land on a real skill."""
+    report = full()
+    claim = _skill_claim(report, "React.js")
+    report["skill_resolution"] = {"React.js": {"id": None, "by": "model"}}
+    skills_on_claim = {r.skill_id for e in project(report).events
+                       if claim["claim_id"] in e.source.claim_refs for r in e.skill_refs}
+    assert skills_on_claim == {"react"}
+
+
+def test_an_id_this_ontology_does_not_hold_is_not_trusted():
+    report = full()
+    claim = _skill_claim(report, "Svelte")
+    report["skill_resolution"] = {"Svelte": {"id": "svelte", "by": "model"}}
+    skills_on_claim = {r.skill_id for e in project(report).events
+                       if claim["claim_id"] in e.source.claim_refs for r in e.skill_refs}
+    assert "svelte" in skills_on_claim, "held under its own key and quarantined downstream"
+    assert not any("mapped_by_model" in e.payload for e in project(report).events)
+
+
+def test_a_report_without_resolution_projects_as_before():
+    assert project(full()).to_dict() == project({**full(), "skill_resolution": {}}).to_dict()
+
+
+# ── manifests: only a dependency that is a skill is evidence of one ───────────
+
+def _with_manifest(report: dict, *names: str) -> dict:
+    repo = next(r for r in report["evidence_bundle"]["github"]["repos"] if r["frameworks"])
+    repo["frameworks"] = list(names)
+    return repo
+
+
+def test_a_manifest_credits_only_dependencies_that_are_skills():
+    report = full()
+    repo = _with_manifest(report, "next", "axios", "zod", "eslint", "@radix-ui/react-dialog")
+    event = next(e for e in by_kind(project(report), "repo_artifact")
+                 if e.payload["repo"] == repo["name"])
+    got = {r.skill_id for r in event.skill_refs}
+    assert "nextjs" in got
+    assert not {"axios", "zod", "eslint", "@radix-ui/react-dialog"} & got
+
+
+def test_what_a_manifest_did_not_credit_is_named_not_dropped():
+    report = full()
+    repo = _with_manifest(report, "next", "axios", "zod")
+    batch = project(report)
+    assert any(s.what.startswith(repo["name"]) and "2 manifest dependencies" in s.what
+               and s.reason == "no_skill_mapping" for s in batch.not_emitted)
+
+
+def test_the_rule_is_the_contract_s_to_switch_off():
+    import copy
+    from m6_projection.params import Rules
+    raw = copy.deepcopy(Rules.load()._raw)  # noqa: SLF001 - the contract is the point
+    raw["thresholds"]["manifest_dependencies"]["known_only"] = False
+    report = full()
+    repo = _with_manifest(report, "next", "axios")
+    event = next(e for e in by_kind(project(report, rules=Rules(raw)), "repo_artifact")
+                 if e.payload["repo"] == repo["name"])
+    assert "axios" in {r.skill_id for r in event.skill_refs}

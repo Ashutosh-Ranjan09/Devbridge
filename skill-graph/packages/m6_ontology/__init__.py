@@ -11,7 +11,7 @@ what does it imply.
     onto.neighbours("cpp")        # 6.3 — where evidence may propagate
     onto.skill_ids()              # 6.4 — the filter UI
 
-The graph itself is contracts/ontology-seed.yaml. Nothing here defines a skill,
+The graph itself is ../schemas/skills/ontology.yaml. Nothing here defines a skill,
 a tier or an edge in code.
 """
 __version__ = "1.0.0"

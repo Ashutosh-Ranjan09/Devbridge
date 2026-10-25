@@ -9,9 +9,12 @@ Deterministic and side-effect free: same report in, byte-identical batch out.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from typing import Any, Iterable, Mapping
 from urllib.parse import urlparse
+
+from m6_ontology import SkillResolver, default_ontology
 
 from .errors import ContractViolation, MalformedReport
 from .models import (EvidenceEvent, EvidenceEventBatch, EventSource, ReliabilityFactor,
@@ -110,10 +113,47 @@ def project(
     rules: Rules | None = None,
     module_version: str = "0.0.0",
     now: date | None = None,
+    ontology: SkillResolver | None = None,
 ) -> EvidenceEventBatch:
     """Project one VerificationReport. Raises MalformedReport on missing
-    structure; never guesses."""
+    structure; never guesses.
+
+    `ontology` is the two-method port 6.2 uses, here so a skill name can be
+    resolved to an id that exists rather than only spelled one way. The facade
+    passes its own, so a substituted ontology governs both projection and ingest.
+    """
     r = rules or default_rules()
+    known = (default_ontology() if ontology is None else ontology).knows
+
+    # What M5 already resolved: each name -> the shared skill it means, and who
+    # decided. Read first, so the graph follows the report rather than this
+    # module's own guess; a name it does not cover — an old report, a model that
+    # was down — falls through to the spelling rules. An id that is not a skill
+    # here (another ontology version) is ignored rather than trusted.
+    resolved: dict[str, tuple[str, str]] = {}
+    for name, decision in (report.get("skill_resolution") or {}).items():
+        sid = (decision or {}).get("id")
+        if isinstance(sid, str) and known(sid):
+            resolved[str(name).strip().lower()] = (sid, str(decision.get("by", "")))
+    # Skills this report reaches ONLY through a model's mapping. A skill a rule also
+    # reaches ("React" beside "React.js") is not labelled: a rule established it.
+    by_model: dict[str, list[str]] = {}
+    by_rule: set[str] = set()
+
+    def norm(name: str) -> str:
+        hit = resolved.get(name.strip().lower())
+        if hit is None:
+            sid = normalise_skill(name, r, known)
+            by_rule.add(sid)
+            return sid
+        sid, who = hit
+        if who == "model":
+            by_model.setdefault(sid, [])
+            if name not in by_model[sid]:
+                by_model[sid].append(name)
+        else:
+            by_rule.add(sid)
+        return sid
     try:
         vid = report["verification_id"]
         subject = report["subject"]
@@ -165,6 +205,16 @@ def project(
             reliability_factors=tuple(ReliabilityFactor(n, v, why) for n, v, why in applied),
             source=source(origin, claim_refs, disc), payload=payload or {}))
 
+    def label_model_mappings() -> None:
+        """Name, on each event, the skills it carries only because a model said what
+        a name means. Payload, so the schema is untouched and the number is not."""
+        only_model = {sid: names for sid, names in by_model.items() if sid not in by_rule}
+        for i, e in enumerate(events):
+            mine = {ref.skill_id: only_model[ref.skill_id] for ref in e.skill_refs
+                    if ref.skill_id in only_model}
+            if mine:
+                events[i] = replace(e, payload={**e.payload, "mapped_by_model": mine})
+
     # ── platform ratings — authoritative, never capped ──────────────────────
     corroborated_platforms: set[str] = set()
     # metric -> the platforms that independently reported it, and what they said.
@@ -183,7 +233,7 @@ def project(
         skills = dict(PLATFORM_BASE_RELEVANCE)
         for c in linked:
             for s in c.get("skill_refs") or []:
-                skills.setdefault(normalise_skill(s, r), PLATFORM_EXTRA_RELEVANCE)
+                skills.setdefault(norm(s), PLATFORM_EXTRA_RELEVANCE)
         when = next((_as_date(c["date"]) for c in plat.get("contests") or []
                      if c.get("rating_after") == plat["max_rating"]),
                     _as_date(bundle["gathered_at"]))
@@ -233,10 +283,24 @@ def project(
                 f"{repo.get('name')} — fork, shell or not owned", "not_a_capability_signal"))
             continue
         band, index = substance_band(repo, r)
-        skills = language_relevances(repo.get("languages") or {}, r)
+        skills = language_relevances(repo.get("languages") or {}, r, known)
+        unlisted = []
         for fw in repo.get("frameworks") or []:
-            s = normalise_skill(fw, r)
+            s = norm(fw)
+            # A manifest lists everything installed — seventy packages on one real
+            # repository. Only a dependency that IS a skill on the list is evidence
+            # of one; the rest are not skills nobody has added yet, they are
+            # libraries, and carrying them would make `eslint` a skill the moment
+            # someone added it to the ontology. Named, not silently dropped.
+            if r.manifest_known_only and not known(s):
+                unlisted.append(fw)
+                continue
             skills[s] = max(skills.get(s, 0.0), framework_relevance(s, r))
+        if unlisted:
+            suppressed.append(Suppressed(
+                f"{repo['name']} — {len(unlisted)} manifest "
+                f"dependenc{'y' if len(unlisted) == 1 else 'ies'} naming no skill on the list",
+                "no_skill_mapping"))
         for s in skills:
             repo_languages.setdefault(s, []).append(repo)
         linked = [c for c in projects if _links_repo(c, repo["name"])]
@@ -250,8 +314,11 @@ def project(
     # ── skill claims: corroborated, or merely claimed ───────────────────────
     disclaimed = {s for c in _claims(report, "declaration_marker") for s in c.get("scope") or []}
     for claim in _claims(report, "skill"):
-        for raw in claim.get("skill_refs") or []:
-            skill = normalise_skill(raw, r)
+        # One claim can name one skill twice — "Next.js | next" — and both resolve to
+        # nextjs. The event id is claim:skill, so the second would collide with the
+        # first and _check_invariants would refuse the WHOLE report. Resolve, then
+        # dedupe, order kept.
+        for skill in dict.fromkeys(norm(raw) for raw in claim.get("skill_refs") or []):
             backing = repo_languages.get(skill)
             if backing:
                 when = max(_as_date(x["last_commit"]) for x in backing)
@@ -273,7 +340,7 @@ def project(
             continue  # already carried by the platform_rating event
         if claim["claim_id"] in confirmed_claims:
             continue  # already carried by its claim_corroborated event
-        skills = {normalise_skill(s, r): 1.0
+        skills = {norm(s): 1.0
                   for s in (claim.get("skill_refs") or ach_map.get(claim.get("metric"), []))}
         if not skills:
             suppressed.append(Suppressed(
@@ -309,7 +376,7 @@ def project(
             continue
         linked = [c for c in projects
                   if any(url == a.get("url") for a in c.get("artefacts") or [])]
-        declared = {normalise_skill(fw, r)
+        declared = {norm(fw)
                     for c in linked
                     for repo in (github or {}).get("repos") or []
                     if _links_repo(c, repo["name"])
@@ -339,7 +406,7 @@ def project(
                   if (cred_id and c.get("credential_id") == cred_id)
                   or (c.get("issuer") and c.get("issuer") == cred.get("issuer"))]
         verified_certs.update(c["claim_id"] for c in linked)
-        skills = {normalise_skill(s, r): 1.0
+        skills = {norm(s): 1.0
                   for s in (cred.get("skill_refs")
                             or [s for c in linked for s in c.get("skill_refs") or []])}
         build("credential_verified", cred_id or cred.get("issuer", "?"),
@@ -352,7 +419,7 @@ def project(
     for claim in certifications:
         if claim["claim_id"] in verified_certs:
             continue
-        skills = {normalise_skill(s, r): 1.0 for s in claim.get("skill_refs") or []}
+        skills = {norm(s): 1.0 for s in claim.get("skill_refs") or []}
         if not skills:
             suppressed.append(Suppressed(
                 f"{claim['claim_id']} — certification from "
@@ -374,7 +441,7 @@ def project(
     for claim in projects:
         if claim["claim_id"] in carried:
             continue
-        skills = {normalise_skill(s, r): 1.0 for s in claim.get("skill_refs") or []}
+        skills = {norm(s): 1.0 for s in claim.get("skill_refs") or []}
         if not skills:
             suppressed.append(Suppressed(
                 f"{claim['claim_id']} — project claim with no verifiable artefact "
@@ -402,6 +469,7 @@ def project(
             "G3 — GitHub ownership unproven; expressed as a reliability factor, not an event",
             "non_scoring_rule"))
 
+    label_model_mappings()
     events.sort(key=lambda e: (_as_date(e.occurred_at), e.event_id))
     batch = EvidenceEventBatch(**base, events=tuple(events),
                                not_emitted=tuple(suppressed), quarantined=tuple(quarantined))

@@ -129,3 +129,61 @@ def test_alias_normalisation():
     assert normalise_skill("C++", R) == "cpp"
     assert normalise_skill("TypeScript", R) == "typescript"
     assert normalise_skill("some new thing", R) == "some_new_thing"
+
+
+# ── spelling variants, against the skills that exist ──────────────────────────
+from m6_ontology import default_ontology  # noqa: E402
+
+KNOWN = default_ontology().knows
+
+
+def test_spelling_variants_resolve_to_skills_that_exist():
+    """Each of these was quarantined under the literal normaliser."""
+    cases = {
+        "Next JS": "nextjs", "Next.JS 14": "nextjs", "NextJS": "nextjs",
+        "React.js": "react", "ReactJS": "react",
+        "node": "nodejs", "Node.js 20": "nodejs",
+        "ExpressJS": "express", "Mongo DB": "mongodb", "Data-Structures": "data_structures",
+        "HTML5": "html", "CSS3": "css", "Python3": "python", "C++ 17": "cpp",
+    }
+    for raw, want in cases.items():
+        assert normalise_skill(raw, R, KNOWN) == want, raw
+
+
+def test_names_that_differ_come_from_the_shared_alias_table():
+    for raw, want in {"Postgres": "postgresql", "pg": "postgresql", "Tailwind": "tailwindcss",
+                      "ioredis": "redis", "TS": "typescript", "Shell": "bash",
+                      "Dockerfile": "docker", "k8s": "kubernetes"}.items():
+        assert normalise_skill(raw, R, KNOWN) == want, raw
+
+
+def test_c_cpp_and_csharp_are_never_folded_together():
+    assert normalise_skill("C", R, KNOWN) == "c"
+    assert normalise_skill("C++", R, KNOWN) == "cpp"
+    assert normalise_skill("C#", R, KNOWN) == "c#", "C# is not C"
+
+
+def test_digits_are_dropped_only_when_a_skill_remains():
+    """"web3" and "es6" are names. Stripping them to "web" and "es" would be a
+    guess, and a guess is returned only if it names a skill that exists."""
+    assert normalise_skill("web3", R, KNOWN) == "web3"
+    assert normalise_skill("ES6", R, KNOWN) == "es6"
+
+
+def test_npm_package_names_do_not_resolve_to_the_framework_they_extend():
+    for raw in ("react-dom", "next-auth", "eslint-config-next", "@types/node", "nodemon"):
+        assert not KNOWN(normalise_skill(raw, R, KNOWN)), raw
+
+
+def test_without_an_ontology_the_old_behaviour_is_unchanged():
+    assert normalise_skill("Next JS", R) == "next_js"
+    assert normalise_skill("Next.js", R) == "nextjs"
+    assert normalise_skill("Data Structures", R) == "data_structures"
+
+
+def test_no_skill_s_own_spellings_resolve_to_a_different_skill():
+    """If two ids ever shared a variant — `react` and `reactjs` both on the list —
+    one would silently absorb the other's evidence."""
+    for skill in default_ontology().skill_ids():
+        for form in {skill, skill.replace("_", " "), skill.replace("_", "-"), skill.upper()}:
+            assert normalise_skill(form, R, KNOWN) == skill, (form, skill)

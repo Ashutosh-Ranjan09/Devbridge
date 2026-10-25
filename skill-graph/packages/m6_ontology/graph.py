@@ -12,7 +12,7 @@ Three things live here and nowhere else:
                genuine evidence for another — a strong thing to say, which is why
                the seed is sparse and 6.3 damps every hop.
 
-Everything is read from contracts/ontology-seed.yaml. No skill, tier or edge is
+Everything is read from ../schemas/skills/ontology.yaml. No skill, tier or edge is
 defined in code, so the graph can be reviewed by someone who does not read Python.
 """
 from __future__ import annotations
@@ -27,7 +27,8 @@ import yaml
 
 from .errors import InvalidOntology, UnknownSkill
 
-SEED = pathlib.Path(__file__).resolve().parents[2] / "contracts" / "ontology-seed.yaml"
+# Shared with M5 at the repository root, so both modules agree on which skills exist.
+SEED = pathlib.Path(__file__).resolve().parents[3] / "schemas" / "skills" / "ontology.yaml"
 
 # skill_ids cross a service boundary and are matched exactly — quarantine, the
 # fold, and propagation all key off the literal string. Allowing `React` and
@@ -65,7 +66,7 @@ class Edge:
 
 
 class SeedOntology:
-    """The graph in contracts/ontology-seed.yaml, loaded and checked.
+    """The graph in ../schemas/skills/ontology.yaml, loaded and checked.
 
     Constructed from raw contract shapes rather than from Skill/Edge objects so
     that the file stays the source of truth and this class stays a reader of it.

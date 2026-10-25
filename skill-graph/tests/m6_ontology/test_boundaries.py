@@ -56,7 +56,7 @@ def test_the_ontology_depends_on_no_other_m6_package():
 def test_the_graph_is_defined_in_the_contract_not_in_code():
     """No skill, tier or edge is hard-coded. Someone who does not read Python
     has to be able to review which skills exist and how fast each decays."""
-    onto = SeedOntology.load(ROOT / "contracts" / "ontology-seed.yaml")
+    onto = SeedOntology.load(ROOT.parent / "schemas" / "skills" / "ontology.yaml")
     assert len(onto) > 0
     assert SeedOntology({}, "empty").skill_ids() == []
 

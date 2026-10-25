@@ -1,4 +1,4 @@
-"""The shipped contract, contracts/ontology-seed.yaml.
+"""The shipped contract, ../schemas/skills/ontology.yaml.
 
 Everything above tests the loader against fixtures. This tests the actual file
 the system runs on — and where it has to agree with m6-parameters.yaml.

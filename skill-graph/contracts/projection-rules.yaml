@@ -3,7 +3,9 @@
 # This is the module that was unowned in m5-work-split.html. It belongs to M6,
 # because every choice in it is a skill-graph judgement, not a verification one.
 # Output must validate against ../schemas/evidence-event.schema.json
-contract_version: "1.0.0"
+# 1.1.0 — skill names resolve through the report's skill_resolution, then spelling
+# variants against the ontology. Event ids for skill claims change with it.
+contract_version: "1.1.0"
 
 emit:
   - id: platform_rating
@@ -198,6 +200,12 @@ thresholds:
     primary: 0.80
     secondary: 0.60
     secondary_skills: [mongodb, jwt, redis, postgresql]
+  manifest_dependencies:
+    # A repository's manifest (package.json, requirements.txt, ...) lists every
+    # installed package. Only one that resolves to a skill on the list is evidence
+    # of that skill; the rest are recorded in not_emitted as no_skill_mapping, one
+    # entry per repository. Set false to carry them all, to be quarantined.
+    known_only: true
   deployment_framework:
     # Which of a repository's frameworks a LIVE deployment is evidence for. The
     # first one the repository declared was the rule, and a manifest lists every
@@ -207,23 +215,7 @@ thresholds:
     # before the library it renders with. None declared: the deployment credits
     # `deployment` alone, rather than a guess.
     prefer: [nextjs, react, nodejs]
-  aliases:
-    mongoose: mongodb
-    next: nextjs
-    "c++": cpp
-    golang: go
-    # How the first real M5 report spelled skills the ontology already holds.
-    # Not "competitive programming" or "data structures and algorithms": a skill
-    # claim is corroborated here only by repository languages, never by a platform
-    # rating, so either would enter as a cv_claim at 0.45 and pull down an
-    # algorithms estimate a Codeforces rating had already established.
-    "next.js": nextjs
-    "node.js": nodejs
-    "express.js": express
-    "c++ stl": cpp
-    "object-oriented programming": oop
-    "git/github": git
-    "tailwind css": tailwindcss
+  # aliases moved to ../schemas/skills/aliases.yaml, shared with M5 (cvv's skill resolver).
   achievement_skill_map:
     # An achievement claim with no platform evidence still bears on a competency.
     # Without an entry here it is suppressed as no_skill_mapping rather than guessed.
