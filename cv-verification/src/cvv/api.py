@@ -69,6 +69,7 @@ from cvv.pipeline import CONTRACT_VERSION, verification_report
 from cvv.providers import default_provider
 from cvv.report import assemble, coverage
 from cvv.rules import REGISTRY
+from cvv.skills import resolve_skills
 from cvv.store import STORE, Duplicate
 
 SNIPPET_MARGIN = 120
@@ -182,6 +183,7 @@ def run_verification(
             findings=findings,
             subject=subject,
             narrative=_narrative(findings) if want_narrative else None,
+            skill_resolution=resolve_skills(graph, bundle, default_provider()),
         )
         log.info(
             "verification.completed",

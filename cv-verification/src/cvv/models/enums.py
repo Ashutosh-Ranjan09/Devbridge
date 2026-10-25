@@ -91,6 +91,17 @@ class ResolutionStatus(StrEnum):
     UNRESOLVED = "unresolved"
 
 
+class SkillSource(StrEnum):
+    """Who decided which shared skill a name means. `model` covers a cached answer
+    too: a decision the model made once is still the model's, until a person
+    promotes it into aliases.yaml and it becomes an `alias`."""
+
+    RULE = "rule"            # the name is an id on the list
+    ALIAS = "alias"          # aliases.yaml says so
+    MODEL = "model"          # the model chose it from the list, or chose none
+    UNRESOLVED = "unresolved"  # no rule placed it and no model was available
+
+
 class ResolutionMethod(StrEnum):
     THRESHOLD = "threshold"
     LLM_TIEBREAK = "llm_tiebreak"

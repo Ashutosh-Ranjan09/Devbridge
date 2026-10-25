@@ -1563,8 +1563,8 @@ class G6StackVsRepository:
                 if repo is None or not repo.languages:
                     continue
 
-                observed = [_norm(x) for x in (*repo.languages, *repo.frameworks)]
-                if any(_matches(_norm(tech), observed) for tech in claim.skill_refs):
+                observed = [*repo.languages, *repo.frameworks]
+                if any(_matches(tech, observed) for tech in claim.skill_refs):
                     checked = True
                     continue
                 # No dependency manifest was read, so the only observation is the
@@ -1669,7 +1669,7 @@ class G9LanguageTenure:
                     (
                         date
                         for language, date in gh.first_commit_by_language.items()
-                        if _matches(_norm(tech), [_norm(language)])
+                        if _matches(tech, [language])
                     ),
                     None,
                 )
@@ -2823,15 +2823,28 @@ class D12TitleProgression:
 
 
 def _matches(tech: str, observed: list[str]) -> bool:
-    """Containment either way, so "next.js" meets the npm package `next`.
+    """Does a claimed technology name something the repository actually has?
 
-    Two characters minimum, or "go" matches "django" and "c" matches everything.
-    Substrings are checked at a word boundary of the normalised form instead: the
-    shorter string must be a prefix or the whole of the longer one.
+    Equal once normalised; or equal but for a `js` suffix, so "next.js" meets the
+    npm package `next`; or equal to the FIRST WORD of a package name, so "react"
+    meets `react-dom` and "next.js" meets `next-auth`. Version 1 accepted any
+    prefix either way, so "java" matched JavaScript, "go" matched
+    `google-auth-library` and "node" matched `nodemon` — a project claiming the
+    wrong language passed the check that exists to question it.
+
+    `observed` is the repository's names AS GIVEN: the first word of a package
+    only exists before its punctuation is normalised away.
     """
-    if len(tech) < 2:
-        return tech in observed
-    return any(o == tech or o.startswith(tech) or tech.startswith(o) for o in observed if o)
+    want = _norm(tech)
+    if not want:
+        return False
+    for raw in observed:
+        name = _norm(raw)
+        first = _norm(re.split(r"[-/._]", raw.strip().lstrip("@"))[0])
+        for have in (name, first):
+            if have and (want == have or want == have + "js" or want + "js" == have):
+                return True
+    return False
 
 
 def _same_org(claimed: str, org_login: str) -> bool:

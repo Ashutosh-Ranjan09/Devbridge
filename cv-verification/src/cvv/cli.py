@@ -26,6 +26,7 @@ from cvv.pipeline import verification_report
 from cvv.providers import OllamaProvider, default_provider
 from cvv.report import assemble, coverage, render
 from cvv.rules import REGISTRY
+from cvv.skills import resolve_skills
 from cvv.worksheet import render_worksheet
 
 app = typer.Typer(
@@ -114,6 +115,8 @@ def verify(
             bundle=bundle,
             findings=report,
             subject=Subject(subject_ref=subject) if subject else None,
+            # Which shared skill each name means, so M6 does not have to guess.
+            skill_resolution=resolve_skills(graph, bundle, default_provider(model)),
         )
         for name, artefact in (
             ("claim-graph", graph),
@@ -196,6 +199,46 @@ def evaluate(
         typer.secho(f"baseline written to {save_baseline}/", fg="green", err=True)
 
     typer.echo(render_evaluation(*run(graph, bundle)))
+
+
+@app.command()
+def aliases(
+    promote: Annotated[
+        list[str] | None,
+        typer.Option(help="Make the model's decision for this name a rule in aliases.yaml."),
+    ] = None,
+) -> None:
+    """What the model decided a skill name means, for review.
+
+    Every name the shared list could not place was asked once and remembered. A
+    decision you agree with can be promoted into schemas/skills/aliases.yaml: it is
+    a rule from then on, and no model is asked about that name again.
+    """
+    from cvv.skills import cached_decisions
+    from cvv.skills import promote as promote_alias
+
+    for name in promote or []:
+        try:
+            sid = promote_alias(name)
+        except (KeyError, ValueError) as exc:
+            typer.secho(f"not promoted: {exc}", fg="red", err=True)
+            raise typer.Exit(1) from exc
+        typer.secho(f"promoted  {name!r} -> {sid}  (schemas/skills/aliases.yaml)", fg="green")
+    if promote:
+        return
+
+    rows = cached_decisions()
+    if not rows:
+        typer.echo("The model has decided nothing yet. Run `cvv verify cv.pdf --save DIR`.")
+        return
+    typer.echo(f"{len(rows)} name(s) decided by the model\n")
+    typer.echo(f"  {'NAME':34} {'SKILL':16} {'STATE':10} MODEL")
+    for r in rows:
+        state = "promoted" if r["promoted"] else ("-" if r.get("id") is None else "review")
+        typer.echo(
+            f"  {str(r['name'])[:34]:34} {r.get('id') or 'none':16} {state:10} {r.get('model', '')}"
+        )
+    typer.echo("\nPromote the ones you agree with:  cvv aliases --promote NAME")
 
 
 @app.command()

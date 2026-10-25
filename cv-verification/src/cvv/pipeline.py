@@ -17,6 +17,7 @@ from cvv.models import (
     Narrative,
     ReportProvenance,
     ReportStatus,
+    SkillDecision,
     Subject,
     VerificationReport,
 )
@@ -78,6 +79,7 @@ def verification_report(
     findings: FindingsReport,
     subject: Subject | None = None,
     narrative: Narrative | None = None,
+    skill_resolution: dict[str, SkillDecision] | None = None,
 ) -> VerificationReport:
     """The contract's VerificationReport, from the stages that produced it.
 
@@ -106,4 +108,5 @@ def verification_report(
             rule_versions={rule.rule_id: rule.rule_version for rule in REGISTRY},
         ),
         valid_as_of=findings.evaluated_at,
+        skill_resolution=skill_resolution or {},
     )

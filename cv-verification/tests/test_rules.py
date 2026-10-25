@@ -36,7 +36,7 @@ from cvv.models import (
     Tier,
 )
 from cvv.report import assemble
-from cvv.rules import REGISTRY, _same_org, same_contest
+from cvv.rules import REGISTRY, _matches, _same_org, same_contest
 from tests.cvdata import (
     AGGREGATE,
     CC_RATING,
@@ -1570,6 +1570,29 @@ class TestG11OrgMembership:
         assert not _same_org("IT", "kgp-it-society")
         assert _same_org("Vercel", "vercel")
         assert _same_org("Acme Corporation", "acme-corporation")
+
+
+class TestTechnologyMatching:
+    """G6 and G9 ask whether a repository has what a claim names. A loose match
+    hides a mismatch; it never invents one — but hiding is how a project claiming
+    the wrong language passed the check meant to question it."""
+
+    @pytest.mark.parametrize(
+        ("claimed", "observed"),
+        [("Next.js", "next"), ("next_js", "next"), ("Next JS", "next"), ("React", "react-dom"),
+         ("Next.js", "next-auth"), ("TypeScript", "TypeScript"), ("C++", "C++"),
+         ("Node.js", "node")],
+    )
+    def test_the_same_technology_matches(self, claimed: str, observed: str) -> None:
+        assert _matches(claimed, [observed])
+
+    @pytest.mark.parametrize(
+        ("claimed", "observed"),
+        [("Java", "JavaScript"), ("Go", "google-auth-library"), ("Node", "nodemon"),
+         ("C", "C++"), ("C", "C#"), ("C++", "C#"), ("Node", "@types/node")],
+    )
+    def test_a_different_technology_does_not(self, claimed: str, observed: str) -> None:
+        assert not _matches(claimed, [observed])
 
 
 URL = "https://github.com/Ashutosh-Ranjan09/{}"

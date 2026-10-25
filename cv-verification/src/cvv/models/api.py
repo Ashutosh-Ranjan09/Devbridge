@@ -12,7 +12,7 @@ import datetime
 from pydantic import Field, model_validator
 
 from cvv.models.claims import ClaimGraph, DocumentInfo, Id, Model, Url
-from cvv.models.enums import ReportStatus
+from cvv.models.enums import ReportStatus, SkillSource
 from cvv.models.evidence import EvidenceBundle
 from cvv.models.findings import FindingsReport, VerificationCoverage
 
@@ -97,6 +97,14 @@ class ReportProvenance(Model):
     sources_queried: list[dict[str, object]] = Field(default_factory=list)
 
 
+class SkillDecision(Model):
+    """Which shared skill one name means, and who said so. `id` None is "none of
+    them" — a tool, a library, or something not on the list."""
+
+    id: str | None
+    by: SkillSource
+
+
 class VerificationReport(Model):
     """The contract's VerificationReport — the one artefact M6 reads.
 
@@ -126,6 +134,10 @@ class VerificationReport(Model):
     valid_as_of: datetime.datetime
     signature: dict[str, str] | None = None
     failure: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    # Name -> the shared skill it means. Not in the contract: M6 reads it first, so
+    # what a name refers to travels with the report and a re-projection months later
+    # gives the same graph whatever the cache or the alias file say by then.
+    skill_resolution: dict[str, SkillDecision] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _failure_is_explained(self) -> VerificationReport:

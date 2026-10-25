@@ -50,6 +50,7 @@ KNOWN_EXTENSIONS = {
     "RuleOutcome.note",                 # what a Corroborated rule CONFIRMED
     "Narrative.rejected_because",       # why the model's prose was not used
     "VerificationReport.failure",       # why a verification failed; no contract field
+    "VerificationReport.skill_resolution",  # which shared skill each name means, for M6
 }
 
 
