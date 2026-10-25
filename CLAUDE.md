@@ -48,7 +48,7 @@ POST /v1/verifications              202 · Idempotency-Key honoured
 GET  /v1/verifications/{id}         200 report · 202 while running · 404 unknown
 GET  /v1/verifications/{id}/claims/{claim_id}/provenance
 POST /v1/webhooks · GET /v1/usage · GET /healthz /readyz
-POST /v1/extract /narrate /evaluate · GET /v1/rules
+POST /v1/narrate /evaluate · GET /v1/rules
 POST /v1/resolve /attest            501, with the reason
 ```
 
@@ -293,8 +293,9 @@ someone and one you would not.
    exists to prevent, and it does so silently, because the claim looks properly grounded.
 
    ```python
-   if not all(n in document for n in re.findall(r"\d+", verbatim)):
-       reject()   # regardless of fuzzy score
+   present = set(re.findall(r"\d+", document))
+   if not all(n in present for n in re.findall(r"\d+", verbatim)):
+       reject()   # regardless of fuzzy score — and as whole runs: 149 is not in 1495
    ```
 
    **Token-shaped fields are recovered, not trusted.** `handle`, repo owner,
@@ -364,7 +365,7 @@ someone and one you would not.
    because a heading has no plausible category. Junk output is often a task-framing
    problem before it is a capability one.
 
-9. **A check that is technically correct can still be unfair.** Fifteen rule
+9. **A check that is technically correct can still be unfair.** Sixteen rule
    versions would have put a false or misleading finding in front of a reviewer
    looking at an honest CV. None was a bug in the usual sense; each was a defensible
    reading of available data.
@@ -492,23 +493,22 @@ ingest  →  extract  →  gather  →  rules  →  views
 ```
 
 Each arrow is a typed contract in `models/`. That is what makes every stage testable
-alone: `rules/` never sees a PDF, `views/` never sees a URL.
+alone: `rules.py` never sees a PDF, `narrative.py` never sees a URL.
 
-Layout is MVC plus a service layer — `models/` `controllers/` `views/` for the first
-three, and the four pipeline directories for the rest. Full annotated tree in
-[`docs/plan.md`](docs/plan.md).
+The package is flat — one module per stage, plus `models/` for the contract. The
+annotated tree is in [`docs/design.md`](docs/design.md) §2.
 
 **Two structural rules:**
 
-- **`rules/` imports only PURE modules** — `models`, `intervals`, `ids`, `filters`,
+- **`rules.py` imports only PURE modules** — `models`, `intervals`, `ids`, `filters`,
   `reference`, `logs` and stdlib. No `httpx`, no `gather`. If a rule needs data it
   arrives in the `EvidenceBundle` or the rule abstains. `tests/test_structure.py`
   walks the imports and holds the pure list, with a reason beside each entry; before
   that test existed this paragraph claimed an enforcement that was not there, and the
   rule it described had already drifted.
-- **`views/` takes only a `VerificationReport`.** `narrative.py` in particular: the
-  faithfulness guarantee is that the function signature makes it impossible to introduce
-  a fact nobody computed.
+- **`narrative.py` takes only a `FindingsReport`.** The faithfulness guarantee is that
+  the function signature makes it impossible to introduce a fact nobody computed, and
+  `tests/test_structure.py` asserts it imports nothing that reaches the document.
 
 ## Stack
 

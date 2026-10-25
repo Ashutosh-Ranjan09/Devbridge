@@ -196,17 +196,18 @@ H1 does the work match the claimed seniority · H2 is the portfolio substantial 
 level · H3 code quality in context · H4 is the explanation satisfactory · H5 any contested
 finding · H6 the hiring decision.
 
-### The five LLM call sites
+### The LLM call sites
 
-Everything else is deterministic. The model translates; it never judges.
+Everything else is deterministic. The model translates; it never judges. The catalogue
+planned five sites; two exist, because three of the five turned out to be one.
 
 | ID | Site | Guardrail |
 |---|---|---|
-| D1 | CV text → typed claims | strict schema + span grounding |
-| D3 | Self-declaration footnotes → markers | schema-constrained |
-| G1 | Handle and URL extraction | deterministic regex pre-pass first |
-| C4 | Entity resolution tie-break | closed candidate set, or abstain |
-| C5 | Findings → prose | input is findings JSON only; numeral and citation containment checked |
+| D1 | CV text → typed claims: section routing, then 8 narrow passes — achievements · projects · employment · education · skills · summary · declarations (D3's markers) · handles (G1) | `required` JSON schema per pass, span grounding, the deterministic gate |
+| C5 | Findings → prose, one sentence per finding | input is a `FindingsReport` only; omission and per-finding numeral checks |
+
+G1 keeps one regex ahead of the model — `GITHUB_REPO`, for repository URLs. C4, the
+entity-resolution tie-break, is out of scope with C1–C4.
 
 ## The report — five buckets
 
@@ -232,42 +233,34 @@ is exactly what the platform APIs buy.
 
 ## Reference data — `data/`
 
-Four checks need curated tables, not libraries. **Start `tech-releases.json` immediately**:
-it blocks a decisive check, it is pure hand-curation, and it depends on no code at all.
+Curated tables, not libraries, loaded by `reference.py`. Each is biased so the rule it
+feeds under-fires: a missed finding and a false accusation are not equally bad.
 
-| File | Used by | Contents | Source |
-|---|---|---|---|
-| `tech-releases.json` | D7 | technology → first release date, ~200 entries | hand-curated; no clean public dataset |
-| `programme-lengths.json` | D8 | B.Tech 4y · M.Tech 2y · integrated 5y · MBBS 5.5y | small, India-specific |
-| `institutions.csv` | C2 | approved institutions | AICTE and UGC publish lists |
-| `registrars.json` | worksheet | registrar contact per institution | manual, scoped to the corpus |
-| `esco/` | skill mapping | skill ontology | ESCO publishes CSV |
+| File | Used by | Contents |
+|---|---|---|
+| `tech-releases.json` | D7 | technology → first release date, 125 entries, each deliberately early |
+| `roll-schemes.json` | D8 · D9 · worksheet | what a roll number encodes per institution (IIT Kharagpur, VIT), and each programme's standard length |
+| `excluded-exams.json` | the deterministic gate | 17 entrance exams whose ranks are never claims (JEE and similar) |
+| `institutions.json` | worksheet | a verification contact per institution — **ships empty**; only the operator fills it |
 
 ## Repository layout
 
+One package, flat — one module per stage, plus `models/` for the contract:
+
 ```
 src/cvv/
-   config.py                 pydantic-settings — tokens, hosts, DB url
-   models/                   ══ M ══  enums · claims · evidence · findings · report
-   controllers/              ══ C ══  api.py (FastAPI) · cli.py (typer)
-   views/                    ══ V ══  buckets · narrative · worksheet · terminal
-   ingest/                   pdf · docx · ocr · reading_order · normalise · spans
-   extract/                  llm · urls · dates · grounding · prompts/
-   gather/                   codeforces · github · leetcode · codechef · liveness
-                             issuers · cache · gaps
-   resolve/                  registries · vectors (qdrant) · tiebreak
-   rules/                    base · registry · runner
-                             document · github · platforms · deployments · credentials
-                             aggregate
-   store/                    schema.sql · db.py
-   intervals.py  ids.py  pipeline.py
+   models/        the contract — claims · evidence · findings · events · api
+   ingest  spans  extract  filters  dates  intervals  reference
+   gather  github  leetcode  codechef  cache
+   rules  report  narrative  worksheet  evaluate  events
+   api  cli  store  pipeline  providers  config  logs  ids
 ```
 
-MVC plus a service layer. `models/` `controllers/` `views/` are the first three; the
-pipeline directories are the service layer, named after the stages so the tree reads in
-execution order. Classic MVC has nowhere to put a four-stage pipeline where one stage
-calls a model and another runs 41 checks — forcing it into `models/` produces a directory
-with 45 files and no structure.
+The original plan drew MVC directories (`controllers/`, `views/`) and a directory per
+stage. They were never needed: at this size a module per stage reads in execution order
+on its own, and `tests/test_structure.py` enforces the two boundaries that matter —
+`rules.py` imports only pure modules, and `narrative.py` cannot reach the document.
+`docs/design.md` §2 has the annotated version.
 
 ## Failure semantics — decided once, here
 
@@ -281,7 +274,7 @@ with 45 files and no structure.
 | Rule lacks required input | abstain — never silently pass | `status="abstained"` + a `not_evaluated` entry |
 | Rule does not apply to this CV | distinguish from abstention | `status="not_applicable"` |
 | A connector fails | record a typed `Gap`, keep gathering | `gaps[]` → dependent rules abstain with that reason |
-| Narrative fails validation twice | deterministic template | `fallback_used=true` |
+| Narrative fails validation, or the model is down | deterministic summary, by counting | `fallback_used=true`, and the CLI says why |
 
 **Rule isolation is not optional.** One rule raising on an unusual claim must never take
 down a report — without the wrapper, one malformed date produces a 500 and no output, and
@@ -301,9 +294,10 @@ Wire the counter when the component lands, not in phase 5.
 
 ## Phase 5 — evaluation
 
-Two instruments. A **gold set** of ~100 hand-labelled CVs measures extraction precision,
-recall and F1 per claim kind. A **mutation engine** injects known falsifications into
-clean CVs and measures per-check detection rate.
+Two instruments. A **gold set** of hand-labelled CVs measures extraction precision,
+recall and F1 per claim kind — ~100 in the original plan, 10–20 as the realistic
+target for this project, and not yet built. A **mutation engine** (`cvv evaluate`,
+built) injects known falsifications into clean CVs and measures per-check detection.
 
 Headline metrics: extraction recall per kind · handle-extraction recall · span-grounding
 failure rate · per-check detection at a fixed false-positive rate · **false-positive rate

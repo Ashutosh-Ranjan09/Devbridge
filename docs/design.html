@@ -371,9 +371,11 @@ pre.data .ok{color:var(--verified);font-weight:500}
 
 <h3>Two tiers, and the second needs a guard</h3>
 <pre><code><span class="kw">def</span> numerals_present(verbatim: str, text: str) -> bool:
-    <span class="cmt">"""Every digit sequence in the verbatim must occur in the document."""</span>
-    <span class="kw">return</span> all(n <span class="kw">in</span> text <span class="kw">for</span> n <span class="kw">in</span> _NUMERALS.findall(verbatim))</code></pre>
+    <span class="cmt">"""Every digit sequence in the verbatim must occur in the document, as a whole run."""</span>
+    present = set(_NUMERALS.findall(text))
+    <span class="kw">return</span> all(n <span class="kw">in</span> present <span class="kw">for</span> n <span class="kw">in</span> _NUMERALS.findall(verbatim))</code></pre>
 <div class="note warn"><p><strong>Measured:</strong> a hallucinated <code>rating of 1800</code> where the document says <code>1495</code> scores <strong>0.944</strong> on partial-ratio and sails through a bare 0.92 threshold — three characters out of fifty-three. Similarity is blind to precisely the character that matters, and numbers are where the decisive checks live.</p></div>
+<p><strong>Whole runs, not substrings.</strong> A substring test lets "rating of 149" through against a document saying 1495 — dropping a digit is a one-character edit, exactly what the fuzzy tier forgives and exactly what this guard exists to refuse.</p>
 
 <h3>The window is a boundary, not a hint</h3>
 <pre><code><span class="kw">if</span> window <span class="kw">is</span> <span class="kw">None</span>:
@@ -452,7 +454,8 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <pre><code><span class="kw">def</span> value_is_in_its_own_span(claim: Claim) -> bool:
     <span class="kw">if</span> claim.value <span class="kw">is</span> <span class="kw">None</span>:
         <span class="kw">return</span> <span class="kw">True</span>
-    <span class="kw">return</span> str(claim.value) <span class="kw">in</span> claim.provenance.verbatim</code></pre>
+    <span class="kw">return</span> numbers_in(str(claim.value)) <= numbers_in(claim.provenance.verbatim)</code></pre>
+<p>As whole numbers, with grouping commas removed. Version 1 asked <code>str(value) in verbatim</code>, so a value of 10 "appeared" in "Ranked 1106" — a model truncating a number passed the very check that exists to catch it.</p>
 
 <div class="tw"><table>
 <thead><tr><th>Field</th><th>Rule</th></tr></thead>
@@ -545,19 +548,19 @@ neither                  → NONE</code></pre>
 <tr><td class="mono">D2</td><td class="num">2.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>claims dropped, split by cause</td></tr>
 <tr><td class="mono">D3</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>the document's own disclaimer</td></tr>
 <tr><td class="mono">D4</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>file provenance — edits after generation</td></tr>
-<tr><td class="mono">D5</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>two roles held at once</td></tr>
+<tr><td class="mono">D5</td><td class="num">2.1</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>two roles held at once</td></tr>
 <tr><td class="mono">D6</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>stated total vs. the dated roles</td></tr>
 <tr><td class="mono">D7</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>a project dated before its technology existed</td></tr>
 <tr><td class="mono">D8</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>degree span vs. standard length</td></tr>
-<tr><td class="mono">D9</td><td class="num">1.1</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>roll-number structure vs. programme and dates</td></tr>
-<tr><td class="mono">D10</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>the same role dated two incompatible ways</td></tr>
-<tr><td class="mono">D11</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>gap between roles</td></tr>
+<tr><td class="mono">D9</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>roll-number structure vs. programme and dates</td></tr>
+<tr><td class="mono">D10</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>one stint of a role dated two irreconcilable ways</td></tr>
+<tr><td class="mono">D11</td><td class="num">1.1</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>gap between roles</td></tr>
 <tr><td class="mono">D12</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>seniority against tenure</td></tr>
 <tr><td class="mono">G2</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>the account exists</td></tr>
 <tr><td class="mono">G3</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>whether control was proven</td></tr>
-<tr><td class="mono">G4</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>repos exist, are owned, are not forks</td></tr>
+<tr><td class="mono">G4</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>repos exist, are not forks, belong to or carry the account</td></tr>
 <tr><td class="mono">G5</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>activity during the claimed project window</td></tr>
-<tr><td class="mono">G6</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>claimed stack vs. the repository it links</td></tr>
+<tr><td class="mono">G6</td><td class="num">1.1</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>claimed stack vs. the repository it links</td></tr>
 <tr><td class="mono">G7</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>the repo contains a file a person wrote</td></tr>
 <tr><td class="mono">G8</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>fork ratio across the account</td></tr>
 <tr><td class="mono">G9</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>claimed tenure vs. earliest public evidence</td></tr>
@@ -567,8 +570,9 @@ neither                  → NONE</code></pre>
 <tr><td class="mono">P2</td><td class="num">4.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>contest rank, matched by contest <strong>name</strong></td></tr>
 <tr><td class="mono">P3</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>problems solved — Codeforces only</td></tr>
 <tr><td class="mono">P4</td><td class="num">1.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>LeetCode statistics</td></tr>
+<tr><td class="mono">P5</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="yes">✓</span></td><td>CodeChef statistics vs. the public profile page (scraped)</td></tr>
 <tr><td class="mono">P6</td><td class="num">1.0</td><td><span class="chip att">attention</span></td><td class="num"><span class="no">✗</span></td><td>one handle across platforms</td></tr>
-<tr><td class="mono">W1</td><td class="num">2.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>deployments respond, <strong>and whose they are</strong></td></tr>
+<tr><td class="mono">W1</td><td class="num">3.0</td><td><span class="chip dec">decisive</span></td><td class="num"><span class="yes">✓</span></td><td>deployments respond, <strong>and whose they are</strong></td></tr>
 </tbody></table></div>
 
 <h3>Tier decides the bucket, mechanically</h3>
@@ -578,7 +582,7 @@ neither                  → NONE</code></pre>
 <p>No per-rule branching in the aggregator, and there must never be — that is the only thing stopping a judgement being presented as a fact.</p>
 
 <h3>A check that is technically correct can still be unfair</h3>
-<p><strong>Ten rules</strong>, on their first version, would have put a false or misleading finding in front of a reviewer looking at an honest CV. None was a bug in the usual sense.</p>
+<p><strong>Sixteen rule versions</strong> would have put a false or misleading finding in front of a reviewer looking at an honest CV. None was a bug in the usual sense.</p>
 <div class="tw"><table>
 <thead><tr><th>Rule</th><th>The tempting version</th><th>Why it is wrong</th></tr></thead>
 <tbody>
@@ -592,6 +596,12 @@ neither                  → NONE</code></pre>
 <tr><td class="mono">G11</td><td>employer absent from public orgs</td><td>org membership is private by default</td></tr>
 <tr><td class="mono">D6</td><td>stated total exceeds the dated roles</td><td>a CV need not list every role; one page forces the choice</td></tr>
 <tr><td class="mono">D5</td><td>any DEFINITE overlap between full-time roles</td><td>a <strong>13-day</strong> overlap is a notice period</td></tr>
+<tr><td class="mono">G4</td><td>investigate the first owner the repo URLs name</td><td>a CV linking its own repos and <code>apache/kafka</code> had Apache checked as the candidate. The account is the stated handle, else the owner of most linked repos</td></tr>
+<tr><td class="mono">D9</td><td>decode any token shaped like a roll number</td><td>every institution got IIT Kharagpur's department table. A scheme applies only where the CV names its institution as a whole word — "vit" is in "activities"</td></tr>
+<tr><td class="mono">D10</td><td>two non-overlapping mentions of one role disagree</td><td>that is a return internship — two stints. It fires when ONE stint has two irreconcilable accounts</td></tr>
+<tr><td class="mono">W1</td><td>a URL that does not answer 200 is dead</td><td>a timeout, a login wall or bot protection is not a 404. Only 404 and 410 are decisive</td></tr>
+<tr><td class="mono">P2</td><td>the claimed number appears in the span</td><td>as a substring, <code>10</code> is in "1106". Numbers are matched whole, here and in the grounding guard</td></tr>
+<tr><td class="mono">G6</td><td>no stack match is a contradiction</td><td>with no manifest read, a language census cannot see a library. G6 reads all five manifest formats and abstains when it read none</td></tr>
 </tbody></table></div>
 <p><strong>Four survive as corroboration-only rules</strong> — G10, G11, P6 and the confirming half of G9. That is not a weakened check; it is the correct shape when absence is the ordinary state of an honest candidate.</p>
 
@@ -730,7 +740,7 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 <section id="measure">
 <h2 class="sec"><span class="num">17</span>How the system is measured</h2>
 <p class="lede">A unit test proves a rule does what its author intended, using a fixture that author wrote to exercise it. It cannot prove the system catches a falsified CV.</p>
-<p>The mutation harness takes a real document that ran end to end, corrupts exactly one fact, and asks whether the check responsible notices. Fifteen mutations, one per decisive rule where possible.</p>
+<p>The mutation harness takes a real document that ran end to end, corrupts exactly one fact, and asks whether the check responsible notices. Seventeen mutations across 15 rules — two each for P2 and P5.</p>
 <div class="tw"><table>
 <thead><tr><th>Measure</th><th>What it says</th></tr></thead>
 <tbody>

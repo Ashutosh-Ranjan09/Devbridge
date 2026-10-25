@@ -209,7 +209,7 @@ src/cvv/
   ingest       PDF · DOCX · OCR, normalisation, section detection
   spans        two-tier recovery with the numeral guard
   extract      8 narrow model passes, model-routed sections
-  filters      the deterministic gate — seven filters, each from an observed failure
+  filters      the deterministic gate — four stages, each from an observed failure
   gather       Codeforces · LeetCode · CodeChef · GitHub · liveness, all cached
   codechef     the one scraped source — the public profile page
   providers    the model seam: Ollama, or Claude via the Claude Code wrapper
@@ -226,7 +226,7 @@ CLAUDE.md      the guardrails, and why each one exists
 
 [`docs/design.md`](docs/design.md) is the file to read next — also rendered as
 [`docs/design.html`](docs/design.html) and [`docs/design.pdf`](docs/design.pdf)
-(35 pages; regenerate with `uv run python scripts/render-pdf.py`) — every stage, every
+(37 pages; regenerate with `uv run python scripts/render-pdf.py`) — every stage, every
 design choice, and the failure that produced each one. `CLAUDE.md` holds the
 guardrails in their working form.
 

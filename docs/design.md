@@ -285,8 +285,9 @@ accusation manufactured entirely by the extractor.
 
 ```python
 def numerals_present(verbatim: str, text: str) -> bool:
-    """Every digit sequence in the verbatim must occur in the document."""
-    return all(n in text for n in _NUMERALS.findall(verbatim))
+    """Every digit sequence in the verbatim must occur in the document, as a whole run."""
+    present = set(_NUMERALS.findall(text))
+    return all(n in present for n in _NUMERALS.findall(verbatim))
 ```
 
 **Measured:** a hallucinated `rating of 1800` where the document says `1495` scores
@@ -294,6 +295,10 @@ def numerals_present(verbatim: str, text: str) -> bool:
 out of fifty-three. Similarity is blind to precisely the character that matters, and
 numbers are where the decisive checks live: ratings, ranks, problem counts, roll
 numbers, years.
+
+**Whole runs, not substrings.** A substring test lets "rating of 149" through against a
+document saying 1495 — dropping a digit is a one-character edit, exactly what the fuzzy
+tier forgives and exactly what this guard exists to refuse.
 
 ### The window is a boundary, not a hint
 
@@ -437,8 +442,12 @@ and 1495 is a genuine rating; only the pairing is invented.
 def value_is_in_its_own_span(claim: Claim) -> bool:
     if claim.value is None:
         return True
-    return str(claim.value) in claim.provenance.verbatim
+    return numbers_in(str(claim.value)) <= numbers_in(claim.provenance.verbatim)
 ```
+
+As whole numbers, with grouping commas removed. Version 1 asked
+`str(value) in verbatim`, so a value of 10 "appeared" in "Ranked 1106" — a model
+truncating a number passed the very check that exists to catch it.
 
 | Field | Rule |
 |---|---|
@@ -614,19 +623,19 @@ every registered rule appears in the outcomes, including the ones that did nothi
 | **D2** | 2.0 | attention | ✗ | claims dropped, split by cause |
 | **D3** | 1.0 | attention | ✗ | the document's own disclaimer |
 | **D4** | 1.0 | attention | ✗ | file provenance — edits after generation |
-| **D5** | 2.0 | decisive | ✓ | two roles held at once |
+| **D5** | 2.1 | decisive | ✓ | two roles held at once |
 | **D6** | 1.0 | attention | ✓ | stated total vs. the dated roles |
 | **D7** | 1.0 | decisive | ✓ | a project dated before its technology existed |
 | **D8** | 1.0 | attention | ✓ | degree span vs. standard length |
-| **D9** | 1.1 | decisive | ✓ | roll-number structure vs. programme and dates |
-| **D10** | 1.0 | decisive | ✓ | the same role dated two incompatible ways |
-| **D11** | 1.0 | attention | ✗ | gap between roles |
+| **D9** | 2.0 | decisive | ✓ | roll-number structure vs. programme and dates |
+| **D10** | 2.0 | decisive | ✓ | one stint of a role dated two irreconcilable ways |
+| **D11** | 1.1 | attention | ✗ | gap between roles |
 | **D12** | 1.0 | attention | ✗ | seniority against tenure |
 | **G2** | 1.0 | decisive | ✓ | the account exists |
 | **G3** | 1.0 | attention | ✗ | whether control was proven |
-| **G4** | 1.0 | decisive | ✓ | repos exist, are owned, are not forks |
+| **G4** | 2.0 | decisive | ✓ | repos exist, are not forks, belong to or carry the account |
 | **G5** | 1.0 | attention | ✓ | activity during the claimed project window |
-| **G6** | 1.0 | decisive | ✓ | claimed stack vs. the repository it links |
+| **G6** | 1.1 | decisive | ✓ | claimed stack vs. the repository it links |
 | **G7** | 2.0 | decisive | ✓ | the repo contains a file a person wrote |
 | **G8** | 1.0 | attention | ✓ | fork ratio across the account |
 | **G9** | 1.0 | attention | ✓ | claimed tenure vs. earliest public evidence |
@@ -636,8 +645,9 @@ every registered rule appears in the outcomes, including the ones that did nothi
 | **P2** | 4.0 | decisive | ✓ | contest rank, matched by contest **name** |
 | **P3** | 2.0 | decisive | ✓ | problems solved (Codeforces only) |
 | **P4** | 1.0 | decisive | ✓ | LeetCode statistics |
+| **P5** | 1.0 | attention | ✓ | CodeChef statistics vs. the public profile page (scraped) |
 | **P6** | 1.0 | attention | ✗ | one handle across platforms |
-| **W1** | 2.0 | decisive | ✓ | deployments respond, **and whose they are** |
+| **W1** | 3.0 | decisive | ✓ | deployments respond, **and whose they are** |
 
 ### Tier decides the bucket, mechanically
 
@@ -652,7 +662,7 @@ thing stopping a judgement being presented as a fact.
 
 ### A check that is technically correct can still be unfair
 
-**Ten rules**, on their first version, would have put a false or misleading finding in
+**Sixteen rule versions** would have put a false or misleading finding in
 front of a reviewer looking at an honest CV. None was a bug in the usual sense.
 
 | Rule | The tempting version | Why it is wrong |
@@ -667,6 +677,12 @@ front of a reviewer looking at an honest CV. None was a bug in the usual sense.
 | G11 | employer absent from public orgs | org membership is private by default |
 | D6 | stated total exceeds the dated roles | a CV need not list every role; one page forces the choice |
 | D5 | any DEFINITE overlap between full-time roles | a **13-day** overlap is a notice period |
+| G4 | investigate the first owner the repo URLs name | a CV linking its own repos and `apache/kafka` had Apache checked as the candidate. The account is the stated handle, else the owner of most linked repos |
+| D9 | decode any token shaped like a roll number | every institution got IIT Kharagpur's department table. A scheme applies only where the CV names its institution as a whole word — "vit" is in "activities" |
+| D10 | two non-overlapping mentions of one role disagree | that is a return internship — two stints. It fires when ONE stint has two irreconcilable accounts |
+| W1 | a URL that does not answer 200 is dead | a timeout, a login wall or bot protection is not a 404. Only 404 and 410 are decisive |
+| P2 | the claimed number appears in the span | as a substring, `10` is in "1106". Numbers are matched whole, here and in the grounding guard |
+| G6 | no stack match is a contradiction | with no manifest read, a language census cannot see a library. G6 reads all five manifest formats and abstains when it read none |
 
 **Four survive as corroboration-only rules** — G10, G11, P6 and the confirming half of
 G9. That is not a weakened check; it is the correct shape when absence is the ordinary
@@ -973,8 +989,8 @@ wrote to exercise it. It cannot prove the system catches a falsified CV.
 ### The mutation harness
 
 `cvv evaluate` takes a real document that ran end to end, corrupts exactly one fact,
-and asks whether the check responsible notices. 15 mutations, one per decisive rule
-where possible.
+and asks whether the check responsible notices. 17 mutations across 15 rules — two each for
+P2 and P5.
 
 Two numbers, and **the second matters more**:
 
