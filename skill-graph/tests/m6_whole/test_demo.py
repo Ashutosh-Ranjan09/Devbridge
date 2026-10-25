@@ -19,7 +19,7 @@ def test_the_input_validates_against_the_committed_m5_schema():
     """It is an M5 output, so M5's contract is what makes it a fair example."""
     import jsonschema
     schema = json.loads(
-        (ROOT / "docs" / "docs" / "schemas" / "verification-report.schema.json").read_text())
+        (ROOT.parent / "schemas" / "verification-report.schema.json").read_text())
     jsonschema.validate(instance=demo_report(), schema=schema)
 
 
@@ -35,7 +35,7 @@ def test_the_input_is_richer_than_the_golden_example():
 def test_the_input_exercises_every_claim_kind_the_schema_allows():
     kinds = {c["kind"] for c in demo_report()["claim_graph"]["claims"]}
     schema = json.loads(
-        (ROOT / "docs" / "docs" / "schemas" / "verification-report.schema.json").read_text())
+        (ROOT.parent / "schemas" / "verification-report.schema.json").read_text())
     allowed = set(schema["$defs"]["Claim"]["properties"]["kind"]["enum"])
     assert kinds == allowed, f"missing: {sorted(allowed - kinds)}"
 
@@ -107,14 +107,14 @@ def test_the_walkthrough_writes_every_output_file():
 def test_the_written_batch_still_conforms_to_the_event_schema():
     import jsonschema
     schema = json.loads(
-        (ROOT / "docs" / "docs" / "schemas" / "evidence-event.schema.json").read_text())
+        (ROOT.parent / "schemas" / "evidence-event.schema.json").read_text())
     batch = json.loads((DEMO / "output" / "01-projected-batch.json").read_text())
     jsonschema.validate(instance=batch, schema=schema)
 
 
 def test_the_walkthrough_accepts_a_different_report():
     """--input is not decorative: the script must work on any M5 output."""
-    golden = ROOT / "docs" / "docs" / "examples" / "report-full.json"
+    golden = ROOT.parent / "schemas" / "examples" / "report-full.json"
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--input", str(golden), "--skill", "typescript"],
         capture_output=True, text=True, timeout=180,

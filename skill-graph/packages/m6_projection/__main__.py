@@ -1,6 +1,6 @@
 """Project a report from the command line.
 
-    python3 -m m6_projection docs/docs/examples/report-full.json
+    python3 -m m6_projection ../schemas/examples/report-full.json
     python3 -m m6_projection report.json --out batch.json --module-version 0.4.1
 """
 from __future__ import annotations

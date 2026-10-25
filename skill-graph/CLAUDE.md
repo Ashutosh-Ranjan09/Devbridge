@@ -20,7 +20,7 @@ make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "56
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
-make project|ingest|score|query      # one submodule at a time on docs/docs/examples/report-full.json
+make project|ingest|score|query      # one submodule at a time on ../schemas/examples/report-full.json
 make why SKILL=cpp          # explain one skill   (NOT `make explain` — that target doesn't exist)
 make find SKILL=typescript MIN=0.3
 make recover                # parameter-recovery gate (exit 1 on fail)
@@ -121,8 +121,8 @@ propagation      read time, ONE hop, sources with direct evidence only, direct e
 | `contracts/integrity-rules.yaml` | 6.5 | the nine checks; deleting one switches it off |
 | `contracts/reference-distributions.yaml` | 6.3 | Codeforces ECDF anchors (data, not a parameter) |
 | `contracts/reference/m6_model.py` | tests | ~120-line executable spec. Engine must match to 1e-9; **if prose and this disagree, this wins** |
-| `docs/docs/schemas/evidence-event.schema.json` | 6.2 | M6's input contract |
-| `docs/docs/schemas/verification-report.schema.json` | demo tests | M5's output contract |
+| `../schemas/evidence-event.schema.json` | 6.2 | M6's input contract |
+| `../schemas/verification-report.schema.json` | demo tests | M5's output contract |
 
 Changing a parameter invalidates stored `SkillState`s, so bump `contract_version` and recompute.
 Never mix states from two parameter sets. `rehydrate()` refuses to.
@@ -159,9 +159,10 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
 
 ## Where to read more
 
-- `docs/docs/m6-decisions.html`: decisions O1–O7 with rejected alternatives (why each value is what it is)
-- `docs/docs/m6-worked-trace.html`: the golden report traced end to end
+- `docs/m6-decisions.html`: decisions O1–O7 with rejected alternatives (why each value is what it is)
+- `docs/m6-worked-trace.html`: the golden report traced end to end
 - `packages/*/README.md`: per-submodule design notes and test inventories
 - `demo/README.md`: what each demo step is meant to show
 - `conversation-log.md`: the full M5 design discussion (index table + "five reversals" section first).
+  Kept outside this repository, in `discussion-ar/docs/` beside it.
   Broader settled constraints: GitHub/CP APIs are the core evidence source, and the LLM translates but never judges.

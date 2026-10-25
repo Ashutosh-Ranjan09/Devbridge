@@ -34,7 +34,7 @@ from cvv.models import (
 from tests.cvdata import CF_RATING, DOCUMENT, SKILLS_LINE, make_claim, make_graph
 from tests.test_rules import NOW, bundle, codeforces, github, repo
 
-SCHEMA = Path("../discussion-ar/docs/schemas/evidence-event.schema.json")
+SCHEMA = Path("../schemas/evidence-event.schema.json")
 
 
 def emitted(graph, evidence, report, *, consent: bool = True):

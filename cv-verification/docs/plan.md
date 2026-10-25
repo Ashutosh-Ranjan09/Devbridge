@@ -36,7 +36,7 @@ current table. P5 reads CodeChef's public profile page, since no API exists. Wha
 ### Phase 0 — contracts
 
 Nine claim kinds, not five. `profile` carries the handle, and no handle means 18 checks
-never run. Build from `../discussion-ar/docs/schemas/`, and prove it by round-tripping the
+never run. Build from `../schemas/`, and prove it by round-tripping the
 three reference payloads: if `report-full.json`, `report-degraded.json` and
 `evidence-events.json` all survive a parse and dump without loss, the model is right.
 

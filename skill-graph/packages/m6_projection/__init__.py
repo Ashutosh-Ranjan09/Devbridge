@@ -5,7 +5,7 @@
     json.dump(batch.to_dict(), out)
 
 Implements contracts/projection-rules.yaml. Output validates against
-docs/docs/schemas/evidence-event.schema.json.
+../schemas/evidence-event.schema.json.
 """
 __version__ = "1.0.0"          # tracks contracts/projection-rules.yaml contract_version
 

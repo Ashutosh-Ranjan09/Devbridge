@@ -17,8 +17,9 @@ from m6_ontology import SkillResolver, default_ontology
 from .errors import ConflictingEvent, ConsentRefused, SchemaInvalid
 from .store import EventLog, content_hash
 
-SCHEMA_PATH = (pathlib.Path(__file__).resolve().parents[2]
-               / "docs" / "docs" / "schemas" / "evidence-event.schema.json")
+# One copy of the contract for both modules, at the repository root.
+SCHEMA_PATH = (pathlib.Path(__file__).resolve().parents[3]
+               / "schemas" / "evidence-event.schema.json")
 REQUIRED_SCOPE = "skill_graph_inclusion"
 
 

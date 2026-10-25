@@ -14,7 +14,7 @@ json.dump(batch.to_dict(), out)
 ```
 
 ```
-python3 -m m6_projection docs/docs/examples/report-full.json --out batch.json
+python3 -m m6_projection ../schemas/examples/report-full.json --out batch.json
 make test        # 102 tests, no pytest required
 ```
 
@@ -53,7 +53,7 @@ time. The projection decides what a repo *is*; the parameter file decides what
 it is *worth*. That boundary is what keeps the sensitivity sweep reachable
 without a code change.
 
-## Against `docs/docs/examples/evidence-events.json`
+## Against `../schemas/examples/evidence-events.json`
 
 That file is ar009's hand-authored illustration, and it predates this fixture.
 Every **strength and reliability matches exactly**, all eight events. The

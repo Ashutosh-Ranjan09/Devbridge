@@ -2,7 +2,7 @@
 # ClaimGraph + EvidenceBundle + FindingsReport  ->  EvidenceEventBatch
 # This is the module that was unowned in m5-work-split.html. It belongs to M6,
 # because every choice in it is a skill-graph judgement, not a verification one.
-# Output must validate against docs/docs/schemas/evidence-event.schema.json
+# Output must validate against ../schemas/evidence-event.schema.json
 contract_version: "1.0.0"
 
 emit:

@@ -1,7 +1,7 @@
 # contracts/
 
 Machine-readable contracts for DevBridge M6 and the event projection module.
-Human-readable reasoning lives in `docs/docs/m6-decisions.html` — read that first
+Human-readable reasoning lives in `docs/m6-decisions.html` — read that first
 if you want to know *why* any value here is what it is.
 
 | File | What it fixes |
@@ -34,5 +34,5 @@ stale.
 ## Input contract
 
 M6 reads exactly one thing: an `EvidenceEventBatch` validating against
-`docs/docs/schemas/evidence-event.schema.json`. It does not read the ClaimGraph.
-`docs/docs/examples/evidence-events.json` is fixture one.
+`../schemas/evidence-event.schema.json`. It does not read the ClaimGraph.
+`../schemas/examples/evidence-events.json` is fixture one.

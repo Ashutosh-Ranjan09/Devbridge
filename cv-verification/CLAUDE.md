@@ -544,16 +544,17 @@ has neither, and says so in `model_id`.
 
 ## Source documents
 
-Design, read-only, outside this repository in `../discussion-ar/docs/`:
+Design, read-only, at the repository root: the contract in `../schemas/`, the design pages in
+`../docs/`. M6 reads the same copy.
 
 | File | Holds |
 |---|---|
-| `schemas/verification-report.schema.json` | **The authoritative data model** |
-| `schemas/evidence-event.schema.json` | The M6 projection |
-| `examples/report-full.json` · `report-degraded.json` | Reference payloads |
-| `verification-check-catalogue.html` | All 41 checks, tiers, exclusions |
-| `cv-to-skill-graph.html` | 22 claim shapes |
-| `m5-integration-spec.html` | Endpoints and failure semantics — **§03 models are superseded by the schemas** |
+| `../schemas/verification-report.schema.json` | **The authoritative data model** |
+| `../schemas/evidence-event.schema.json` | The M6 projection |
+| `../schemas/examples/report-full.json` · `report-degraded.json` | Reference payloads |
+| `../docs/verification-check-catalogue.html` | All 41 checks, tiers, exclusions |
+| `../docs/cv-to-skill-graph.html` | 22 claim shapes |
+| `../docs/m5-integration-spec.html` | Endpoints and failure semantics — **§03 models are superseded by the schemas** |
 
 Build `models/` from the **schemas**, not from the integration spec's code blocks. The
 spec predates the decision to make GitHub and the competitive-programming platforms core

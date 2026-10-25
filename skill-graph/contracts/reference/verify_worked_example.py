@@ -1,8 +1,8 @@
 """
 Regression test: the resolved model must reproduce the worked example's ordering.
 
-Folds the eight events from docs/docs/examples/evidence-events.json and checks the
-per-skill scores against the table in docs/docs/m6-decisions.html. Run this after
+Folds the eight events from ../schemas/examples/evidence-events.json and checks the
+per-skill scores against the table in docs/m6-decisions.html. Run this after
 any change to m6-parameters.yaml — a change that moves the ORDERING is a finding,
 not a detail.
 

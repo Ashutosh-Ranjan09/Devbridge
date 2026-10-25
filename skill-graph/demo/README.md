@@ -16,7 +16,7 @@ Every number printed is computed live. Nothing is hard-coded.
 ## The input
 
 `input/verification-report-extensive.json` — a complete M5 `VerificationReport`,
-**validated against `docs/docs/schemas/verification-report.schema.json`**. It is
+**validated against `../schemas/verification-report.schema.json`**. It is
 deliberately messier than the golden example, so the walkthrough has something to
 show at every stage:
 

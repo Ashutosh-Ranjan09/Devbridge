@@ -1,5 +1,5 @@
 """Pins the projection of report-full.json to the table published in
-docs/docs/m6-worked-trace.html §02, and carries it through the scoring model to
+docs/m6-worked-trace.html §02, and carries it through the scoring model to
 the skill graph in §06. If either changes, one of the documents is now wrong."""
 import math
 import pathlib

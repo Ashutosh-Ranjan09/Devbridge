@@ -6,7 +6,7 @@ from datetime import date
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "packages"))
-EXAMPLES = ROOT / "docs" / "docs" / "examples"
+EXAMPLES = ROOT.parent / "schemas" / "examples"
 DEMO = ROOT / "demo" / "input" / "verification-report-extensive.json"
 
 from m6 import M6  # noqa: E402

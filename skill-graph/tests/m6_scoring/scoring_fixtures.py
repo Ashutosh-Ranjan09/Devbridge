@@ -11,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "packages"))
 sys.path.insert(0, str(ROOT / "contracts" / "reference"))
 
-EXAMPLES = ROOT / "docs" / "docs" / "examples"
+EXAMPLES = ROOT.parent / "schemas" / "examples"
 STATE_SCHEMA = ROOT / "contracts" / "schemas" / "skill-state.schema.json"
 
 from m6_ontology import default_ontology  # noqa: E402
@@ -20,7 +20,7 @@ from m6_scoring import ScoringEngine  # noqa: E402
 
 AS_OF = date(2026, 8, 24)
 
-# The graph published in docs/docs/m6-worked-trace.html §06.
+# The graph published in docs/m6-worked-trace.html §06.
 PUBLISHED = {"algorithms": 0.533, "cpp": 0.514, "typescript": 0.381,
              "nextjs": 0.316, "python": 0.189, "mongodb": 0.173}
 

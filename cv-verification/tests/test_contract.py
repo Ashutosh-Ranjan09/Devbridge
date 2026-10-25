@@ -26,8 +26,8 @@ import pytest
 
 from cvv import models as M  # noqa: N812 - a table of model classes reads better short
 
-SCHEMAS = Path("../discussion-ar/docs/schemas")
-EXAMPLES = Path("../discussion-ar/docs/examples")
+SCHEMAS = Path("../schemas")
+EXAMPLES = Path("../schemas/examples")
 REPORT_SCHEMA = SCHEMAS / "verification-report.schema.json"
 EVENT_SCHEMA = SCHEMAS / "evidence-event.schema.json"
 

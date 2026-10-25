@@ -24,10 +24,10 @@ ontology:        ## 6.1 — check the seed graph, then show it
 	$(PY) -m m6_ontology skills
 	$(PY) -m m6_ontology edges
 project:         ## 6.0 — project the golden report to batch.json
-	$(PY) -m m6_projection docs/docs/examples/report-full.json --out batch.json
+	$(PY) -m m6_projection ../schemas/examples/report-full.json --out batch.json
 batch:           ## 6.0 — project both example reports
-	$(PY) -m m6_projection docs/docs/examples/report-full.json --out batch-full.json
-	$(PY) -m m6_projection docs/docs/examples/report-degraded.json --out batch-degraded.json
+	$(PY) -m m6_projection ../schemas/examples/report-full.json --out batch-full.json
+	$(PY) -m m6_projection ../schemas/examples/report-degraded.json --out batch-degraded.json
 ingest: project  ## 6.2 — push the golden batch into the log
 	$(PY) -m m6_ingestor ingest batch.json --db $(DB)
 score: ingest    ## 6.3 — score the whole graph from the log
@@ -39,9 +39,9 @@ why: ingest      ## 6.4 — the explain response: make why SKILL=cpp
 find: ingest     ## 6.4 — search: make find SKILL=typescript MIN=0.3
 	$(PY) -m m6_query search --db $(DB) --skill $(SKILL) --min $(or $(MIN),0.0) --as-of $(AS_OF)
 integrity:       ## 6.5 — integrity findings for the golden subject
-	$(PY) demo/run_demo.py --input docs/docs/examples/report-full.json --step 7
+	$(PY) demo/run_demo.py --input ../schemas/examples/report-full.json --step 7
 profile:         ## the whole layer in one call: skills + integrity
-	$(PY) demo/run_demo.py --input docs/docs/examples/report-full.json --step 8
+	$(PY) demo/run_demo.py --input ../schemas/examples/report-full.json --step 8
 
 # ── servers ──────────────────────────────────────────────────────────────────
 serve:           ## 6.2 — the ingestor alone on :8100

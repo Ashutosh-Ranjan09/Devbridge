@@ -14,7 +14,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "packages"))
 
-EXAMPLES = ROOT / "docs" / "docs" / "examples"
+EXAMPLES = ROOT.parent / "schemas" / "examples"
 
 from m6_ingestor import EventLog, Ingestor  # noqa: E402
 from m6_ontology import AcceptAll  # noqa: E402

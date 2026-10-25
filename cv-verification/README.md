@@ -7,7 +7,7 @@ evidence, runs deterministic checks, and emits findings with provenance.
 **It produces no score and no verdict.** It reports evidence and says explicitly what
 it could not check. A person decides what any of it means.
 
-> DevBridge M5. Built against the contracts in `../discussion-ar/docs/`.
+> DevBridge M5. Built against the contracts in `../schemas/`, which M6 (`../skill-graph/`) reads too.
 
 ---
 
