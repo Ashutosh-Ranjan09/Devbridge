@@ -508,7 +508,10 @@ def healthz() -> dict[str, object]:
         "version": __version__,
         "store": STORE.name,
         "rules": len(REGISTRY),
-        "model": settings.ollama_model,
+        # The backend that will actually run. Reading the Ollama setting directly
+        # reported qwen3:1.7b while every verification ran on Claude.
+        "backend": settings.llm_backend,
+        "model": default_provider().model_id,
     }
 
 
@@ -516,18 +519,28 @@ def healthz() -> dict[str, object]:
 def readyz() -> Any:
     """Ready means the MODEL answers, not that the process started.
 
-    A service that accepts uploads and cannot reach Ollama returns 202 and then fails
-    every one of them in the background, where the client sees a report that says
-    `failed` twenty seconds later instead of a refusal now.
+    A service that accepts uploads and cannot reach its model returns 202 and then
+    fails every one of them in the background, where the client sees a report that
+    says `failed` twenty seconds later instead of a refusal now.
+
+    The backend that is configured is the one asked. Checking Ollama regardless
+    called a Claude-backed service unready whenever Ollama was off, and ready when
+    the wrapper it actually depends on was down. The wrapper has no health route,
+    so any HTTP answer from it means it is up; only no answer at all is a failure.
     """
+    claude = settings.llm_backend == "claude-code"
+    target = settings.claude_code_url if claude else f"{settings.ollama_url}/api/tags"
     try:
-        httpx.get(f"{settings.ollama_url}/api/tags", timeout=5.0).raise_for_status()
+        response = httpx.get(target, timeout=5.0)
+        if not claude:
+            response.raise_for_status()
     except httpx.HTTPError as exc:
+        name = "The Claude Code wrapper" if claude else "Ollama"
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Ollama is not reachable at {settings.ollama_url}: {exc}",
+            detail=f"{name} is not reachable at {target}: {exc}",
         ) from exc
-    return {"status": "ready"}
+    return {"status": "ready", "backend": settings.llm_backend}
 
 
 # --------------------------------------------------------------------------- #

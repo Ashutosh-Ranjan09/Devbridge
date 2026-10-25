@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 import pytest
+import respx
 from fastapi.testclient import TestClient
 
 from cvv import api, pipeline, store
@@ -49,6 +50,54 @@ def auth() -> dict[str, str]:
 
 def empty_report(verification_id: str, status: ReportStatus) -> VerificationReport:
     return contract_report(verification_id, status)
+
+
+class TestHealthNamesTheBackendThatRuns:
+    """/healthz said qwen3:1.7b and /readyz probed Ollama while every verification
+    ran on Claude. Both now ask the configured backend."""
+
+    def test_health_names_the_configured_model(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(api.settings, "llm_backend", "claude-code")
+        monkeypatch.setattr(api.settings, "claude_code_model", "sonnet")
+        body = client.get("/healthz").json()
+        assert body["backend"] == "claude-code"
+        assert body["model"] == "claude-code:sonnet"
+
+    @respx.mock
+    def test_a_claude_service_is_ready_when_the_wrapper_answers(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The wrapper has no health route; a 404 from it still means it is up. And
+        Ollama being down is irrelevant to a Claude-backed service."""
+        monkeypatch.setattr(api.settings, "llm_backend", "claude-code")
+        monkeypatch.setattr(api.settings, "claude_code_url", "http://wrapper.test")
+        respx.get("http://wrapper.test").mock(return_value=httpx.Response(404))
+        ollama = respx.get(url__startswith=api.settings.ollama_url).mock(
+            side_effect=httpx.ConnectError("off")
+        )
+        assert client.get("/readyz").status_code == 200
+        assert not ollama.called
+
+    @respx.mock
+    def test_a_claude_service_is_not_ready_when_the_wrapper_is_down(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(api.settings, "llm_backend", "claude-code")
+        monkeypatch.setattr(api.settings, "claude_code_url", "http://wrapper.test")
+        respx.get("http://wrapper.test").mock(side_effect=httpx.ConnectError("refused"))
+        r = client.get("/readyz")
+        assert r.status_code == 503
+        assert "Claude Code wrapper" in r.json()["detail"]
+
+    @respx.mock
+    def test_an_ollama_service_still_checks_ollama(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(api.settings, "llm_backend", "ollama")
+        respx.get(f"{api.settings.ollama_url}/api/tags").mock(return_value=httpx.Response(500))
+        assert client.get("/readyz").status_code == 503
 
 
 class TestWhatIsOpenAndWhatIsNot:
