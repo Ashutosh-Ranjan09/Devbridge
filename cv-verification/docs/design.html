@@ -193,8 +193,8 @@ pre.data .ok{color:var(--verified);font-weight:500}
     <p class="refusal">It produces <strong>no score</strong> and <strong>no verdict</strong>. It reports evidence and says explicitly what it could not check. A person decides what any of it means.</p>
     <div class="figures">
       <div class="fig"><span class="n">29<span style="color:var(--faint);font-size:18px">/29</span></span><span class="l">checks built, every one in scope</span></div>
-      <div class="fig"><span class="n">551</span><span class="l">tests passing</span></div>
-      <div class="fig"><span class="n">10,967</span><span class="l">lines across 34 modules</span></div>
+      <div class="fig"><span class="n">547</span><span class="l">tests passing</span></div>
+      <div class="fig"><span class="n">10,639</span><span class="l">lines across 32 modules</span></div>
       <div class="fig"><span class="n">17/17</span><span class="l">mutation detection, 0 collateral</span></div>
     </div>
   </div>
@@ -217,7 +217,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
     <li><a href="#report">The report</a></li>
     <li><a href="#narrative">Narrative</a></li>
     <li><a href="#worksheet">Worksheet</a></li>
-    <li><a href="#events">M6 projection</a></li>
+    <li><a href="#events">The handoff to M6</a></li>
     <li><a href="#interfaces">Interfaces</a></li>
     <li><a href="#cross">Cross-cutting</a></li>
     <li><a href="#measure">Measurement</a></li>
@@ -262,17 +262,18 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <tbody>
 <tr><td class="mono">test_rules.py</td><td class="num">170</td><td>all 28 checks, against recorded evidence</td></tr>
 <tr><td class="mono">test_github.py</td><td class="num">44</td><td>authored-file detection, repo evidence, manifests</td></tr>
-<tr><td class="mono">test_contract.py</td><td class="num">40</td><td>our models vs. the authoritative JSON Schemas</td></tr>
+<tr><td class="mono">test_contract.py</td><td class="num">44</td><td>our models and a whole emitted report vs. the JSON Schemas</td></tr>
 <tr><td class="mono">test_dates.py</td><td class="num">36</td><td>the date parser's table</td></tr>
 <tr><td class="mono">test_api.py</td><td class="num">28</td><td>the HTTP surface</td></tr>
 <tr><td class="mono">test_store.py · test_narrative.py</td><td class="num">22</td><td>both store backends · the second LLM site</td></tr>
 <tr><td class="mono">test_intervals.py · test_filters.py</td><td class="num">21</td><td>three-valued interval algebra · the deterministic gate</td></tr>
-<tr><td class="mono">test_events.py · test_extract.py</td><td class="num">19</td><td>M6 projection · extraction internals</td></tr>
+<tr><td class="mono">test_ingest.py</td><td class="num">21</td><td>PDF · DOCX · OCR · PDF dates to ISO 8601</td></tr>
+<tr><td class="mono">test_extract.py</td><td class="num">19</td><td>extraction internals</td></tr>
 <tr><td class="mono">test_logs.py</td><td class="num">18</td><td>log redaction</td></tr>
 <tr><td class="mono">test_spans.py</td><td class="num">15</td><td>grounding and the numeral guard</td></tr>
 <tr><td class="mono">test_codechef.py</td><td class="num">14</td><td>the scraper, against a synthetic page</td></tr>
 <tr><td class="mono">test_structure.py</td><td class="num">13</td><td>architectural rules, enforced</td></tr>
-<tr><td class="mono">test_leetcode · test_worksheet · test_ingest</td><td class="num">12–10</td><td>connector · manual prep · PDF/DOCX/OCR</td></tr>
+<tr><td class="mono">test_leetcode · test_worksheet</td><td class="num">12–11</td><td>connector · manual prep</td></tr>
 <tr><td class="mono">test_gather · test_evaluate · test_cli · test_reference</td><td class="num">9–3</td><td>account choice · the harness · commands · roll schemes</td></tr>
 </tbody></table></div>
 </section>
@@ -670,27 +671,32 @@ confidence = 1.0 - combined</code></pre>
 </section>
 
 <section id="events">
-<h2 class="sec"><span class="num">14</span>The M6 projection</h2>
-<blockquote>M6 does NOT consume discrepancies — it has no interest in fraud. It consumes corroborated capability signals.</blockquote>
-<p>That line from the schema is the design brief. Most of a verification is <strong>withheld</strong>, each item with a typed reason, because filtering nobody can see is filtering nobody can audit.</p>
+<h2 class="sec"><span class="num">14</span>The handoff to M6</h2>
+<p class="lede">M6, the skill graph, lives beside this module in <code>../skill-graph</code> and reads one file: the contract's <code>VerificationReport</code>, which <code>cvv verify --save DIR</code> writes as <code>verification-report.json</code> and <code>GET /v1/verifications/{id}</code> returns.</p>
+<p>One function, <code>pipeline.verification_report()</code>, builds it for both, so the file and the response cannot drift apart. It computes nothing: status, coverage and provenance are read off the stages that produced them.</p>
+<div class="note"><p><strong>This module does not decide what evidence is worth.</strong> An earlier <code>events.py</code> projected the report into M6's evidence events itself. M6 has its own projector, and what a verified artefact means for a skill is a skill-graph judgement — so ours was a second answer to M6's question, and it sent skill ids in a <code>surface:</code> namespace that M6 quarantined, all thirteen. It is gone.</p></div>
+<p>The first real handoff failed at every step, and each failure was invisible until a real report crossed the boundary:</p>
 <div class="tw"><table>
-<thead><tr><th>Decision</th><th>Why</th></tr></thead>
+<thead><tr><th>What broke</th><th>Why nothing caught it</th></tr></thead>
 <tbody>
-<tr><td><strong>Consent defaults to nothing</strong></td><td>M6 must refuse events outside scope; this system holds no consent record, so it asserts none</td></tr>
-<tr><td><strong><code>subject_ref</code> never derived from the CV</strong></td><td>minting an id from a name or roll number makes someone linkable across verifications they never connected</td></tr>
-<tr><td><strong>Positive capped, negative not</strong></td><td>the ownership asymmetry — nobody prints a handle that undermines them</td></tr>
-<tr><td><strong><code>surface:</code> namespace for skill ids</strong></td><td>ESCO-seeded ids need a resolver we do not have; M6 can map or reject knowingly</td></tr>
+<tr><td>the report had no evidence bundle, subject, provenance or coverage</td><td>the contract test parsed the stages, never the whole report</td></tr>
+<tr><td>M6 refused <code>document.created_at = D:20250704194743+05'30'</code></td><td>jsonschema checks <code>format: date-time</code> only with an optional package</td></tr>
+<tr><td>two fields were extensions nobody had listed</td><td><code>Narrative</code> was not among the models the test compared</td></tr>
 </tbody></table></div>
-<p>Measured on the reference CV — 11 events, 5 withheld — and the reliabilities show the asymmetry working:</p>
-<pre><code>platform_rating   0.90    uncapped — the handle resolved on the platform's own API
-repo_artifact     0.375   = 0.75 × 0.5,  ownership_unverified
-cv_claim          0.12    = 0.20 × 0.6,  undated_observation</code></pre>
-<p>Every multiplier is emitted as a named <code>reliability_factor</code>, so a capped value is auditable instead of magic.</p>
+<p>The contract test now builds a full report over real evidence and requires it to validate except for the named extensions — including inside <code>oneOf</code> branches, where a <code>github</code> block carrying extensions surfaces as "valid under none of the schemas".</p>
+<p>Measured on the reference CV, live, through both modules:</p>
+<pre><code>cvv verify --save      59 s     4 artefacts, verification-report.json among them
+M6 projection          35 events · 2 suppressions, each with a schema reason
+                       platform_rating 1 (0.90) · claim_corroborated 6 · repo_artifact 4
+                       artifact_live 3 · cv_claim 21
+M6 ingest              35 accepted · 12 quarantined (tools and npm package lists)
+M6 skill graph         23 skills as intervals; algorithms [0.564, 0.725]</code></pre>
+<p><code>subject_ref</code> is never derived from the CV — minting an id from a name or roll number makes someone linkable across verifications they never connected. The default is <code>subject:&lt;document_id&gt;</code>, which links only re-runs of the same file.</p>
 </section>
 
 <section id="interfaces">
 <h2 class="sec"><span class="num">15</span>Interfaces</h2>
-<pre><code>cvv verify cv.pdf [--brief] [--worksheet] [--events F] [--json] [--offline] [--save D]
+<pre><code>cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save D] [--subject REF]
 cvv evaluate cv.pdf [--baseline D] [--save-baseline D]
 cvv serve [--host] [--port]
 cvv rules | inspect cv.pdf | config</code></pre>
@@ -776,8 +782,8 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 
 <section id="open">
 <h2 class="sec"><span class="num">19</span>Open decisions and known gaps</h2>
-<h3>Seven fields ahead of the contract</h3>
-<p>Twenty-five of the twenty-seven schema definitions set <code>additionalProperties: false</code>, so a field added here makes our output <strong>invalid</strong> for a consumer validating against the schema. Seven exist, each load-bearing:</p>
+<h3>Nine fields ahead of the contract</h3>
+<p>Twenty-five of the twenty-seven schema definitions set <code>additionalProperties: false</code>, so a field added here makes our output <strong>invalid</strong> for a consumer validating against the schema. Nine exist, each load-bearing:</p>
 <div class="tw"><table>
 <thead><tr><th>Field</th><th>Needed by</th></tr></thead>
 <tbody>
@@ -786,6 +792,8 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 <tr><td class="mono">RepoEvidence.homepage</td><td>W1 2.0 — ties a deployment to its repo</td></tr>
 <tr><td class="mono">GitHubEvidence.public_repos / public_repo_count</td><td>skills a CV cannot fit</td></tr>
 <tr><td class="mono">RuleOutcome.note</td><td>what a corroborating rule confirmed</td></tr>
+<tr><td class="mono">Narrative.rejected_because</td><td>why the model's prose was not used — never listed, because <code>Narrative</code> was not compared</td></tr>
+<tr><td class="mono">VerificationReport.failure</td><td>why a verification failed; the contract has no field for it</td></tr>
 </tbody></table></div>
 <p>A test holds them as a <strong>named list</strong> and fails on anything else — and also fails if an entry stops being an extension, so the list cannot rot. The integration spec predicted this failure mode verbatim: <em>"one person adds a field locally, the other never sees it, and integration breaks in week 7."</em></p>
 <p>Arguably the strongest reading is that the spec itself prescribes <code>schemas/*.schema.json — generated from Pydantic, committed</code>, which makes the models the source of truth and the upstream draft what should be regenerated.</p>
@@ -972,6 +980,7 @@ G11  The CV names no employer to look for.</code></pre>
 
 <div class="stage">
 <h3><span class="st">Stage 12</span>The M6 projection</h3>
+<p><em>This used <code>events.py</code>, removed on 25 October; M6's own projector does this now — see §14.</em></p>
 <pre class="data"><code>11 events, 5 withheld
 
 platform_rating  positive  base 0.90 → <span class="ok">0.90</span>   []
@@ -1019,7 +1028,7 @@ JUDGEMENT ONLY — no machine result exists or should
 </div>
 </section>
 
-<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 34 modules · 551 tests · 28 checks · 21 October 2026</footer>
+<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 32 modules · 547 tests · 28 checks · 25 October 2026</footer>
 
 </main>
 </div>

@@ -15,7 +15,7 @@ json.dump(batch.to_dict(), out)
 
 ```
 python3 -m m6_projection ../schemas/examples/report-full.json --out batch.json
-make test        # 102 tests, no pytest required
+make test        # every suite, no pytest required
 ```
 
 Stdlib only, except `yaml` to read the contract and `jsonschema` in the tests.
@@ -29,15 +29,11 @@ Stdlib only, except `yaml` to read the contract and `jsonschema` in the tests.
 | `projector.py` | Walks the report, builds the batch, enforces the six invariants. |
 | `models.py` | Dataclasses mirroring the schema. Generated from it with pydantic v2 in the real repo; field names match so the swap is mechanical. |
 
-## Three properties worth preserving
+## Two properties worth preserving
 
 **Deterministic.** `event_id` is `sha256(verification_id, kind, discriminator)[:12]`,
 so replaying a batch is a no-op. O4's fold needs a total order and idempotent
 ingestion needs reproducible ids; a random id breaks both.
-
-**Consent-gated first.** No `consent_ref` means zero events, checked before any
-evidence is read. Skill-graph inclusion is a different purpose from verification.
-Configurable at `thresholds.consent.require_consent_ref`; defaults to strict.
 
 **Silent on nothing.** Every drop lands in `not_emitted[]` with one of the five
 schema reasons. A skill that resolves to nothing lands in `quarantined` rather
@@ -76,6 +72,24 @@ verification time. Dating the weakest evidence in the system at the moment
 someone checked it would hand it perfect freshness, so a two-year-old assertion
 would never decay.
 
+## What the first real M5 report taught
+
+The fixtures were hand-written; the first report the real M5 produced exercised
+three things none of them did, and each made the projection quietly wrong.
+
+- **M5 sends `commit_count: null`** for a repository the candidate owns — it reads
+  the files instead. `or 0` read that as "fewer than ten commits", and every
+  repository was `trivial`. A condition over an unknown value is now skipped, and
+  `large` is reachable only on counters that were read.
+- **M5 sends a manifest's whole dependency list**, sorted, as `frameworks`. A live
+  deployment credited "the first framework", which was `@eslint/eslintrc`. It now
+  credits the first entry of `deployment_framework.prefer` the repository declares.
+- **Ratings are not one unit.** Every `platform_rating` was priced against the
+  Codeforces ECDF, so a CodeChef 1746 outranked the same candidate's Codeforces
+  1495. Only platforms in `rating_reference.platforms` emit a rating; any other
+  platform confirms the claim it reaches instead (`claim_corroborated`, which needs
+  no scale), and a rating no claim cites is suppressed by name.
+
 ## Aggregate claims
 
 "Solved 500+ problems across LeetCode, Codeforces, GeeksforGeeks" is two things
@@ -95,16 +109,16 @@ the behaviour you want, and a useful check that the model is doing its job.
 
 ## Tests
 
-102 tests, `make test`, no pytest. `projector.py` is at 100% of executable lines.
+113 tests, `make test`, no pytest.
 
 | file | covers |
 |---|---|
 | `test_contract.py` | Schema conformance both fixtures, plus a **guard on the guard** — it injects an undeclared field and requires the schema to reject it, so conformance can't quietly become a no-op. |
 | `test_invariants.py` | All six invariants **provoked**, not merely asserted on a happy path, with a control test so none can pass vacuously. |
-| `test_rules.py` | Band thresholds on both sides (9/10, 49/50, 119/120, 999/1000 kB), relevance floor and clamp, ownership asymmetry. |
+| `test_rules.py` | Band thresholds on both sides (9/10, 49/50, 119/120, 999/1000 kB), an unknown commit count that is not zero, relevance floor and clamp, ownership asymmetry. |
 | `test_dates_and_links.py` | UTC-day normalisation both directions, exact repo↔claim attribution, credentials, unresolvable platforms. |
 | `test_aggregate_claims.py` | Partial corroboration, both discounts, and that turning them off in YAML turns them off in behaviour. |
-| `test_behaviour.py` | One behaviour each: forks suppressed, aliases, dead deployments, bare claims kept. |
+| `test_behaviour.py` | One behaviour each: forks suppressed, aliases, dead deployments, bare claims kept, a deployment crediting its framework, a CodeChef rating confirming a claim rather than being priced. |
 | `test_golden.py` | Pins the batch to the published trace, then feeds it through `m6_model.py` to reproduce the skill graph. The only place the two modules meet. |
 
 ## Handing off to 6.2

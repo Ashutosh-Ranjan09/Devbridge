@@ -52,7 +52,8 @@ API calls to the accounts the CV itself names.
 uv run cvv verify cv.pdf --offline      # document-intrinsic checks only, no network
 uv run cvv verify cv.pdf --brief        # add a model-written briefing
 uv run cvv verify cv.pdf --worksheet    # what a human still has to do
-uv run cvv verify cv.pdf --json         # the full report
+uv run cvv verify cv.pdf --json         # the findings, as JSON
+uv run cvv verify cv.pdf --save out/    # every stage, and the report M6 reads
 uv run cvv evaluate cv.pdf              # corrupt one fact and see what notices
 uv run cvv rules                        # the live check catalogue
 uv run cvv inspect cv.pdf               # read a document without calling a model
@@ -141,6 +142,24 @@ responsible notices.
 **Collateral** — rules firing on a mutation they had no business noticing — is the
 number that matters. It started at 2, and both were real bugs: one would have
 contradicted an honest CV decisively, and neither was visible to 294 passing tests.
+
+---
+
+## Feeding the skill graph
+
+`--save DIR` writes four files; `verification-report.json` is the contract's
+`VerificationReport`, and it is all M6 (`../skill-graph`) needs:
+
+```bash
+uv run cvv verify cv.pdf --save out/
+cd ../skill-graph
+PYTHONPATH=packages python3 -m m6_projection ../cv-verification/out/verification-report.json --out batch.json
+PYTHONPATH=packages python3 -m m6_ingestor ingest batch.json --db evidence.db
+PYTHONPATH=packages python3 -m m6_query skills --db evidence.db
+```
+
+This module reports evidence; M6 decides what it is worth for each skill. The API's
+`GET /v1/verifications/{id}` returns the same object.
 
 ---
 
@@ -235,7 +254,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 551 tests, no server needed
+uv run pytest                                   # 547 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy

@@ -13,13 +13,14 @@
 | | Today | Notes |
 |---|---|---|
 | **Checks** | **29 / 29 in scope** | 28 rules + the narrative (C5). 41 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human |
-| **Tests** | **551** passing · 561 with Postgres | 0 failing; 5 live tests deselected by default |
-| **Gates** | ruff ✅ · `mypy --strict` ✅ | 34 source files |
-| **Size** | 34 modules · 10,967 lines · 22 test files · 5,918 test lines | |
+| **Tests** | **547** passing · 557 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Gates** | ruff ✅ · `mypy --strict` ✅ | 32 source files |
+| **Size** | 32 modules · 10,639 lines · 21 test files · 5,932 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | **Documents measured** | 3 | only the student CV since October |
-| **Contract** | 7 fields ahead of the upstream schema | awaiting a decision |
-| **Commits** | 60, since 4 Sep | **no remote** |
+| **Contract** | 9 fields ahead of the schema | awaiting a decision |
+| **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
+| **Commits** | 65, since 4 Sep | **no remote** |
 
 ---
 
@@ -40,8 +41,8 @@
 
 ```
 ruff check src tests                  PASS
-mypy --strict                         34 files, no issues
-pytest                                551 passed · 10 skipped (Postgres-only) · 0 failed
+mypy --strict                         32 files, no issues
+pytest                                547 passed · 10 skipped (Postgres-only) · 0 failed
 cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 ```
 
@@ -74,23 +75,28 @@ cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 | **Seven fairness fixes** | each would have flagged an honest CV: G4 investigated `apache` as the candidate; D9 decoded any roll-number-shaped token with IIT Kharagpur's table; D10 called a return internship a contradiction; W1 called a timeout a dead site; P2 matched `10` inside "1106"; G6 contradicted with no manifest read; D9 lost a finding when it then abstained |
 | **P5 — CodeChef** | the public profile page, scraped: peak rating, contest ranks by name, problems solved. Attention-only. A missing handle is a finding only when CodeChef redirects home; any other redirect is a "site changed" gap |
 | **Three bugs** | D7/G6/G9 lost a second finding on one claim (shared id); the narrative was rejected whenever a rule fired twice; `POST /v1/verifications` ignored a JSON body and multipart `options` |
-| **Scope** | C1–C4 out of scope; W2 human by design |
+| **Scope** | C1–C4 out of scope; W2 human by design; consent handling removed from M5 and M6 |
+| **One repository** | `devbridge/` holds M5 (`cv-verification/`) and M6 (`skill-graph/`) side by side, with one copy of the contract (`schemas/`) and of the design pages (`docs/`) |
+| **The M6 handoff** | the report is now the contract's whole `VerificationReport`, written by `--save`; PDF dates are ISO 8601; `events.py` removed, since M6 projects the report itself. Found by running a real report through M6, which also exposed four M6 bugs, fixed there |
 
 ---
 
 ## Decisions needed
 
-### 1. Seven fields ahead of the contract
+### 1. Nine fields ahead of the contract
 
 25 of 27 upstream schema definitions set `additionalProperties: false`, so these make
 our output invalid for a consumer validating against that schema:
 
 `ExtractionMeta.filtered` · `RepoEvidence.authored_files` · `RepoEvidence.authored_bytes`
 · `RepoEvidence.homepage` · `GitHubEvidence.public_repos` ·
-`GitHubEvidence.public_repo_count` · `RuleOutcome.note`
+`GitHubEvidence.public_repo_count` · `RuleOutcome.note` · `Narrative.rejected_because` ·
+`VerificationReport.failure`
 
-**Recommended:** generate `contracts/schemas/` from the models at version `2.0.0` and
-retire the extension list.
+M6 reads all nine without complaint, because it does not validate the report.
+
+**Recommended:** generate `../schemas/` from the models at version `2.0.0` and retire
+the extension list — M6 reads the same folder, so one change reaches both.
 
 ### 2. Non-competitive-programming achievements
 
@@ -104,7 +110,7 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 60 commits exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 65 commits, now both modules, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
 | 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |

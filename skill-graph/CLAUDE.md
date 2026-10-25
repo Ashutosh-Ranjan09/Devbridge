@@ -5,8 +5,10 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 562 tests pass. M5 itself is
-not in this repo, and M6 only ever reads M5's output document.
+**Status: implemented and complete (all packages v1.0.0).** 555 tests pass. M5 lives beside
+it in `../cv-verification`, and M6 only ever reads M5's output document — the
+`verification-report.json` that `cvv verify --save` writes. Both read the contract from
+`../schemas/`.
 
 Full human guide (40 pages, worked numbers): `docs/reports/module6-complete-guide.pdf`.
 
@@ -16,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "562 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "555 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -45,8 +47,8 @@ report --6.0--> events --6.2--> log --6.3--> states --6.4--> answers
 | | package | job |
 |---|---|---|
 | 6.0 | `m6_projection` | M5 report → `EvidenceEventBatch`. Decides what a verified artefact *is*. Deterministic. |
-| 6.1 | `m6_ontology` | skills, tiers, edges from `contracts/ontology-seed.yaml` (27 skills, 12 edges, v0.1.0) |
-| 6.2 | `m6_ingestor` | schema validation, consent, idempotency, quarantine, append-only SQLite log |
+| 6.1 | `m6_ontology` | skills, tiers, edges from `contracts/ontology-seed.yaml` (35 skills, 15 edges, v0.2.0) |
+| 6.2 | `m6_ingestor` | schema validation, idempotency, quarantine, append-only SQLite log |
 | 6.3 | `m6_scoring` | observation model, Kalman update, decay, propagation, recovery gate |
 | 6.4 | `m6_query` | skills, explain, tiered search, HTTP |
 | 6.5 | `m6_integrity` | nine checks about the *shape* of the evidence; changes no score |
@@ -72,11 +74,9 @@ Dependencies point one way. Ports are deliberately narrow:
    is always recomputable by folding the log in `(occurred_at, event_id)` order.
 5. **Constants live only in `contracts/`.** No magic numbers in Python. The engine reads `value`
    and the sweep reads `sweep` from the same file.
-6. **Consent is checked twice** (in 6.0 and 6.2). Without `skill_graph_inclusion` the result is
-   zero events or a 403, which is never retried into success.
-7. **Silence is never an option.** Every claim ends up either on an event or in `not_emitted[]` with one of five
+6. **Silence is never an option.** Every claim ends up either on an event or in `not_emitted[]` with one of five
    schema reasons. `_check_invariants` raises if a claim is unaccounted for.
-8. **Integrity never moves a number.** 6.5 produces findings, with `notice` or `attention` only and no "fail".
+7. **Integrity never moves a number.** 6.5 produces findings, with `notice` or `attention` only and no "fail".
    Each finding names its evidence and states an innocent explanation. `test_neutrality.py` asserts that the graph is
    byte-identical with and without 6.5.
 
@@ -119,7 +119,7 @@ propagation      read time, ONE hop, sources with direct evidence only, direct e
 | `contracts/projection-rules.yaml` | 6.0 | emission rules, strengths, base reliabilities, factors, bands, aliases, suppressions |
 | `contracts/ontology-seed.yaml` | 6.1 | skills, tiers, edges. Grow it by PR; `python -m m6_ontology check` validates it |
 | `contracts/integrity-rules.yaml` | 6.5 | the nine checks; deleting one switches it off |
-| `contracts/reference-distributions.yaml` | 6.3 | Codeforces ECDF anchors (data, not a parameter) |
+| `contracts/reference-distributions.yaml` | 6.3 | per-platform rating ECDFs, `<platform>_rated_ecdf` — Codeforces only (data, not a parameter) |
 | `contracts/reference/m6_model.py` | tests | ~120-line executable spec. Engine must match to 1e-9; **if prose and this disagree, this wins** |
 | `../schemas/evidence-event.schema.json` | 6.2 | M6's input contract |
 | `../schemas/verification-report.schema.json` | demo tests | M5's output contract |
@@ -150,6 +150,20 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   so `CONTRADICTED` can't fire on real input yet.
 - The Codeforces ECDF is **approximated** (`status: approximated_pending_regeneration`). Regenerate it from
   `/api/user.ratedList` before publishing any number, because `platform_rating` is the strongest event (reliability 0.90).
+- Consent was removed as out of scope for this project: no gate in 6.0, no check in 6.2.
+  `consent_scope` survives as an optional schema field and a log column, always empty.
+- **CodeChef has no rating distribution**, so a CodeChef rating never reaches 6.3 as a
+  `platform_rating`: it confirms a claim it reaches (`claim_corroborated`, scraped discount),
+  else it is suppressed. A platform listed in `rating_reference.platforms` must have a table;
+  a test enforces it.
+- **A skill claim is corroborated only by repository languages, never by a platform rating**,
+  though the contract's `claim_corroborated` rule names both. So "competitive programming" and
+  "data structures and algorithms" have no alias: as `cv_claim`s at 0.45 they would pull down
+  an `algorithms` estimate a Codeforces rating had already set.
+- `claim_corroborated` observes a flat 0.68, which sits below a Specialist's 0.739, so a
+  CodeChef confirmation pulls `algorithms` down slightly.
+- `commit_count: null` (M5 sends it for repos it read file by file) is unknown, not zero:
+  substance-band conditions over an unknown value are skipped.
 - `half_life_days` (h = k/λ) is actually the e-folding time constant. The true half-life is h·ln2.
 - `ranking.tiers()` starts a new tier when a candidate's upper bound < the current tier's lowest lower bound.
   A later candidate can still overlap a member of an earlier tier.

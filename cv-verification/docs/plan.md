@@ -249,10 +249,10 @@ One package, flat — one module per stage, plus `models/` for the contract:
 
 ```
 src/cvv/
-   models/        the contract — claims · evidence · findings · events · api
+   models/        the contract — claims · evidence · findings · api
    ingest  spans  extract  filters  dates  intervals  reference
    gather  github  leetcode  codechef  cache
-   rules  report  narrative  worksheet  evaluate  events
+   rules  report  narrative  worksheet  evaluate
    api  cli  store  pipeline  providers  config  logs  ids
 ```
 

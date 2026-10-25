@@ -36,9 +36,9 @@ because the reasoning is worth more than the conclusion.
 
 | | |
 |---|---|
-| source | 34 modules, 10,967 lines |
-| tests | 22 files, **551 passing** (561 with Postgres, 5 live) |
-| quality | `ruff` clean · `mypy --strict` clean across all 34 files |
+| source | 32 modules, 10,639 lines |
+| tests | 21 files, **547 passing** (557 with Postgres, 5 live) |
+| quality | `ruff` clean · `mypy --strict` clean across all 32 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
 | documents measured against | 3 — student CV, synthetic CV, professional CV |
@@ -47,19 +47,19 @@ because the reasoning is worth more than the conclusion.
 |---|---:|---|
 | `test_rules.py` | 170 | all 28 checks, against recorded evidence |
 | `test_github.py` | 44 | authored-file detection, repo evidence, manifests |
-| `test_contract.py` | 40 | our models vs. the authoritative JSON Schemas |
+| `test_contract.py` | 44 | our models and a whole emitted report vs. the JSON Schemas |
 | `test_dates.py` | 36 | the date parser's table |
 | `test_api.py` | 28 | the HTTP surface |
 | `test_store.py` · `test_narrative.py` | 22 each | both store backends · the second LLM site |
 | `test_intervals.py` · `test_filters.py` | 21 each | three-valued interval algebra · the deterministic gate |
-| `test_events.py` · `test_extract.py` | 19 each | M6 projection · extraction internals |
+| `test_extract.py` | 19 | extraction internals |
 | `test_logs.py` | 18 | log redaction |
 | `test_spans.py` | 15 | grounding and the numeral guard |
 | `test_codechef.py` | 14 | the scraper, against a synthetic page |
 | `test_structure.py` | 13 | architectural rules, enforced |
 | `test_leetcode.py` | 12 | connector |
 | `test_worksheet.py` | 11 | manual-check preparation |
-| `test_ingest.py` | 10 | PDF · DOCX · OCR |
+| `test_ingest.py` | 21 | PDF · DOCX · OCR · PDF dates to ISO 8601 |
 | `test_gather.py` | 9 | account choice, gaps |
 | `test_evaluate.py` | 8 | the mutation harness |
 | `test_cli.py` | 6 | commands, and the invariant |
@@ -95,7 +95,7 @@ alone: `rules` never sees a PDF, `narrative` never sees a URL.
 
 ```
 src/cvv/
-  models/          the contract — claims · evidence · findings · events · api
+  models/          the contract — claims · evidence · findings · api
   ingest.py        PDF · DOCX · OCR → normalised text + index map + sections
   spans.py         verbatim → character offsets, with the numeral guard
   extract.py       8 narrow model passes, model-routed sections, grounding
@@ -112,7 +112,6 @@ src/cvv/
   narrative.py     findings → prose (the second and last LLM site)
   worksheet.py     what a human still has to do
   evaluate.py      the mutation harness
-  events.py        the M6 evidence-bus projection
   store.py         two backends behind one Protocol
   api.py           12 HTTP endpoints
   cli.py           6 commands
@@ -830,35 +829,48 @@ role instead.
 
 ---
 
-## 14. The M6 projection
+## 14. The handoff to M6
 
-`cvv verify --events` writes the evidence-bus batch. The schema's own description is
-the design brief:
+M6, the skill graph, lives beside this module in `../skill-graph` and reads one file:
+the contract's `VerificationReport`, which `cvv verify --save DIR` writes as
+`verification-report.json` and `GET /v1/verifications/{id}` returns. One function,
+`pipeline.verification_report()`, builds it for both, so the file and the response
+cannot drift apart. It computes nothing: status, coverage and provenance are read off
+the stages that produced them.
 
-> *"M6 does NOT consume discrepancies — it has no interest in fraud. It consumes
-> corroborated capability signals."*
+**This module does not decide what evidence is worth.** An earlier `events.py` here
+projected the report into M6's evidence events itself. M6 has its own projector, and
+deciding what a verified artefact means for a skill is a skill-graph judgement — so
+ours was a second answer to M6's question, and it sent skill ids in a `surface:`
+namespace that M6 quarantined, all thirteen. It is gone.
 
-So most of a verification is **withheld**, each item with a typed reason, because
-filtering nobody can see is filtering nobody can audit.
+The first real handoff failed at every step, and each failure was invisible until a
+real report crossed the boundary:
 
-| Decision | Why |
+| What broke | Why nothing caught it |
 |---|---|
-| **Consent defaults to nothing** | M6 must refuse events outside scope; this system holds no consent record, so it asserts none. `--consent` is explicit |
-| **`subject_ref` never derived from the CV** | minting an id from a name or roll number makes someone linkable across verifications they never connected |
-| **Positive capped, negative not** | the ownership asymmetry — nobody prints a handle that undermines them |
-| **`surface:` namespace for skill ids** | ESCO-seeded ids need a resolver we do not have; M6 can map or reject knowingly rather than storing something invented |
+| the report had no evidence bundle, subject, provenance or coverage | the contract test parsed the stages, never the whole report |
+| M6 refused `document.created_at = D:20250704194743+05'30'` | jsonschema checks `format: date-time` only with an optional package |
+| two fields were extensions nobody had listed | `Narrative` was not among the models the test compared |
 
-Measured on the reference CV — 11 events, 5 withheld — and the reliabilities show the
-asymmetry working:
+`test_contract.py` now builds a full report over real evidence and requires it to
+validate except for the named extensions, including inside `oneOf` branches, where a
+`github` block carrying extensions surfaces as "valid under none of the schemas".
+
+Measured on the reference CV, live, through both modules:
 
 ```
-platform_rating   0.90    uncapped — the handle resolved on the platform's own API
-repo_artifact     0.375   = 0.75 × 0.5,  ownership_unverified
-cv_claim          0.12    = 0.20 × 0.6,  undated_observation
+cvv verify --save      59 s     4 artefacts, verification-report.json among them
+M6 projection          35 events · 2 suppressions, each with a schema reason
+                       platform_rating 1 (0.90) · claim_corroborated 6 · repo_artifact 4
+                       artifact_live 3 · cv_claim 21
+M6 ingest              35 accepted · 12 quarantined (tools and npm package lists)
+M6 skill graph         23 skills as intervals; algorithms [0.564, 0.725]
 ```
 
-Every multiplier is emitted as a named `reliability_factor`, so a capped value is
-auditable instead of magic.
+`subject_ref` is never derived from the CV — minting an id from a name or roll number
+makes someone linkable across verifications they never connected. The default is
+`subject:<document_id>`, which links only re-runs of the same file.
 
 ---
 
@@ -867,7 +879,7 @@ auditable instead of magic.
 ### CLI
 
 ```bash
-cvv verify cv.pdf [--brief] [--worksheet] [--events F] [--json] [--offline] [--save D]
+cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save D] [--subject REF]
 cvv evaluate cv.pdf [--baseline D] [--save-baseline D]
 cvv serve [--host] [--port]
 cvv rules | inspect cv.pdf | config
@@ -1066,11 +1078,11 @@ pushes, and people whose real work is private.
 
 ## 19. Known issues and open decisions
 
-### Open: seven fields ahead of the contract
+### Open: nine fields ahead of the contract
 
 25 of the 27 definitions in `verification-report.schema.json` set
 `additionalProperties: false`, so a field added here makes our output **invalid** for a
-consumer validating against the schema. Seven exist, each load-bearing:
+consumer validating against the schema. Nine exist, each load-bearing:
 
 | Field | Needed by |
 |---|---|
@@ -1079,6 +1091,8 @@ consumer validating against the schema. Seven exist, each load-bearing:
 | `RepoEvidence.homepage` | W1 2.0 — ties a deployment to its repo |
 | `GitHubEvidence.public_repos` / `public_repo_count` | skills a CV cannot fit |
 | `RuleOutcome.note` | what a `Corroborated` rule confirmed |
+| `Narrative.rejected_because` | why the model's prose was not used — an extension that was never listed, because `Narrative` was not compared |
+| `VerificationReport.failure` | why a verification failed; the contract has no field for it |
 
 `tests/test_contract.py` holds them as a **named list** and fails on anything else — and
 also fails if an entry stops being an extension, so the list cannot rot. The integration
@@ -1402,6 +1416,9 @@ every `though:` line are Python's.
 > citation and stays.
 
 ### 21.12 The M6 projection
+
+> This used `events.py`, removed on 25 October: M6's own projector does this now —
+> see §14.
 
 ```
 11 events, 5 withheld

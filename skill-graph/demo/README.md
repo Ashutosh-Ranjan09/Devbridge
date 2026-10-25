@@ -42,7 +42,7 @@ the "900+ problems across three platforms" claim carries M5's
 |---|---|
 | **1** | The input — what M5 hands over |
 | **2** | **6.0** projection: 30 claims and 7 repos → 21 events + 7 recorded suppressions |
-| **3** | **6.2** ingestion: quarantine, replay is a no-op, consent refused again, the log refuses an UPDATE |
+| **3** | **6.2** ingestion: quarantine, replay is a no-op, the log refuses an UPDATE |
 | **4** | **6.3** scoring: the graph, then the same graph two years later with no new evidence |
 | **5** | **6.4** explain: every contributing event with its weight, and what was *not* counted |
 | **6** | **6.4** search: tiers, and the difference between "clears the bar" and "reaches it" |

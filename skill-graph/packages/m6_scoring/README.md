@@ -140,3 +140,8 @@ it (`/api/user.ratedList`, one rating per handle, sort, emit the empirical CDF)
 before any number from this engine goes in the report. `platform_rating` is the
 strongest event kind in the system at reliability 0.90, so an error there matters
 more than an error anywhere else.
+
+The table is per platform: a rating is priced from `<platform>_rated_ecdf`, and a
+platform with no table is refused with `UnscoreableEvent`. Codeforces is the only
+one. The projection keeps the two in step — it emits `platform_rating` only for
+`rating_reference.platforms`, and a test fails if one of those has no table.

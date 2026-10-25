@@ -12,7 +12,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 **29 of the 41 catalogued checks are built — every one in scope — and the pipeline
 runs end to end** on `docs/CV-SDE-AR.pdf`: 28 registered rules plus the narrative
-(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 551 tests, ~11,000 lines across 34
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 547 tests, ~10,600 lines across 32
 modules, ruff and `mypy --strict` clean.
 
 The other twelve are not pending. **C1–C4 are out of scope** for this project — a
@@ -29,7 +29,7 @@ them would have contradicted an honest CV.
 ```
 cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
 
-cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save DIR]
+cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save DIR] [--subject REF]
 cvv evaluate cv.pdf [--baseline DIR] [--save-baseline DIR]
 cvv serve [--host] [--port]        # the HTTP surface, docs at /docs
 cvv rules | inspect | config
@@ -84,40 +84,44 @@ combined across sections. The weight is the TIER, and it is not decoration:
 honest CV's achievements section to **1.0 on a three-place standings artefact**.
 Weighted, it reads 0.4.
 
-**The M6 projection emits capability signals, not findings.** `cvv verify --events`
-writes `evidence-event.schema.json`, and the schema's own description is the design
-brief: *"M6 does NOT consume discrepancies — it has no interest in fraud."* So most
-of a verification is withheld, each item with a typed reason, because filtering
-nobody can see is filtering nobody can audit. Four decisions inside it:
+**M6 reads the report; this system does not project it.** `cvv verify --save DIR`
+writes `verification-report.json` — the contract's `VerificationReport`, built by
+`pipeline.verification_report()` and returned unchanged by `GET /v1/verifications/{id}`
+— and M6 (`../skill-graph`) turns that into evidence events itself. Deciding what a
+verified artefact is WORTH is a skill-graph judgement, so it lives there; an earlier
+`events.py` here made the same projection and sent `surface:` skill ids M6
+quarantined, every one. Three things the first real handoff taught:
 
-- **Consent defaults to nothing.** M6 must refuse events whose scope does not cover
-  skill-graph inclusion; this system holds no consent record, so it asserts none and
-  `--consent` is an explicit flag. The batch still goes, carrying what was withheld
-  and why — a receiver that can see that can ask for consent, where an empty batch
-  looks like a verification that found nothing.
+- **The report carries every stage.** The capability signals are in the evidence
+  bundle, not the findings, so a report without it is one M6 cannot project. The
+  first version of this object had no bundle, subject, provenance or coverage, and
+  nothing failed — because nothing parsed the whole thing. `test_contract.py` now
+  builds one and requires it to validate.
+- **Dates are the contract's, not the file's.** A PDF writes `D:20250704194743+05'30'`;
+  the contract wants ISO 8601, and M6 refused the report because it dates every
+  uncorroborated claim at the document's creation. jsonschema checks `format` only
+  with an optional package, so a test checks it directly.
 - **`subject_ref` is never derived from the CV.** Minting an identifier out of a name
   or a roll number makes someone linkable across verifications they never connected.
-- **Positive evidence from an unproven account is capped; negative is not** — the
-  ownership asymmetry, in the schema's own words, and every multiplier is emitted as
-  a named `reliability_factor` so a capped value is auditable instead of magic.
-- **`skill_id` is an ESCO-seeded canonical id and there is no resolver here**, so ids
-  go out in an explicit `surface:` namespace with reduced relevance. M6 can map or
-  reject them knowingly rather than storing something invented.
+  The default is `subject:<document_id>`, which links only re-runs of the same file.
 
 **We are ahead of the contract, and it is written down rather than silent.** 25 of the
 27 definitions in `verification-report.schema.json` set `additionalProperties: false`,
 so a field added here is a field that makes our output INVALID for a consumer
-validating against the schema. Seven exist —`ExtractionMeta.filtered`,
+validating against the schema. Nine exist —`ExtractionMeta.filtered`,
 `RepoEvidence.authored_files/authored_bytes/homepage`,
-`GitHubEvidence.public_repos/public_repo_count`, `RuleOutcome.note` — each load-bearing
-for a check, and each added unilaterally. The integration spec predicted exactly this:
+`GitHubEvidence.public_repos/public_repo_count`, `RuleOutcome.note`,
+`Narrative.rejected_because`, `VerificationReport.failure` — each load-bearing, and each
+added unilaterally. The eighth was there all along and listed nowhere: `Narrative` was
+not among the models the test compared. M6 tolerates all nine, because it does not
+validate the report it reads. The integration spec predicted exactly this:
 *"one person adds a field locally, the other never sees it, and integration breaks in
 week 7."*
 
 `tests/test_contract.py` now holds them as a NAMED list and fails on anything else, and
 it round-trips the three reference payloads — the phase 0 guarantee, which was lost in
 the clean-slate rebuild and restored only after roughly twenty model changes had gone
-unchecked. Resolving the seven needs a contract version bump, which the spec says takes
+unchecked. Resolving the nine needs a contract version bump, which the spec says takes
 both owners.
 
 **Two causes of a lost claim, never added together.** `span_failures` means the
@@ -202,7 +206,7 @@ Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `fi
 `dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` ·
 `gather` (Codeforces · LeetCode · CodeChef · GitHub · liveness) · `github` ·
 `leetcode` · `codechef` ·
-`rules` · `report` · `narrative` · `worksheet` · `evaluate` · `events` · `logs` ·
+`rules` · `report` · `narrative` · `worksheet` · `evaluate` · `logs` ·
 `store` · `api` · `pipeline` · `cli`.
 
 | Group | Built | Missing |
@@ -550,7 +554,7 @@ Design, read-only, at the repository root: the contract in `../schemas/`, the de
 | File | Holds |
 |---|---|
 | `../schemas/verification-report.schema.json` | **The authoritative data model** |
-| `../schemas/evidence-event.schema.json` | The M6 projection |
+| `../schemas/evidence-event.schema.json` | What M6 makes of a report — M6's input, not ours |
 | `../schemas/examples/report-full.json` · `report-degraded.json` | Reference payloads |
 | `../docs/verification-check-catalogue.html` | All 41 checks, tiers, exclusions |
 | `../docs/cv-to-skill-graph.html` | 22 claim shapes |

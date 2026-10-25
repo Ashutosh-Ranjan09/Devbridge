@@ -2,8 +2,9 @@
 
 **Status: complete (v1.0.0).** M6 submodule 6.2.
 
-The plan's brief, exactly: *validation, idempotency, consent refusal, immutable
-persistence, quarantine for unknown skills. No modelling.* This module never
+The plan's brief: *validation, idempotency, immutable persistence, quarantine for
+unknown skills. No modelling.* (It also listed consent refusal; consent was removed
+as out of scope for this project.) This module never
 computes a score, applies a decay, or decides what evidence is worth. It decides
 only whether a batch may enter the log, and records what it did.
 
@@ -17,7 +18,7 @@ with EventLog("evidence.db") as log:
 python3 -m m6_ingestor serve  --db evidence.db --port 8100
 python3 -m m6_ingestor ingest batch.json --db evidence.db
 make ingest      # project the golden report and push it through
-make test        # 178 tests across both packages, no pytest required
+make test        # every suite, no pytest required
 ```
 
 Stdlib only — `sqlite3` and `http.server` — except `yaml` and `jsonschema`,
@@ -34,8 +35,7 @@ which are already used elsewhere in the repo.
 | `GET /batches` | What has been ingested, with each batch's `not_emitted[]`. |
 
 The error type **is** the status code, and the distinctions are the contract:
-`400` the producer is wrong, `403` consent refused — never retry this into
-success, `409` two different events claim one identity.
+`400` the producer is wrong, `409` two different events claim one identity.
 
 ## Storage
 
@@ -51,13 +51,7 @@ changes rewrites history — and a rule that lives only in application code is o
 careless migration away from not existing. The tests attack the database
 directly to prove it.
 
-## Four decisions worth knowing about
-
-**Consent is checked here as well as in the projection.** Duplicated on purpose.
-This is the one rule where trusting the upstream service is not good enough: the
-cost of being wrong is someone in a searchable talent pool who never agreed to
-be, and the log is append-only, so there is no taking it back. A refusal is a
-decision, not a transient failure — retrying never turns it into a success.
+## Three decisions worth knowing about
 
 **A changed replay is a conflict, not an update.** `event_id` is
 `sha256(verification_id, kind, discriminator)` — identity derived from what the
@@ -80,12 +74,11 @@ invite the modelling the plan explicitly excludes. The graph itself belongs to
 `AcceptAll` is the escape hatch. Every receipt records which ontology judged it,
 because a quarantine decision is only interpretable against a version.
 
-## Tests — 89 in this package
+## Tests — 64 in this package
 
 | file | covers |
 |---|---|
 | `test_validation.py` | Schema re-checked at the boundary; batch-level uniqueness the schema cannot express; a rejected batch writes nothing; errors name *where*. |
-| `test_consent.py` | Refusal on empty, missing and unrelated scope; refusal survives retries; the real degraded fixture end to end. |
 | `test_idempotency.py` | Replay is a no-op; key order doesn't defeat dedupe; a known event in a new batch is a duplicate; a bug-fixed event is a conflict. |
 | `test_persistence.py` | Triggers attacked directly; batch atomicity; fold order stable regardless of arrival order; survives reopening. |
 | `test_quarantine.py` | Held not dropped, stored verbatim, excluded from scoring reads, per-skill not per-event, ontology swappable. |

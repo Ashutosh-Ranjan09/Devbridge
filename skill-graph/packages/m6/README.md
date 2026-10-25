@@ -12,7 +12,7 @@ with M6("evidence.db") as m6:
 ```
 make demo         # the end-to-end walkthrough
 make demo-http    # ...plus every HTTP endpoint, live
-make test         # 485 tests across every package
+make test         # 555 tests across every package
 ```
 
 ## The wiring
@@ -32,7 +32,7 @@ nothing reads 6.5.
 |---|---|---|
 | 6.0 | `m6_projection` | verified artefacts → evidence events |
 | 6.1 | `m6_ontology` | skills, tiers, edges; validates `contracts/ontology-seed.yaml` |
-| 6.2 | `m6_ingestor` | validation, consent, idempotency, append-only log |
+| 6.2 | `m6_ingestor` | validation, idempotency, append-only log |
 | 6.3 | `m6_scoring` | observation model, Kalman, decay, propagation |
 | 6.4 | `m6_query` | intervals, explain, tiered search |
 | 6.5 | `m6_integrity` | findings about the shape of the evidence |
