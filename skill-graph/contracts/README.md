@@ -9,10 +9,11 @@ if you want to know *why* any value here is what it is.
 | `m6-parameters.yaml` | Every constant in the scoring model, with a sweep range and a rationale. Code reads `value`; the sensitivity sweep reads `sweep`. |
 | `projection-rules.yaml` | ClaimGraph + EvidenceBundle + FindingsReport → EvidenceEventBatch. Emission rules, reliability factors, suppressions, invariants. |
 | `schemas/skill-state.schema.json` | The persisted (μ, σ²) state. A derived cache, not a source of truth. |
+| `../../schemas/skills/ontology.yaml` · `aliases.yaml` | The skills, tiers and links, and other names for them. At the repository root because M5's skill resolver reads them too. |
 | `reference/m6_model.py` | Executable specification of the model — dependency-free, ~120 lines. The real 6.3 scoring-engine must reproduce its numbers. |
 
 `projection-rules.yaml` is **implemented** by `packages/m6_projection/` (v1.0.0,
-complete; 102 tests, `make test`). That package hard-codes no threshold: edit
+complete; 130 tests, `make test`). That package hard-codes no threshold: edit
 this contract and the module's behaviour changes with it, which is what keeps the
 sensitivity sweep reachable without a code edit. If you change a value here, run
 `make test` — the golden test will tell you which published document is now

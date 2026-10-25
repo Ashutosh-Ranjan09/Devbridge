@@ -38,7 +38,7 @@ events and M6 quarantined every one.
 
 | | Setup | Tests |
 |---|---|---|
-| M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 574 |
+| M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 578 |
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 572, or `make all` for every gate |
 
 ## Personal data

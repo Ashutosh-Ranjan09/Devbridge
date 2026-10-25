@@ -97,7 +97,7 @@ A propagated skill returns `basis: "propagated"`, `evidence_count: 0`, empty
 settled answer to the presentation problem: `c` outranks skills with real
 evidence, and the response says plainly that it is an inference.
 
-## Tests — 94 in this package
+## Tests — 97 in this package
 
 | file | covers |
 |---|---|

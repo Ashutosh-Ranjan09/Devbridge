@@ -118,7 +118,7 @@ the behaviour you want, and a useful check that the model is doing its job.
 
 ## Tests
 
-113 tests, `make test`, no pytest.
+130 tests, `make test`, no pytest.
 
 | file | covers |
 |---|---|

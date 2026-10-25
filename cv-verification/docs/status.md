@@ -13,7 +13,7 @@
 | | Today | Notes |
 |---|---|---|
 | **Checks** | **29 / 29 in scope** | 28 rules + the narrative (C5). 41 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human |
-| **Tests** | **574** passing · 584 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Tests** | **578** passing · 588 with Postgres | 0 failing; 5 live tests deselected by default |
 | **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
 | **Size** | 33 modules · 10,984 lines · 22 test files · 6,119 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
@@ -42,7 +42,7 @@
 ```
 ruff check src tests                  PASS
 mypy --strict                         33 files, no issues
-pytest                                574 passed · 10 skipped (Postgres-only) · 0 failed
+pytest                                578 passed · 10 skipped (Postgres-only) · 0 failed
 cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 ```
 

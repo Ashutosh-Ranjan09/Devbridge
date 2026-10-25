@@ -37,7 +37,7 @@ because the reasoning is worth more than the conclusion.
 | | |
 |---|---|
 | source | 33 modules, 10,984 lines |
-| tests | 22 files, **574 passing** (584 with Postgres, 5 live) |
+| tests | 22 files, **578 passing** (588 with Postgres, 5 live) |
 | quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
@@ -49,7 +49,7 @@ because the reasoning is worth more than the conclusion.
 | `test_github.py` | 44 | authored-file detection, repo evidence, manifests |
 | `test_contract.py` | 44 | our models and a whole emitted report vs. the JSON Schemas |
 | `test_dates.py` | 36 | the date parser's table |
-| `test_api.py` | 28 | the HTTP surface |
+| `test_api.py` | 32 | the HTTP surface |
 | `test_store.py` · `test_narrative.py` | 22 each | both store backends · the narrative LLM site |
 | `test_intervals.py` · `test_filters.py` | 21 each | three-valued interval algebra · the deterministic gate |
 | `test_extract.py` | 19 | extraction internals |

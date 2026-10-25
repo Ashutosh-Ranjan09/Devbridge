@@ -57,7 +57,7 @@ decisions of its own, which is the thing to prevent.
 `m6.versions()` returns every package and contract version behind an answer. A
 score without those cannot be reproduced or disputed.
 
-## Tests — 38 here, 485 across the repo
+## Tests — 35 here, 572 across the repo
 
 `test_composition.py` tests the wiring: that guarantees survive composition, that
 two subjects stay separate, that a quarantined skill is absent from the graph
