@@ -56,6 +56,7 @@ uv run cvv verify cv.pdf --json         # the findings, as JSON
 uv run cvv verify cv.pdf --save out/    # every stage, and the report M6 reads
 uv run cvv evaluate cv.pdf              # corrupt one fact and see what notices
 uv run cvv rules                        # the live check catalogue
+uv run cvv aliases                      # what the model decided skill names mean
 uv run cvv inspect cv.pdf               # read a document without calling a model
 ```
 
@@ -196,8 +197,9 @@ ingest  →  extract  →  gather  →  rules  →  views
 Each arrow is a typed contract, which is what makes every stage testable alone:
 `rules` never sees a PDF, `views` never sees a URL.
 
-**The model translates; it never judges.** Two call sites. It converts unstructured
-text to structured claims, and structured findings to prose. It never produces a
+**The model translates; it never judges.** Three call sites. It converts unstructured
+text to structured claims, structured findings to prose, and a skill name to one id
+from M6's shared list (or none). It never produces a
 number that enters a finding and never decides whether a claim is true.
 
 Three things carry most of the weight:
@@ -232,6 +234,7 @@ src/cvv/
   gather       Codeforces · LeetCode · CodeChef · GitHub · liveness, all cached
   codechef     the one scraped source — the public profile page
   providers    the model seam: Ollama, or Claude via the Claude Code wrapper
+  skills       which shared skill each name means — rules, cache, then the model
   rules        28 checks, isolated, every one accounted for
   report       findings → five buckets
   narrative    findings → prose, one sentence per finding
@@ -245,7 +248,7 @@ CLAUDE.md      the guardrails, and why each one exists
 
 [`docs/design.md`](docs/design.md) is the file to read next — also rendered as
 [`docs/design.html`](docs/design.html) and [`docs/design.pdf`](docs/design.pdf)
-(37 pages; regenerate with `uv run python scripts/render-pdf.py`) — every stage, every
+(38 pages; regenerate with `uv run python scripts/render-pdf.py`) — every stage, every
 design choice, and the failure that produced each one. `CLAUDE.md` holds the
 guardrails in their working form.
 
@@ -254,7 +257,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 547 tests, no server needed
+uv run pytest                                   # 574 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy

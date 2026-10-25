@@ -12,7 +12,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 **29 of the 41 catalogued checks are built — every one in scope — and the pipeline
 runs end to end** on `docs/CV-SDE-AR.pdf`: 28 registered rules plus the narrative
-(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 547 tests, ~10,600 lines across 32
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 574 tests, ~11,000 lines across 33
 modules, ruff and `mypy --strict` clean.
 
 The other twelve are not pending. **C1–C4 are out of scope** for this project — a
@@ -32,7 +32,7 @@ cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
 cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save DIR] [--subject REF]
 cvv evaluate cv.pdf [--baseline DIR] [--save-baseline DIR]
 cvv serve [--host] [--port]        # the HTTP surface, docs at /docs
-cvv rules | inspect | config
+cvv rules | inspect | config | aliases [--promote NAME]
 ```
 
 **The HTTP surface is §05 of the integration spec, in one process.** The spec draws
@@ -108,12 +108,13 @@ quarantined, every one. Three things the first real handoff taught:
 **We are ahead of the contract, and it is written down rather than silent.** 25 of the
 27 definitions in `verification-report.schema.json` set `additionalProperties: false`,
 so a field added here is a field that makes our output INVALID for a consumer
-validating against the schema. Nine exist —`ExtractionMeta.filtered`,
+validating against the schema. Ten exist —`ExtractionMeta.filtered`,
 `RepoEvidence.authored_files/authored_bytes/homepage`,
 `GitHubEvidence.public_repos/public_repo_count`, `RuleOutcome.note`,
-`Narrative.rejected_because`, `VerificationReport.failure` — each load-bearing, and each
+`Narrative.rejected_because`, `VerificationReport.failure`,
+`VerificationReport.skill_resolution` — each load-bearing, and each
 added unilaterally. The eighth was there all along and listed nowhere: `Narrative` was
-not among the models the test compared. M6 tolerates all nine, because it does not
+not among the models the test compared. M6 tolerates all ten, because it does not
 validate the report it reads. The integration spec predicted exactly this:
 *"one person adds a field locally, the other never sees it, and integration breaks in
 week 7."*
@@ -121,8 +122,29 @@ week 7."*
 `tests/test_contract.py` now holds them as a NAMED list and fails on anything else, and
 it round-trips the three reference payloads — the phase 0 guarantee, which was lost in
 the clean-slate rebuild and restored only after roughly twenty model changes had gone
-unchecked. Resolving the nine needs a contract version bump, which the spec says takes
+unchecked. Resolving the ten needs a contract version bump, which the spec says takes
 both owners.
+
+**Which skill a name means is resolved here, against one shared list.** M6 scores
+skills by id from `../schemas/skills/` (`ontology.yaml`, `aliases.yaml`), and a name it
+cannot place is set aside. `skills.resolve_skills` runs after the rules and writes
+`skill_resolution` into the report — every name the claims, the language census and the
+manifests carry, mapped to an id or to none, with who decided:
+
+- **rules first**: the id itself, or an alias from the shared file;
+- **then the cache** (`.cache/skill-resolution.json`, per ontology version), so a name is
+  asked once and the next CV gets the same answer;
+- **then the model**, for what is left: a CLOSED choice — one id from the list, or none.
+  An answer off the list is none whatever it says, a skipped name is `unresolved`, and a
+  model that is down leaves names unresolved for M6's own spelling rules.
+
+That is resolution, not judgement: the contract names `llm_tiebreak` for it. The model
+never sees the CV and cannot add a skill. `cvv aliases` lists its decisions and
+`--promote NAME` makes one a rule in `aliases.yaml`. Measured on the reference CV: 108
+names, 22 by rule or alias, 86 asked, every one answered none (npm packages, tools,
+"competitive programming") — and on a probe set it mapped React.js, ECMAScript and
+"Amazon Web Services" correctly and refused React Native, Preact, Next Auth and nodemon.
+M5's own rules are untouched by any of this; they keep checking the CV's wording.
 
 **Two causes of a lost claim, never added together.** `span_failures` means the
 quoted text is not in the document — the model invented or garbled it.
@@ -203,7 +225,7 @@ the report then carries a banner saying the text was inferred, because word
 boundaries are where OCR fails and every reference-table match degrades with them.
 
 Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `filters` ·
-`dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` ·
+`dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` · `skills` ·
 `gather` (Codeforces · LeetCode · CodeChef · GitHub · liveness) · `github` ·
 `leetcode` · `codechef` ·
 `rules` · `report` · `narrative` · `worksheet` · `evaluate` · `logs` ·
@@ -459,11 +481,11 @@ someone and one you would not.
 
 And two that shape everything else:
 
-- **The LLM translates, never judges.** It converts unstructured to structured, or
-  structured to prose. It never produces a number that enters a finding and never decides
-  whether a claim is true.
+- **The LLM translates, never judges.** It converts unstructured to structured,
+  structured to prose, or a name to one id from a closed list. It never produces a number
+  that enters a finding and never decides whether a claim is true.
 
-  The second call site proves the rule needs teeth. Asked for free prose over a report
+  The narrative call site proves the rule needs teeth. Asked for free prose over a report
   carrying four attention findings, `qwen3:1.7b` opened with *"the CV does not
   contradict any rules, as all claimed information is verified"* — a verdict, from a
   system whose first principle is that it produces none, and it passed a numeral check

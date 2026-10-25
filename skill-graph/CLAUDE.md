@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 555 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 572 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "555 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "572 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -47,7 +47,7 @@ report --6.0--> events --6.2--> log --6.3--> states --6.4--> answers
 | | package | job |
 |---|---|---|
 | 6.0 | `m6_projection` | M5 report → `EvidenceEventBatch`. Decides what a verified artefact *is*. Deterministic. |
-| 6.1 | `m6_ontology` | skills, tiers, edges from `contracts/ontology-seed.yaml` (35 skills, 15 edges, v0.2.0) |
+| 6.1 | `m6_ontology` | skills, tiers, edges from `../schemas/skills/ontology.yaml` (35 skills, 15 edges, v0.2.0) |
 | 6.2 | `m6_ingestor` | schema validation, idempotency, quarantine, append-only SQLite log |
 | 6.3 | `m6_scoring` | observation model, Kalman update, decay, propagation, recovery gate |
 | 6.4 | `m6_query` | skills, explain, tiered search, HTTP |
@@ -116,8 +116,9 @@ propagation      read time, ONE hop, sources with direct evidence only, direct e
 | file | read by | fixes |
 |---|---|---|
 | `contracts/m6-parameters.yaml` | 6.3 | every scoring constant + sweep range. `contract_version` → `parameter_version` |
-| `contracts/projection-rules.yaml` | 6.0 | emission rules, strengths, base reliabilities, factors, bands, aliases, suppressions |
-| `contracts/ontology-seed.yaml` | 6.1 | skills, tiers, edges. Grow it by PR; `python -m m6_ontology check` validates it |
+| `contracts/projection-rules.yaml` | 6.0 | emission rules, strengths, base reliabilities, factors, bands, suppressions, the manifest rule |
+| `../schemas/skills/ontology.yaml` | 6.1, and M5 | skills, tiers, edges — **shared with M5's skill resolver**. Grow it by PR; `python -m m6_ontology check` validates it |
+| `../schemas/skills/aliases.yaml` | 6.0, and M5 | other names for skills. Grown by `cvv aliases --promote` after review |
 | `contracts/integrity-rules.yaml` | 6.5 | the nine checks; deleting one switches it off |
 | `contracts/reference-distributions.yaml` | 6.3 | per-platform rating ECDFs, `<platform>_rated_ecdf` — Codeforces only (data, not a parameter) |
 | `contracts/reference/m6_model.py` | tests | ~120-line executable spec. Engine must match to 1e-9; **if prose and this disagree, this wins** |
@@ -150,6 +151,17 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   so `CONTRADICTED` can't fire on real input yet.
 - The Codeforces ECDF is **approximated** (`status: approximated_pending_regeneration`). Regenerate it from
   `/api/user.ratedList` before publishing any number, because `platform_rating` is the strongest event (reliability 0.90).
+- **A report's `skill_resolution` is read first.** M5 maps every skill name to an id from
+  the shared list, or none (rules, cache, then a closed-choice model call). 6.0 uses that,
+  and its own `normalise_skill` — spelling variants checked against `knows()` — only for a
+  name the report does not cover. An event whose skill came only from a model mapping
+  carries `payload.mapped_by_model`; the numbers are unchanged. The model runs in M5, so M6
+  still contains none.
+- **A manifest credits only dependencies that are skills** (`manifest_dependencies.known_only`).
+  The rest are named once per repository in `not_emitted` as `no_skill_mapping`, not carried
+  into quarantine — seventy npm packages are libraries, not skills awaiting an ontology entry.
+- **One claim naming a skill twice** ("Next.js | next") is deduplicated after resolution.
+  Before, the colliding event ids made `_check_invariants` refuse the whole report.
 - Consent was removed as out of scope for this project: no gate in 6.0, no check in 6.2.
   `consent_scope` survives as an optional schema field and a log column, always empty.
 - **CodeChef has no rating distribution**, so a CodeChef rating never reaches 6.3 as a

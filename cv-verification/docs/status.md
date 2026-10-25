@@ -13,14 +13,14 @@
 | | Today | Notes |
 |---|---|---|
 | **Checks** | **29 / 29 in scope** | 28 rules + the narrative (C5). 41 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human |
-| **Tests** | **547** passing · 557 with Postgres | 0 failing; 5 live tests deselected by default |
-| **Gates** | ruff ✅ · `mypy --strict` ✅ | 32 source files |
-| **Size** | 32 modules · 10,639 lines · 21 test files · 5,932 test lines | |
+| **Tests** | **574** passing · 584 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
+| **Size** | 33 modules · 10,984 lines · 22 test files · 6,119 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | **Documents measured** | 3 | only the student CV since October |
-| **Contract** | 9 fields ahead of the schema | awaiting a decision |
+| **Contract** | 10 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 65, since 4 Sep | **no remote** |
+| **Commits** | 68, since 4 Sep | **no remote** |
 
 ---
 
@@ -41,8 +41,8 @@
 
 ```
 ruff check src tests                  PASS
-mypy --strict                         32 files, no issues
-pytest                                547 passed · 10 skipped (Postgres-only) · 0 failed
+mypy --strict                         33 files, no issues
+pytest                                574 passed · 10 skipped (Postgres-only) · 0 failed
 cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 ```
 
@@ -76,6 +76,7 @@ cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 | **P5 — CodeChef** | the public profile page, scraped: peak rating, contest ranks by name, problems solved. Attention-only. A missing handle is a finding only when CodeChef redirects home; any other redirect is a "site changed" gap |
 | **Three bugs** | D7/G6/G9 lost a second finding on one claim (shared id); the narrative was rejected whenever a rule fired twice; `POST /v1/verifications` ignored a JSON body and multipart `options` |
 | **Scope** | C1–C4 out of scope; W2 human by design; consent handling removed from M5 and M6 |
+| **Skill resolution** | a third model call site: each skill name in the report mapped to one id from the shared `schemas/skills/` list, or none, after rules and a cache; `cvv aliases` to review and promote. G6 and G9 no longer match `java` to JavaScript. M6 reads the mapping, credits only manifest dependencies that are skills, and no longer refuses a report naming one skill twice |
 | **One repository** | `devbridge/` holds M5 (`cv-verification/`) and M6 (`skill-graph/`) side by side, with one copy of the contract (`schemas/`) and of the design pages (`docs/`) |
 | **The M6 handoff** | the report is now the contract's whole `VerificationReport`, written by `--save`; PDF dates are ISO 8601; `events.py` removed, since M6 projects the report itself. Found by running a real report through M6, which also exposed four M6 bugs, fixed there |
 
@@ -83,7 +84,7 @@ cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 
 ## Decisions needed
 
-### 1. Nine fields ahead of the contract
+### 1. Ten fields ahead of the contract
 
 25 of 27 upstream schema definitions set `additionalProperties: false`, so these make
 our output invalid for a consumer validating against that schema:
@@ -91,9 +92,9 @@ our output invalid for a consumer validating against that schema:
 `ExtractionMeta.filtered` · `RepoEvidence.authored_files` · `RepoEvidence.authored_bytes`
 · `RepoEvidence.homepage` · `GitHubEvidence.public_repos` ·
 `GitHubEvidence.public_repo_count` · `RuleOutcome.note` · `Narrative.rejected_because` ·
-`VerificationReport.failure`
+`VerificationReport.failure` · `VerificationReport.skill_resolution`
 
-M6 reads all nine without complaint, because it does not validate the report.
+M6 reads all ten without complaint, because it does not validate the report.
 
 **Recommended:** generate `../schemas/` from the models at version `2.0.0` and retire
 the extension list — M6 reads the same folder, so one change reaches both.
@@ -110,7 +111,7 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 65 commits, now both modules, exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 68 commits, now both modules, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
 | 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |

@@ -90,6 +90,15 @@ three things none of them did, and each made the projection quietly wrong.
   platform confirms the claim it reaches instead (`claim_corroborated`, which needs
   no scale), and a rating no claim cites is suppressed by name.
 
+## Skill names: the report decides first
+
+`project()` reads the report's `skill_resolution` — M5's answer to which shared skill each
+name means — before anything of its own. Its `normalise_skill` is the fallback for a name
+the report does not cover: lower-cased, a version dropped, the shared alias table, then
+separator-free, `js`-suffix and digit-free spellings, each kept only if `knows()` says the
+skill exists. `C`, `C++` and `C#` never fold together. An id from the report that this
+ontology does not hold is ignored, not trusted.
+
 ## Aggregate claims
 
 "Solved 500+ problems across LeetCode, Codeforces, GeeksforGeeks" is two things

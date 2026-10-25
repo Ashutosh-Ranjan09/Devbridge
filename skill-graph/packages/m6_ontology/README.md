@@ -20,7 +20,7 @@ onto.neighbours("cpp")       # (Edge(cpp, algorithms, REQUIRES), Edge(cpp, c, RE
 
 ## The graph is the contract, not the code
 
-Every skill, tier and edge is in `contracts/ontology-seed.yaml`. Nothing here
+Every skill, tier and edge is in `../schemas/skills/ontology.yaml`, shared with M5. Nothing here
 defines one, so the graph can be reviewed by someone who does not read Python —
 which matters, because a tier is a claim about how fast a skill goes stale and
 that claim should be arguable by whoever knows the field, not by whoever last

@@ -199,12 +199,14 @@ finding · H6 the hiring decision.
 ### The LLM call sites
 
 Everything else is deterministic. The model translates; it never judges. The catalogue
-planned five sites; two exist, because three of the five turned out to be one.
+planned five sites; three exist, because three of the five turned out to be one and C4's
+closed-set tie-break reappeared as skill resolution.
 
 | ID | Site | Guardrail |
 |---|---|---|
 | D1 | CV text → typed claims: section routing, then 8 narrow passes — achievements · projects · employment · education · skills · summary · declarations (D3's markers) · handles (G1) | `required` JSON schema per pass, span grounding, the deterministic gate |
 | C5 | Findings → prose, one sentence per finding | input is a `FindingsReport` only; omission and per-finding numeral checks |
+| — | Skill name → one id from M6's shared list, or none (`skills.py`) | rules and cache first; closed set — an answer off the list is none; every decision recorded in the report and reviewable with `cvv aliases` |
 
 G1 keeps one regex ahead of the model — `GITHUB_REPO`, for repository URLs. C4, the
 entity-resolution tie-break, is out of scope with C1–C4.

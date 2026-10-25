@@ -193,8 +193,8 @@ pre.data .ok{color:var(--verified);font-weight:500}
     <p class="refusal">It produces <strong>no score</strong> and <strong>no verdict</strong>. It reports evidence and says explicitly what it could not check. A person decides what any of it means.</p>
     <div class="figures">
       <div class="fig"><span class="n">29<span style="color:var(--faint);font-size:18px">/29</span></span><span class="l">checks built, every one in scope</span></div>
-      <div class="fig"><span class="n">547</span><span class="l">tests passing</span></div>
-      <div class="fig"><span class="n">10,639</span><span class="l">lines across 32 modules</span></div>
+      <div class="fig"><span class="n">574</span><span class="l">tests passing</span></div>
+      <div class="fig"><span class="n">10,984</span><span class="l">lines across 33 modules</span></div>
       <div class="fig"><span class="n">17/17</span><span class="l">mutation detection, 0 collateral</span></div>
     </div>
   </div>
@@ -260,7 +260,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <div class="tw"><table>
 <thead><tr><th>File</th><th class="num">Tests</th><th>Covers</th></tr></thead>
 <tbody>
-<tr><td class="mono">test_rules.py</td><td class="num">170</td><td>all 28 checks, against recorded evidence</td></tr>
+<tr><td class="mono">test_rules.py</td><td class="num">185</td><td>all 28 checks, against recorded evidence</td></tr>
 <tr><td class="mono">test_github.py</td><td class="num">44</td><td>authored-file detection, repo evidence, manifests</td></tr>
 <tr><td class="mono">test_contract.py</td><td class="num">44</td><td>our models and a whole emitted report vs. the JSON Schemas</td></tr>
 <tr><td class="mono">test_dates.py</td><td class="num">36</td><td>the date parser's table</td></tr>
@@ -272,6 +272,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <tr><td class="mono">test_logs.py</td><td class="num">18</td><td>log redaction</td></tr>
 <tr><td class="mono">test_spans.py</td><td class="num">15</td><td>grounding and the numeral guard</td></tr>
 <tr><td class="mono">test_codechef.py</td><td class="num">14</td><td>the scraper, against a synthetic page</td></tr>
+<tr><td class="mono">test_skills.py</td><td class="num">12</td><td>skill resolution, against a fake model</td></tr>
 <tr><td class="mono">test_structure.py</td><td class="num">13</td><td>architectural rules, enforced</td></tr>
 <tr><td class="mono">test_leetcode · test_worksheet</td><td class="num">12–11</td><td>connector · manual prep</td></tr>
 <tr><td class="mono">test_gather · test_evaluate · test_cli · test_reference</td><td class="num">9–3</td><td>account choice · the harness · commands · roll schemes</td></tr>
@@ -644,7 +645,7 @@ confidence = 1.0 - combined</code></pre>
 
 <section id="narrative">
 <h2 class="sec"><span class="num">12</span>The narrative</h2>
-<p class="lede">The second and last place a model is called. It does not write a briefing — it writes one sentence per finding, and Python assembles the frame.</p>
+<p class="lede">The second place a model is called; skill resolution (§14) is the third. It does not write a briefing — it writes one sentence per finding, and Python assembles the frame.</p>
 <div class="pair">
   <div class="obs"><h4>Observed</h4><p>Asked for free prose over a report carrying four attention findings, the model opened with <em>"the CV does not contradict any rules, as all claimed information is verified"</em> — a verdict, from a system whose first principle is that it produces none. It passed a numeral check <strong>because it contained no numbers.</strong></p></div>
   <div class="fix"><h4>Resolved</h4><p>A model that never writes a global sentence cannot write a false one. It now produces one sentence per finding; the counts, the ordering and the innocent readings are printed by Python.</p></div>
@@ -692,6 +693,19 @@ M6 projection          35 events · 2 suppressions, each with a schema reason
 M6 ingest              35 accepted · 12 quarantined (tools and npm package lists)
 M6 skill graph         23 skills as intervals; algorithms [0.564, 0.725]</code></pre>
 <p><code>subject_ref</code> is never derived from the CV — minting an id from a name or roll number makes someone linkable across verifications they never connected. The default is <code>subject:&lt;document_id&gt;</code>, which links only re-runs of the same file.</p>
+<h3>Which skill a name means — the third LLM site</h3>
+<p>M6 scores skills by id from one list both modules read, <code>../schemas/skills/</code>, and a name it cannot place is set aside. So after the rules, <code>skills.resolve_skills</code> maps every skill name in the report to an id or to none, and writes the answers into <code>skill_resolution</code>:</p>
+<pre><code>rules        the id itself, or aliases.yaml            "Next.js" → nextjs (alias)
+cache        decided before, under this list version   asked once, same answer next CV
+model        the rest: ONE id from the list, or none   "Amazon Web Services" → aws</code></pre>
+<p>The choice is closed: an answer off the list is none whatever it says, a skipped name is <code>unresolved</code>, and if the model is down the verification completes and M6 falls back to its spelling rules. <code>cvv aliases</code> lists the decisions; <code>--promote NAME</code> makes one a rule.</p>
+<div class="tw"><table>
+<thead><tr><th>Name</th><th>Answer</th><th></th></tr></thead>
+<tbody>
+<tr><td>Amazon Web Services · ECMAScript · Postgres SQL · React.js</td><td class="mono">aws · javascript · postgresql · react</td><td>right</td></tr>
+<tr><td>React Native · Preact · Next Auth · nodemon · Svelte</td><td class="mono">none</td><td>right — they build on, or are not, a listed skill</td></tr>
+</tbody></table></div>
+<p>On the reference CV: 108 names, 22 by rule or alias, 86 asked, every one answered none — npm packages, VS Code, "competitive programming". The answers travel in the report, so a re-projection months later gives the same graph. M5's own rules never see them, and G6 and G9 now match whole words, so <code>java</code> no longer matches JavaScript.</p>
 </section>
 
 <section id="interfaces">
@@ -699,7 +713,7 @@ M6 skill graph         23 skills as intervals; algorithms [0.564, 0.725]</code><
 <pre><code>cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save D] [--subject REF]
 cvv evaluate cv.pdf [--baseline D] [--save-baseline D]
 cvv serve [--host] [--port]
-cvv rules | inspect cv.pdf | config</code></pre>
+cvv rules | inspect cv.pdf | config | aliases [--promote NAME]</code></pre>
 
 <h3>HTTP — the integration spec, in one process</h3>
 <pre><code>POST /v1/verifications              202 · Idempotency-Key honoured
@@ -782,8 +796,8 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 
 <section id="open">
 <h2 class="sec"><span class="num">19</span>Open decisions and known gaps</h2>
-<h3>Nine fields ahead of the contract</h3>
-<p>Twenty-five of the twenty-seven schema definitions set <code>additionalProperties: false</code>, so a field added here makes our output <strong>invalid</strong> for a consumer validating against the schema. Nine exist, each load-bearing:</p>
+<h3>Ten fields ahead of the contract</h3>
+<p>Twenty-five of the twenty-seven schema definitions set <code>additionalProperties: false</code>, so a field added here makes our output <strong>invalid</strong> for a consumer validating against the schema. Ten exist, each load-bearing:</p>
 <div class="tw"><table>
 <thead><tr><th>Field</th><th>Needed by</th></tr></thead>
 <tbody>
@@ -794,6 +808,7 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 <tr><td class="mono">RuleOutcome.note</td><td>what a corroborating rule confirmed</td></tr>
 <tr><td class="mono">Narrative.rejected_because</td><td>why the model's prose was not used — never listed, because <code>Narrative</code> was not compared</td></tr>
 <tr><td class="mono">VerificationReport.failure</td><td>why a verification failed; the contract has no field for it</td></tr>
+<tr><td class="mono">VerificationReport.skill_resolution</td><td>which shared skill each name means, for M6 — §14</td></tr>
 </tbody></table></div>
 <p>A test holds them as a <strong>named list</strong> and fails on anything else — and also fails if an entry stops being an extension, so the list cannot rot. The integration spec predicted this failure mode verbatim: <em>"one person adds a field locally, the other never sees it, and integration breaks in week 7."</em></p>
 <p>Arguably the strongest reading is that the spec itself prescribes <code>schemas/*.schema.json — generated from Pydantic, committed</code>, which makes the models the source of truth and the upstream draft what should be regenerated.</p>
@@ -1028,7 +1043,7 @@ JUDGEMENT ONLY — no machine result exists or should
 </div>
 </section>
 
-<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 32 modules · 547 tests · 28 checks · 25 October 2026</footer>
+<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 33 modules · 574 tests · 28 checks · 26 October 2026</footer>
 
 </main>
 </div>

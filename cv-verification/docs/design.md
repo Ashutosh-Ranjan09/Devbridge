@@ -36,26 +36,27 @@ because the reasoning is worth more than the conclusion.
 
 | | |
 |---|---|
-| source | 32 modules, 10,639 lines |
-| tests | 21 files, **547 passing** (557 with Postgres, 5 live) |
-| quality | `ruff` clean · `mypy --strict` clean across all 32 files |
+| source | 33 modules, 10,984 lines |
+| tests | 22 files, **574 passing** (584 with Postgres, 5 live) |
+| quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
 | documents measured against | 3 — student CV, synthetic CV, professional CV |
 
 | Test file | Tests | Covers |
 |---|---:|---|
-| `test_rules.py` | 170 | all 28 checks, against recorded evidence |
+| `test_rules.py` | 185 | all 28 checks, against recorded evidence |
 | `test_github.py` | 44 | authored-file detection, repo evidence, manifests |
 | `test_contract.py` | 44 | our models and a whole emitted report vs. the JSON Schemas |
 | `test_dates.py` | 36 | the date parser's table |
 | `test_api.py` | 28 | the HTTP surface |
-| `test_store.py` · `test_narrative.py` | 22 each | both store backends · the second LLM site |
+| `test_store.py` · `test_narrative.py` | 22 each | both store backends · the narrative LLM site |
 | `test_intervals.py` · `test_filters.py` | 21 each | three-valued interval algebra · the deterministic gate |
 | `test_extract.py` | 19 | extraction internals |
 | `test_logs.py` | 18 | log redaction |
 | `test_spans.py` | 15 | grounding and the numeral guard |
 | `test_codechef.py` | 14 | the scraper, against a synthetic page |
+| `test_skills.py` | 12 | skill resolution, against a fake model |
 | `test_structure.py` | 13 | architectural rules, enforced |
 | `test_leetcode.py` | 12 | connector |
 | `test_worksheet.py` | 11 | manual-check preparation |
@@ -109,7 +110,8 @@ src/cvv/
   codechef.py      the public profile page, scraped
   rules.py         28 checks + the isolating runner
   report.py        findings → five buckets + section confidence + coverage
-  narrative.py     findings → prose (the second and last LLM site)
+  narrative.py     findings → prose (the second LLM site)
+  skills.py        skill name → one id from M6's shared list (the third LLM site)
   worksheet.py     what a human still has to do
   evaluate.py      the mutation harness
   store.py         two backends behind one Protocol
@@ -772,7 +774,7 @@ reads as "not checked" rather than "checked, nothing found".
 
 ---
 
-## 12. The narrative — the second and last LLM site
+## 12. The narrative — the second LLM site
 
 The model does **not** write a briefing. It writes **one sentence per finding**, and
 Python assembles the frame.
@@ -872,6 +874,37 @@ M6 skill graph         23 skills as intervals; algorithms [0.564, 0.725]
 makes someone linkable across verifications they never connected. The default is
 `subject:<document_id>`, which links only re-runs of the same file.
 
+### Which skill a name means — the third LLM site
+
+M6 scores skills by id from one list both modules read, `../schemas/skills/`, and a name
+it cannot place is set aside. A CV writes "React.js", a manifest says `react`, GitHub
+says "TypeScript". So after the rules, `skills.resolve_skills` maps every such name in
+the report to an id or to none, and writes the answers into `skill_resolution`:
+
+```
+rules        the id itself, or aliases.yaml            "Next.js" → nextjs (alias)
+cache        decided before, under this list version   asked once, same answer next CV
+model        the rest: ONE id from the list, or none   "Amazon Web Services" → aws
+```
+
+The model's choice is closed: an answer off the list is none whatever it says, a name it
+skipped is `unresolved`, and if it is down the verification completes and M6 falls back
+to its spelling rules. The contract names this method `llm_tiebreak`; the catalogue's rule
+for it was "a closed candidate set, or abstain". `cvv aliases` lists the decisions, and
+`--promote NAME` makes one a rule.
+
+Measured live. On the reference CV: 108 names, 22 by rule or alias, 86 asked, every one
+answered none — npm packages, VS Code, "competitive programming". On a probe set:
+
+| Name | Answer | |
+|---|---|---|
+| Amazon Web Services · ECMAScript · Postgres SQL · React.js | aws · javascript · postgresql · react | right |
+| React Native · Preact · Next Auth · nodemon · Svelte | none | right — they build on, or are not, a listed skill |
+
+The answers travel in the report, so a re-projection months later gives the same graph
+whatever the cache says by then. M5's own rules never see them: G6 and G9 keep checking
+the CV's wording — and now match whole words, so `java` no longer matches JavaScript.
+
 ---
 
 ## 15. Interfaces
@@ -882,7 +915,7 @@ makes someone linkable across verifications they never connected. The default is
 cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save D] [--subject REF]
 cvv evaluate cv.pdf [--baseline D] [--save-baseline D]
 cvv serve [--host] [--port]
-cvv rules | inspect cv.pdf | config
+cvv rules | inspect cv.pdf | config | aliases [--promote NAME]
 ```
 
 ### HTTP — §05 of the integration spec, in one process
@@ -1078,11 +1111,11 @@ pushes, and people whose real work is private.
 
 ## 19. Known issues and open decisions
 
-### Open: nine fields ahead of the contract
+### Open: ten fields ahead of the contract
 
 25 of the 27 definitions in `verification-report.schema.json` set
 `additionalProperties: false`, so a field added here makes our output **invalid** for a
-consumer validating against the schema. Nine exist, each load-bearing:
+consumer validating against the schema. Ten exist, each load-bearing:
 
 | Field | Needed by |
 |---|---|
@@ -1093,6 +1126,7 @@ consumer validating against the schema. Nine exist, each load-bearing:
 | `RuleOutcome.note` | what a `Corroborated` rule confirmed |
 | `Narrative.rejected_because` | why the model's prose was not used — an extension that was never listed, because `Narrative` was not compared |
 | `VerificationReport.failure` | why a verification failed; the contract has no field for it |
+| `VerificationReport.skill_resolution` | which shared skill each name means, for M6 — §14 |
 
 `tests/test_contract.py` holds them as a **named list** and fails on anything else — and
 also fails if an entry stops being an extension, so the list cannot rot. The integration
