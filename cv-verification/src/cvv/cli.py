@@ -285,7 +285,9 @@ def inspect(path: Annotated[Path, typer.Argument(help="The CV to read.")]) -> No
 @app.command()
 def serve(
     host: Annotated[str, typer.Option(help="Bind address.")] = "127.0.0.1",
-    port: Annotated[int, typer.Option(help="Port.")] = 8000,
+    # Not 8000: the local Claude Code wrapper (CVV_CLAUDE_CODE_URL) listens there, and a
+    # default that collides with the model backend fails on the first `cvv serve`.
+    port: Annotated[int, typer.Option(help="Port.")] = 8080,
 ) -> None:
     """Run the HTTP surface — the integration spec's endpoints, in one process.
 

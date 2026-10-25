@@ -37,7 +37,7 @@ because the reasoning is worth more than the conclusion.
 | | |
 |---|---|
 | source | 33 modules, 10,984 lines |
-| tests | 22 files, **578 passing** (588 with Postgres, 5 live) |
+| tests | 22 files, **579 passing** (589 with Postgres, 5 live) |
 | quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
@@ -63,7 +63,7 @@ because the reasoning is worth more than the conclusion.
 | `test_ingest.py` | 21 | PDF · DOCX · OCR · PDF dates to ISO 8601 |
 | `test_gather.py` | 9 | account choice, gaps |
 | `test_evaluate.py` | 8 | the mutation harness |
-| `test_cli.py` | 6 | commands, and the invariant |
+| `test_cli.py` | 7 | commands, and the invariant |
 | `test_reference.py` | 3 | roll schemes need the institution named |
 
 ### Measured behaviour

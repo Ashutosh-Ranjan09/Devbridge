@@ -146,3 +146,18 @@ def test_a_second_institutions_cv_extracts_what_the_first_one_did() -> None:
     # Both roles, from a section headed WORK EXPERIENCE.
     orgs = {c.org for c in by_kind[ClaimKind.EMPLOYMENT] if c.org}
     assert {"Zerodha Technologies", "Freshworks"} <= orgs
+
+
+def test_serve_does_not_default_to_the_model_backend_s_port() -> None:
+    """The Claude Code wrapper listens on 127.0.0.1:8000; `cvv serve` defaulted to
+    8000 too, so with the wrapper running it failed with "address in use"."""
+    import inspect
+    from urllib.parse import urlparse
+
+    from cvv.cli import serve
+    from cvv.config import Settings
+
+    default = inspect.signature(serve).parameters["port"].default
+    wrapper = urlparse(Settings.model_fields["claude_code_url"].default).port
+    assert default != wrapper
+

@@ -178,8 +178,9 @@ GET  /v1/rules · /healthz · /readyz · /v1/usage
 POST /v1/narrate · /v1/evaluate
 ```
 
-Interactive docs at `/docs`. Binds to localhost — exposing it takes a deliberate
-`--host`. An unset `CVV_API_KEY` generates one per run and prints it.
+Interactive docs at `http://127.0.0.1:8080/docs` — port 8080, because the Claude Code
+wrapper has 8000. Binds to localhost — exposing it takes a deliberate `--host`. An
+unset `CVV_API_KEY` generates one per run and prints it.
 
 Two endpoints are restricted on purpose: **`/v1/narrate` accepts only a
 `FindingsReport`** and **`/v1/evaluate` only a `ClaimGraph`**. Neither can reach the
@@ -257,7 +258,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 578 tests, no server needed
+uv run pytest                                   # 579 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy

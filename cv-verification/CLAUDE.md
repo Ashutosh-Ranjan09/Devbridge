@@ -12,7 +12,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 **29 of the 41 catalogued checks are built — every one in scope — and the pipeline
 runs end to end** on `docs/CV-SDE-AR.pdf`: 28 registered rules plus the narrative
-(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 578 tests, ~11,000 lines across 33
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 579 tests, ~11,000 lines across 33
 modules, ruff and `mypy --strict` clean.
 
 The other twelve are not pending. **C1–C4 are out of scope** for this project — a
