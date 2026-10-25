@@ -23,18 +23,25 @@ def substance_band(repo: Mapping[str, Any], rules: Rules) -> tuple[str, int]:
     OR-ed (any one is enough to demote) and `*_gte` conditions are AND-ed (all
     must hold to promote). A repository matching nothing lands in `substantial`,
     the neutral middle — never in `large` by default.
+
+    An UNKNOWN counter is not zero. M5 sends `commit_count: null` when it never
+    asked — for a repository the candidate owns, it reads the files instead — and
+    `or 0` turned that into "fewer than ten commits", so every repository on the
+    first real report was `trivial`, including one with 111 authored files. A
+    condition over an unknown value is skipped: it can neither demote nor promote,
+    and a repository can only reach `large` on counters that were actually read.
     """
     if repo.get("is_readme_only"):
         return "trivial", rules.band_spec("trivial")["index"]
 
-    commits = repo.get("commit_count") or 0
-    size_kb = repo.get("size_kb") or 0
-    values = {"commits": commits, "size_kb": size_kb}
+    values = {"commits": repo.get("commit_count"), "size_kb": repo.get("size_kb")}
 
     for name in rules.band_order:
         spec = rules.band_spec(name)
-        lts = [values[k[:-3]] < v for k, v in spec.items() if k.endswith("_lt")]
-        gtes = [values[k[:-4]] >= v for k, v in spec.items() if k.endswith("_gte")]
+        lts = [values[k[:-3]] < v for k, v in spec.items()
+               if k.endswith("_lt") and values[k[:-3]] is not None]
+        gtes = [values[k[:-4]] is not None and values[k[:-4]] >= v
+                for k, v in spec.items() if k.endswith("_gte")]
         if lts and any(lts):
             return name, spec["index"]
         if gtes and all(gtes):

@@ -205,6 +205,7 @@ class DocumentInfo(Model):
     """
 
     document_id: str
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     pages: int = Field(ge=1)
     ingest_method: IngestMethod
     ocr_confidence: float | None = Field(default=None, ge=0.0, le=1.0)

@@ -33,17 +33,6 @@ def batch(name: str = "report-full.json", **over) -> dict:
     return doc
 
 
-def consented(**over) -> dict:
-    """The full batch, which already carries skill_graph_inclusion."""
-    return batch(**over)
-
-
-def unconsented(**over) -> dict:
-    doc = batch(**over)
-    doc["consent_scope"] = []
-    return doc
-
-
 def ingestor(*, ontology=None, log=None) -> Ingestor:
     """In-memory by default: every test gets a clean, isolated log."""
     return Ingestor(log or EventLog(":memory:"),
@@ -53,7 +42,7 @@ def ingestor(*, ontology=None, log=None) -> Ingestor:
 def seeded_ingestor(**kw) -> Ingestor:
     """An ingestor whose log already holds the full batch."""
     ing = ingestor(**kw)
-    ing.ingest(consented())
+    ing.ingest(batch())
     return ing
 
 

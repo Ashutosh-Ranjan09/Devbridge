@@ -28,6 +28,7 @@ def document(raw: str) -> Document:
     text, imap = normalise(raw)
     return Document(
         document_id="doc_test",
+        sha256="0" * 64,
         text=text,
         index_map=imap,
         raw=raw,

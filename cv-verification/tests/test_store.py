@@ -19,44 +19,19 @@ from collections.abc import Iterator
 import pytest
 
 from cvv.models import (
-    Buckets,
-    ClaimGraph,
-    ExtractionMeta,
-    FindingsReport,
     ReportStatus,
-    SourceInfo,
     VerificationReport,
     Webhook,
 )
 from cvv.store import Duplicate, MemoryStore, Store
+from tests.cvdata import contract_report
 
 NOW = datetime.datetime(2026, 9, 4, tzinfo=datetime.UTC)
 DSN = os.environ.get("CVV_DATABASE_URL")
 
 
 def report(verification_id: str, status: ReportStatus = ReportStatus.COMPLETED) -> VerificationReport:
-    graph = ClaimGraph(
-        graph_id="cg_t",
-        source=SourceInfo(document_id="doc_t", normalised_text="ASHUTOSH RANJAN 23CS10004"),
-        claims=[],
-        extraction_meta=ExtractionMeta(
-            model_id="test", prompt_version="t/v1", input_hash="sha256:t", extracted_at=NOW
-        ),
-    )
-    return VerificationReport(
-        verification_id=verification_id,
-        status=status,
-        claim_graph=graph,
-        findings=FindingsReport(
-            report_id="fr_t", graph_id="cg_t", discrepancies=[], rule_outcomes=[],
-            buckets=Buckets(
-                verified=[], contradicted=[], needs_context=[], not_evaluated=[], out_of_scope=[]
-            ),
-            evaluated_at=NOW,
-        ),
-        created_at=NOW,
-        completed_at=NOW,
-    )
+    return contract_report(verification_id, status)
 
 
 @pytest.fixture(params=["memory", "postgres"])

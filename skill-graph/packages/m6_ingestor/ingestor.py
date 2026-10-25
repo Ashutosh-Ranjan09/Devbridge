@@ -1,7 +1,7 @@
 """The ingest decision, with no transport in it.
 
-Five responsibilities, from the plan: validation, idempotency, consent refusal,
-immutable persistence, quarantine for unknown skills. No modelling — this module
+Four responsibilities: validation, idempotency, immutable persistence, and
+quarantine for unknown skills. No modelling — this module
 must never compute a score, apply a decay, or decide what evidence is worth. It
 decides only whether a batch may enter the log, and records what it did.
 """
@@ -14,13 +14,12 @@ from typing import Any
 
 from m6_ontology import SkillResolver, default_ontology
 
-from .errors import ConflictingEvent, ConsentRefused, SchemaInvalid
+from .errors import ConflictingEvent, SchemaInvalid
 from .store import EventLog, content_hash
 
 # One copy of the contract for both modules, at the repository root.
 SCHEMA_PATH = (pathlib.Path(__file__).resolve().parents[3]
                / "schemas" / "evidence-event.schema.json")
-REQUIRED_SCOPE = "skill_graph_inclusion"
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,26 +85,10 @@ class Ingestor:
             duplicated = sorted({i for i in ids if ids.count(i) > 1})
             raise SchemaInvalid(f"event_id repeated within the batch: {', '.join(duplicated)}")
 
-    # ── consent ─────────────────────────────────────────────────────────────
-    def check_consent(self, batch: dict[str, Any]) -> None:
-        """Refuse anything not cleared for skill-graph inclusion.
-
-        Checked here as well as in the projection on purpose. Consent is the one
-        rule where trusting the upstream service to have applied it is not good
-        enough: the cost of being wrong is someone in a searchable talent pool
-        who never agreed to be, and the log is append-only.
-        """
-        scope = batch.get("consent_scope") or []
-        if REQUIRED_SCOPE not in scope:
-            raise ConsentRefused(
-                f"consent_scope {list(scope)} does not cover {REQUIRED_SCOPE!r}; "
-                f"batch {batch.get('batch_id')} refused")
-
     # ── the main entry point ────────────────────────────────────────────────
     def ingest(self, batch: Any) -> Receipt:
         """Validate, refuse or accept, and report exactly what happened."""
         self.validate(batch)
-        self.check_consent(batch)
 
         # Everything from here is one decision: whether this batch is already
         # known, and if not, what to write. Held exclusively so two concurrent

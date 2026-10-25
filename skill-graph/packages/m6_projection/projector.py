@@ -79,6 +79,19 @@ def _repo_segment(url: Any) -> str:
     return segment.lower()
 
 
+def _confirms(plat: Mapping[str, Any], claim: Mapping[str, Any], rules: Rules) -> bool:
+    """Whether a platform's own record reaches what the claim asserts.
+
+    Only for metrics where more is better, and only on numbers both sides state —
+    a claim the platform falls short of is not confirmed, and stays a cv_claim.
+    """
+    metric = claim.get("metric")
+    claimed, actual = claim.get("value"), plat.get(metric)
+    if metric not in rules.confirmable_metrics or claimed is None or actual is None:
+        return False
+    return float(claimed) <= float(actual)
+
+
 def _links_repo(claim: Mapping[str, Any], repo_name: str) -> bool:
     """Whether a claim cites this repository.
 
@@ -123,16 +136,6 @@ def project(
     base = dict(batch_id=batch_id, verification_id=vid,
                 subject_ref=subject["subject_ref"], emitted_at=emitted_at)
 
-    # ── consent gate, before anything else is computed ──────────────────────
-    consent_ref = subject.get("consent_ref")
-    if r.require_consent_ref and not consent_ref:
-        return EvidenceEventBatch(
-            **base,
-            not_emitted=(Suppressed(
-                "every capability signal in this report",
-                "consent_scope_excluded"),))
-    scope = (r.consent_scope_required, "recruiter_visibility") if consent_ref else ()
-
     events: list[EvidenceEvent] = []
     suppressed: list[Suppressed] = []
     quarantined: list[str] = []
@@ -167,11 +170,11 @@ def project(
     # metric -> the platforms that independently reported it, and what they said.
     verified_metrics: dict[str, list[dict[str, Any]]] = {}
     achievements = _claims(report, "achievement")
+    confirmed_claims: set[str] = set()
     for plat in bundle.get("platforms") or []:
         if not plat.get("found") or plat.get("max_rating") is None:
             continue
         name = plat["platform"]
-        corroborated_platforms.add(name)
         for metric in r.corroboratable_metrics:
             if plat.get(metric) is not None:
                 verified_metrics.setdefault(metric, []).append(
@@ -191,6 +194,26 @@ def project(
         quality = str(plat.get("source_quality") or "").lower()
         plat_factors = (("scraped_source",)
                         if quality in r.scraped_source_qualities else ())
+        if name not in r.rated_platforms:
+            # A scale 6.3 cannot place. The platform still confirms what the CV
+            # claimed, and that needs no scale — see rating_reference.
+            confirmed = [c for c in linked if _confirms(plat, c, r)]
+            for c in confirmed:
+                build("claim_corroborated", f"{c['claim_id']}:{name}", when,
+                      r.priors("claim_corroborated").strength, skills, f"{name}_api",
+                      factors=plat_factors, claim_refs=[c["claim_id"]],
+                      payload={"platform": name, "metric": c.get("metric"),
+                               "claimed": c.get("value"),
+                               "platform_value": plat.get(c.get("metric")),
+                               "source_quality": plat.get("source_quality")})
+            confirmed_claims.update(c["claim_id"] for c in confirmed)
+            if not confirmed:
+                suppressed.append(Suppressed(
+                    f"{name} rating {plat['max_rating']} — no reference distribution "
+                    "places this platform's scale, and no claim it confirms",
+                    "not_a_capability_signal"))
+            continue
+        corroborated_platforms.add(name)
         build("platform_rating", f"{name}:{plat.get('handle', '')}", when,
               r.priors("platform_rating").strength, skills, f"{name}_api",
               factors=plat_factors,
@@ -248,6 +271,8 @@ def project(
     for claim in achievements:
         if claim.get("platform") in corroborated_platforms:
             continue  # already carried by the platform_rating event
+        if claim["claim_id"] in confirmed_claims:
+            continue  # already carried by its claim_corroborated event
         skills = {normalise_skill(s, r): 1.0
                   for s in (claim.get("skill_refs") or ach_map.get(claim.get("metric"), []))}
         if not skills:
@@ -284,12 +309,12 @@ def project(
             continue
         linked = [c for c in projects
                   if any(url == a.get("url") for a in c.get("artefacts") or [])]
-        primary = next(
-            (normalise_skill(fw, r)
-             for c in linked
-             for repo in (github or {}).get("repos") or []
-             if _links_repo(c, repo["name"])
-             for fw in repo.get("frameworks") or []), None)
+        declared = {normalise_skill(fw, r)
+                    for c in linked
+                    for repo in (github or {}).get("repos") or []
+                    if _links_repo(c, repo["name"])
+                    for fw in repo.get("frameworks") or []}
+        primary = next((fw for fw in r.deployment_frameworks if fw in declared), None)
         skills = {"deployment": 0.70}
         if primary:
             skills[primary] = 0.60
@@ -378,7 +403,7 @@ def project(
             "non_scoring_rule"))
 
     events.sort(key=lambda e: (_as_date(e.occurred_at), e.event_id))
-    batch = EvidenceEventBatch(**base, events=tuple(events), consent_scope=scope,
+    batch = EvidenceEventBatch(**base, events=tuple(events),
                                not_emitted=tuple(suppressed), quarantined=tuple(quarantined))
     _check_invariants(batch, r,
                       claim_ids=[c["claim_id"] for c in report["claim_graph"]["claims"]])

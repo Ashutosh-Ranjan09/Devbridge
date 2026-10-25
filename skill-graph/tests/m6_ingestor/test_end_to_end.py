@@ -7,7 +7,7 @@ import pathlib
 import sys
 from datetime import date
 
-from fixtures import ROOT, consented, ingestor, report
+from fixtures import ROOT, batch, report
 from m6_ingestor import EventLog, Ingestor
 from m6_ontology import default_ontology
 from m6_projection import project
@@ -82,23 +82,9 @@ def test_replaying_the_batch_does_not_change_a_single_score():
     assert ing.log.count() == 8
 
 
-def test_an_unconsented_report_reaches_the_graph_as_nothing():
-    """Both gates, in sequence, on the real degraded fixture."""
-    from m6_ingestor import ConsentRefused
-    doc = project(report("report-degraded.json"), module_version="0.4.1").to_dict()
-    assert doc["events"] == []
-    ing = ingestor()
-    try:
-        ing.ingest(doc)
-        raise AssertionError("an unconsented batch was ingested")
-    except ConsentRefused:
-        pass
-    assert ing.log.count() == 0
-
-
 def test_the_log_preserves_everything_the_fold_needs():
     """A round trip through SQLite must not lose or coerce a field — floats
     especially, since they are what the filter arithmetic runs on."""
-    original = {e["event_id"]: e for e in consented()["events"]}
+    original = {e["event_id"]: e for e in batch()["events"]}
     for stored in _loaded().log.events():
         assert stored.document == original[stored.event_id]

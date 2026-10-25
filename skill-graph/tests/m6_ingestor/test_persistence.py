@@ -7,7 +7,7 @@ only holds when you ask nicely is not a rule.
 """
 import sqlite3
 
-from fixtures import consented, ingestor, raises, seeded_ingestor
+from fixtures import batch, ingestor, raises, seeded_ingestor
 from m6_ingestor import EventLog, content_hash
 
 
@@ -15,7 +15,7 @@ def test_events_are_stored_verbatim():
     """The document goes in unchanged. The ingestor is a gate, not an editor."""
     ing = seeded_ingestor()
     stored = {e.event_id: e.document for e in ing.log.events()}
-    for original in consented()["events"]:
+    for original in batch()["events"]:
         assert stored[original["event_id"]] == original
 
 
@@ -62,7 +62,7 @@ def test_a_batch_lands_atomically():
     transaction, so a failure part-way through must roll the whole thing back."""
     log = EventLog(":memory:")
     ing = ingestor(log=log)
-    doc = consented()
+    doc = batch()
     # Corrupt the last event so the insert fails after earlier ones succeeded.
     doc["events"][-1] = dict(doc["events"][-1])
     del doc["events"][-1]["kind"]
@@ -85,7 +85,7 @@ def test_events_come_back_in_fold_order():
 
 def test_fold_order_is_stable_regardless_of_arrival_order():
     """Events arriving shuffled must still fold in the same order."""
-    doc = consented()
+    doc = batch()
     reversed_doc = dict(doc, events=list(reversed(doc["events"])))
     a = ingestor(); a.ingest(doc)
     b = ingestor(); b.ingest(reversed_doc)
@@ -98,19 +98,19 @@ def test_the_log_survives_being_reopened(tmp_path=None):
     with tempfile.TemporaryDirectory() as folder:
         path = str(pathlib.Path(folder) / "evidence.db")
         first = EventLog(path)
-        ingestor(log=first).ingest(consented())
+        ingestor(log=first).ingest(batch())
         first.close()
 
         second = EventLog(path)
         assert second.count() == 8
         # And it still deduplicates against what a previous process wrote.
-        assert ingestor(log=second).ingest(consented()).replayed is True
+        assert ingestor(log=second).ingest(batch()).replayed is True
         second.close()
 
 
 def test_filtering_by_subject_returns_only_that_subject():
     ing = seeded_ingestor()
-    subject = consented()["subject_ref"]
+    subject = batch()["subject_ref"]
     assert len(ing.log.events(subject)) == 8
     assert ing.log.events("subj_nobody") == []
 
@@ -121,7 +121,7 @@ def test_the_batch_row_records_what_was_suppressed():
     import json
     ing = seeded_ingestor()
     row = ing.log.batches()[0]
-    assert json.loads(row["not_emitted"]) == consented()["not_emitted"]
+    assert json.loads(row["not_emitted"]) == batch()["not_emitted"]
     assert row["event_count"] == 8
 
 

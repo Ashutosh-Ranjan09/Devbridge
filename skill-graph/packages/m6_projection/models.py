@@ -132,7 +132,6 @@ class EvidenceEventBatch:
     subject_ref: str
     emitted_at: date | datetime | str
     events: tuple[EvidenceEvent, ...] = ()
-    consent_scope: tuple[str, ...] = ()
     not_emitted: tuple[Suppressed, ...] = ()
     # Not part of the wire schema — surfaced to the caller so an unresolved skill
     # is visible rather than silently absent.
@@ -145,7 +144,6 @@ class EvidenceEventBatch:
             "verification_id": self.verification_id,
             "subject_ref": self.subject_ref,
             "emitted_at": _ts(self.emitted_at),
-            "consent_scope": list(self.consent_scope),
             "events": [e.to_dict() for e in self.events],
             "not_emitted": [s.to_dict() for s in self.not_emitted],
         }

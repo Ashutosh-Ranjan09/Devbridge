@@ -9,7 +9,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from fixtures import batch, consented, ingestor, mutate_event, unconsented
+from fixtures import batch, ingestor, mutate_event
 from m6_ingestor import EventLog, Ingestor, serve
 from m6_ontology import AcceptAll, default_ontology
 
@@ -54,7 +54,7 @@ def test_health_reports_liveness_and_the_ontology_in_force():
 
 def test_posting_a_batch_returns_202_and_a_receipt():
     with Server() as s:
-        status, body = s.request("POST", "/evidence/batch", consented())
+        status, body = s.request("POST", "/evidence/batch", batch())
     assert status == 202
     assert len(body["accepted"]) == 8
     assert body["replayed"] is False
@@ -62,8 +62,8 @@ def test_posting_a_batch_returns_202_and_a_receipt():
 
 def test_replaying_over_http_is_a_no_op():
     with Server() as s:
-        s.request("POST", "/evidence/batch", consented())
-        status, body = s.request("POST", "/evidence/batch", consented())
+        s.request("POST", "/evidence/batch", batch())
+        status, body = s.request("POST", "/evidence/batch", batch())
         _, health = s.request("GET", "/health")
     assert status == 202, "a replay is a success, not an error"
     assert body["replayed"] is True and body["accepted"] == []
@@ -72,25 +72,16 @@ def test_replaying_over_http_is_a_no_op():
 
 def test_a_schema_failure_is_400():
     with Server() as s:
-        status, body = s.request("POST", "/evidence/batch", mutate_event(consented(), kind="x"))
+        status, body = s.request("POST", "/evidence/batch", mutate_event(batch(), kind="x"))
     assert status == 400
     assert body["error"] == "SchemaInvalid"
 
 
-def test_a_consent_refusal_is_403():
-    """Distinct from 400 on purpose: the producer did nothing wrong, and no
-    amount of retrying should turn this into a success."""
-    with Server() as s:
-        status, body = s.request("POST", "/evidence/batch", unconsented())
-    assert status == 403
-    assert body["error"] == "ConsentRefused"
-
-
 def test_a_content_conflict_is_409():
     with Server() as s:
-        s.request("POST", "/evidence/batch", consented())
+        s.request("POST", "/evidence/batch", batch())
         status, body = s.request("POST", "/evidence/batch",
-                                 mutate_event(consented(), strength=0.99))
+                                 mutate_event(batch(), strength=0.99))
     assert status == 409
     assert body["error"] == "ConflictingEvent"
 
@@ -126,7 +117,7 @@ def test_an_unknown_route_is_404():
 
 def test_events_are_served_in_fold_order():
     with Server() as s:
-        s.request("POST", "/evidence/batch", consented())
+        s.request("POST", "/evidence/batch", batch())
         status, body = s.request("GET", "/events")
     assert status == 200 and body["count"] == 8
     keys = [(e["occurred_at"], e["event_id"]) for e in body["events"]]
@@ -135,9 +126,9 @@ def test_events_are_served_in_fold_order():
 
 def test_events_can_be_filtered_by_skill_and_subject():
     with Server() as s:
-        s.request("POST", "/evidence/batch", consented())
+        s.request("POST", "/evidence/batch", batch())
         _, by_skill = s.request("GET", "/events?skill=typescript")
-        _, by_subject = s.request("GET", f"/events?subject={consented()['subject_ref']}")
+        _, by_subject = s.request("GET", f"/events?subject={batch()['subject_ref']}")
         _, nobody = s.request("GET", "/events?subject=subj_nobody")
     assert 0 < by_skill["count"] < 8
     assert by_subject["count"] == 8
@@ -146,7 +137,7 @@ def test_events_can_be_filtered_by_skill_and_subject():
 
 def test_the_quarantine_endpoint_reports_held_skills():
     ing = Ingestor(EventLog(":memory:"), ontology=default_ontology())
-    doc = consented()
+    doc = batch()
     doc["events"][0]["skill_refs"] = [{"skill_id": "quantum_telepathy", "relevance": 0.9}]
     with Server(ing) as s:
         s.request("POST", "/evidence/batch", doc)
@@ -157,21 +148,15 @@ def test_the_quarantine_endpoint_reports_held_skills():
 
 def test_batches_are_listed_with_their_suppressions():
     with Server() as s:
-        s.request("POST", "/evidence/batch", consented())
+        s.request("POST", "/evidence/batch", batch())
         status, body = s.request("GET", "/batches")
     assert status == 200 and body["count"] == 1
-    assert json.loads(body["batches"][0]["not_emitted"]) == consented()["not_emitted"]
+    assert json.loads(body["batches"][0]["not_emitted"]) == batch()["not_emitted"]
 
 
 def test_a_trailing_slash_routes_the_same():
     with Server() as s:
         assert s.request("GET", "/health/")[0] == 200
-
-
-def test_the_degraded_report_is_refused_over_http():
-    with Server() as s:
-        status, _ = s.request("POST", "/evidence/batch", batch("report-degraded.json"))
-    assert status == 403
 
 
 def test_concurrent_posts_of_the_same_batch_store_one_copy():
@@ -185,7 +170,7 @@ def test_concurrent_posts_of_the_same_batch_store_one_copy():
         def post():
             start.wait()
             try:
-                results.append(s.request("POST", "/evidence/batch", consented()))
+                results.append(s.request("POST", "/evidence/batch", batch()))
             except Exception as exc:  # noqa: BLE001 - the test is what it means
                 errors.append(exc)
 
@@ -209,7 +194,7 @@ def test_concurrent_posts_of_different_batches_all_land():
         start = threading.Barrier(4)
 
         def post(n):
-            doc = consented()
+            doc = batch()
             doc["batch_id"] = f"evb_parallel_{n}"
             for i, event in enumerate(doc["events"]):
                 event["event_id"] = f"ev_p{n}_{i:03d}"

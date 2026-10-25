@@ -161,8 +161,6 @@ suppress:
     reason: no_skill_mapping
   - what: "CGPA and coursework carrying an inherit_unverified declaration_marker"
     reason: institution_disclaimed
-  - what: "anything whose consent_scope does not cover skill_graph_inclusion"
-    reason: consent_scope_excluded
 
 invariants:
   - "Every emitted event validates against evidence-event.schema.json."
@@ -200,11 +198,32 @@ thresholds:
     primary: 0.80
     secondary: 0.60
     secondary_skills: [mongodb, jwt, redis, postgresql]
+  deployment_framework:
+    # Which of a repository's frameworks a LIVE deployment is evidence for. The
+    # first one the repository declared was the rule, and a manifest lists every
+    # dependency: M5 sends the whole package.json, sorted, so the first real report
+    # credited a Next.js site to `@eslint/eslintrc`. The first entry here that the
+    # repository declares wins, in this order — the framework that serves a site
+    # before the library it renders with. None declared: the deployment credits
+    # `deployment` alone, rather than a guess.
+    prefer: [nextjs, react, nodejs]
   aliases:
     mongoose: mongodb
     next: nextjs
     "c++": cpp
     golang: go
+    # How the first real M5 report spelled skills the ontology already holds.
+    # Not "competitive programming" or "data structures and algorithms": a skill
+    # claim is corroborated here only by repository languages, never by a platform
+    # rating, so either would enter as a cv_claim at 0.45 and pull down an
+    # algorithms estimate a Codeforces rating had already established.
+    "next.js": nextjs
+    "node.js": nodejs
+    "express.js": express
+    "c++ stl": cpp
+    "object-oriented programming": oop
+    "git/github": git
+    "tailwind css": tailwindcss
   achievement_skill_map:
     # An achievement claim with no platform evidence still bears on a competency.
     # Without an entry here it is suppressed as no_skill_mapping rather than guessed.
@@ -229,10 +248,19 @@ thresholds:
     # is counted twice.
     record_in_payload: true
     metrics: [problems_solved]
+  rating_reference:
+    # Platforms whose rating 6.3 can PLACE: each has `<platform>_rated_ecdf` in
+    # reference-distributions.yaml, and a test holds the two files in step. A
+    # rating from any other platform is on a scale nothing here can read — CodeChef
+    # 1746 is three stars, and priced against Codeforces it ranked above the same
+    # candidate's Codeforces 1495. Pricing it at the formula's floor instead would
+    # pull that candidate DOWN for having the account. So such a platform confirms
+    # the CLAIM rather than measuring the person: claim_corroborated, which needs no
+    # scale. A claim it does not confirm stays a cv_claim; a rating no claim cites
+    # is suppressed, named.
+    platforms: [codeforces]
+    confirmable_metrics: [max_rating, problems_solved]
   scraped_source_quality:
     # source_quality values that mean "we read a page", not "we called an API".
     # Listed here so adding a platform is a contract edit, not a code edit.
     values: [scraped, scrape, html_scrape, profile_scrape]
-  consent:
-    require_consent_ref: true
-    scope_required: skill_graph_inclusion

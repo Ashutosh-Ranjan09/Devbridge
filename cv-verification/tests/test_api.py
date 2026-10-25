@@ -15,16 +15,13 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from cvv import api, store
+from cvv import api, pipeline, store
 from cvv.models import (
-    Buckets,
     ClaimGraph,
-    ExtractionMeta,
-    FindingsReport,
     ReportStatus,
-    SourceInfo,
     VerificationReport,
 )
+from tests.cvdata import contract_report
 
 NOW = datetime.datetime(2026, 9, 4, tzinfo=datetime.UTC)
 CV = Path("docs/CV-SDE-AR.pdf")
@@ -51,28 +48,7 @@ def auth() -> dict[str, str]:
 
 
 def empty_report(verification_id: str, status: ReportStatus) -> VerificationReport:
-    graph = ClaimGraph(
-        graph_id="cg_t",
-        source=SourceInfo(document_id="doc_t", normalised_text="ASHUTOSH RANJAN 23CS10004"),
-        claims=[],
-        extraction_meta=ExtractionMeta(
-            model_id="test", prompt_version="t/v1", input_hash="sha256:t", extracted_at=NOW
-        ),
-    )
-    return VerificationReport(
-        verification_id=verification_id,
-        status=status,
-        claim_graph=graph,
-        findings=FindingsReport(
-            report_id="fr_t", graph_id="cg_t", discrepancies=[], rule_outcomes=[],
-            buckets=Buckets(
-                verified=[], contradicted=[], needs_context=[], not_evaluated=[], out_of_scope=[]
-            ),
-            evaluated_at=NOW,
-        ),
-        created_at=NOW,
-        completed_at=NOW,
-    )
+    return contract_report(verification_id, status)
 
 
 class TestWhatIsOpenAndWhatIsNot:
@@ -184,7 +160,7 @@ class TestTheRequestBody:
         )
         assert r.status_code == 202
         assert fetched == ["https://example.com/cv.pdf"]
-        assert started == [{"offline": True, "want_narrative": True}]
+        assert started == [{"offline": True, "want_narrative": True, "subject": None}]
 
     def test_multipart_options_reach_the_pipeline(
         self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
@@ -196,7 +172,7 @@ class TestTheRequestBody:
             data={"options": '{"offline": true, "narrative": false}'},
         )
         assert r.status_code == 202
-        assert started == [{"offline": True, "want_narrative": False}]
+        assert started == [{"offline": True, "want_narrative": False, "subject": None}]
 
     def test_malformed_options_are_a_422_that_says_so(
         self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
@@ -232,7 +208,7 @@ class TestReadingOneBack:
         the client polls forever and has nothing to tell the person whose CV it was.
         `claim_graph` and `findings` are empty rather than absent, so a client parsing
         VerificationReport never needs two shapes."""
-        fresh_store.complete(api._failed("vr_bad", NOW, "ValueError: unreadable"))
+        fresh_store.complete(api._failed("vr_bad", "ValueError: unreadable"))
         body = client.get("/v1/verifications/vr_bad", headers=auth).json()
         assert body["status"] == "failed"
         assert body["failure"] == "ValueError: unreadable"
@@ -356,24 +332,24 @@ class TestDegradedMeansSomething:
     def test_a_missing_connector_is_not_a_degradation(self) -> None:
         """CodeChef having no API is a permanent property of this system, not
         something that went wrong with this run."""
-        assert api._status(self.graph(degraded=False), self.bundle("not_supplied")) is (
+        assert pipeline.status(self.graph(degraded=False), self.bundle("not_supplied")) is (
             ReportStatus.COMPLETED
         )
 
     def test_an_account_that_does_not_exist_is_a_finding_not_a_failure(self) -> None:
-        assert api._status(self.graph(degraded=False), self.bundle("not_found")) is (
+        assert pipeline.status(self.graph(degraded=False), self.bundle("not_found")) is (
             ReportStatus.COMPLETED
         )
 
     def test_a_transient_outage_is(self) -> None:
         """Re-running may return more, and the client should know that."""
         for reason in ("unreachable", "rate_limited"):
-            assert api._status(self.graph(degraded=False), self.bundle(reason)) is (
+            assert pipeline.status(self.graph(degraded=False), self.bundle(reason)) is (
                 ReportStatus.COMPLETED_DEGRADED
             )
 
     def test_so_is_an_extraction_that_dropped_more_than_it_kept(self) -> None:
-        assert api._status(self.graph(degraded=True), self.bundle()) is (
+        assert pipeline.status(self.graph(degraded=True), self.bundle()) is (
             ReportStatus.COMPLETED_DEGRADED
         )
 

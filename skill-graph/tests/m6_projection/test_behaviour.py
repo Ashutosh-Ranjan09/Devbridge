@@ -1,34 +1,6 @@
 """What the projection decides, given particular evidence. One behaviour per test."""
-from helpers import by_kind, degraded, full, repo, skills, with_github
+from helpers import by_kind, full, repo, skills, with_github
 from m6_projection import project
-
-
-# ── consent ──────────────────────────────────────────────────────────────────
-
-def test_no_consent_record_means_no_events_at_all():
-    """Skill-graph inclusion is a different purpose from verification. Without a
-    consent record the report may still exist; the graph entry may not."""
-    batch = project(degraded())
-    assert batch.events == ()
-    assert [s.reason for s in batch.not_emitted] == ["consent_scope_excluded"]
-
-
-def test_consent_present_lets_the_same_report_through():
-    report = degraded()
-    report["subject"]["consent_ref"] = "consent_test"
-    batch = project(report)
-    assert len(batch.events) == 1, "one skill claim, no corroborating evidence"
-    assert batch.events[0].kind == "cv_claim"
-    assert skills(batch.events[0]) == {"python": 1.0}
-    assert batch.consent_scope[0] == "skill_graph_inclusion"
-
-
-def test_consent_gate_runs_before_any_evidence_is_read():
-    """A malformed bundle behind a missing consent record must still return
-    cleanly — the gate is first, not last."""
-    report = degraded()
-    report["evidence_bundle"]["github"] = {"repos": [{"broken": True}]}
-    assert project(report).events == ()
 
 
 # ── ownership asymmetry ──────────────────────────────────────────────────────
@@ -164,6 +136,25 @@ def test_live_deployment_credits_the_linked_framework_and_deployment():
     assert got == {"deployment": 0.70, "nextjs": 0.60}
 
 
+def test_a_deployment_credits_the_framework_not_the_first_dependency():
+    """M5 sends a manifest's whole dependency list, sorted. The first entry was the
+    rule, so a Next.js site was credited to `@eslint/eslintrc`."""
+    report = full()
+    for r in report["evidence_bundle"]["github"]["repos"]:
+        if r["frameworks"]:
+            r["frameworks"] = ["@eslint/eslintrc", "axios", "next", "react", "zod"]
+    got = skills(by_kind(project(report), "artifact_live")[0])
+    assert got == {"deployment": 0.70, "nextjs": 0.60}
+
+
+def test_a_deployment_with_no_known_framework_credits_deployment_alone():
+    report = full()
+    for r in report["evidence_bundle"]["github"]["repos"]:
+        r["frameworks"] = ["axios", "zod"]
+    got = skills(by_kind(project(report), "artifact_live")[0])
+    assert got == {"deployment": 0.70}
+
+
 # ── absent sources ───────────────────────────────────────────────────────────
 
 def test_missing_github_block_produces_no_github_events_and_no_crash():
@@ -204,6 +195,49 @@ def test_a_scraped_platform_reading_is_discounted():
     event = by_kind(project(report), "platform_rating")[0]
     assert {f.factor: f.value for f in event.reliability_factors} == {"scraped_source": 0.7}
     assert abs(event.reliability - 0.90 * 0.7) < 1e-9
+
+
+def _with_codechef(report: dict, *, rating: int, claimed: int | None) -> dict:
+    report["evidence_bundle"]["platforms"].append({
+        "platform": "codechef", "handle": "chef", "found": True, "max_rating": rating,
+        "rank_title": "3 star", "problems_solved": 26, "contests": [],
+        "source_quality": "scrape"})
+    if claimed is not None:
+        claim = dict(next(c for c in report["claim_graph"]["claims"]
+                          if c.get("platform") == "codeforces" and c.get("metric") == "max_rating"))
+        claim.update(claim_id="ccc1", platform="codechef", value=claimed)
+        report["claim_graph"]["claims"].append(claim)
+    return report
+
+
+def test_a_codechef_rating_confirms_the_claim_instead_of_being_priced():
+    """No reference distribution places CodeChef's scale, so it must never reach
+    6.3 as a platform_rating. What it does establish — the claim is true — needs
+    no scale."""
+    batch = project(_with_codechef(full(), rating=1746, claimed=1733))
+    assert all(e.payload.get("platform") != "codechef"
+               for e in by_kind(batch, "platform_rating"))
+    event = next(e for e in by_kind(batch, "claim_corroborated")
+                 if e.payload.get("platform") == "codechef")
+    assert event.source.claim_refs == ("ccc1",)
+    assert (event.payload["claimed"], event.payload["platform_value"]) == (1733, 1746)
+    assert {f.factor for f in event.reliability_factors} == {"scraped_source"}
+    assert abs(event.reliability - 0.80 * 0.7) < 1e-9
+    assert not any(e.kind == "cv_claim" and "ccc1" in e.source.claim_refs
+                   for e in batch.events), "the claim is carried once, not twice"
+
+
+def test_a_claim_the_platform_falls_short_of_stays_a_cv_claim():
+    batch = project(_with_codechef(full(), rating=1600, claimed=1733))
+    assert not any(e.payload.get("platform") == "codechef"
+                   for e in by_kind(batch, "claim_corroborated"))
+    assert any(e.kind == "cv_claim" and "ccc1" in e.source.claim_refs for e in batch.events)
+
+
+def test_an_unplaced_rating_no_claim_cites_is_suppressed_by_name():
+    batch = project(_with_codechef(full(), rating=1746, claimed=None))
+    assert any("codechef rating 1746" in s.what and s.reason == "not_a_capability_signal"
+               for s in batch.not_emitted)
 
 
 def test_an_api_platform_reading_is_not_discounted():

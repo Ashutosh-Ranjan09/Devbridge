@@ -10,13 +10,20 @@ from __future__ import annotations
 import datetime
 
 from cvv.models import (
+    Buckets,
     Claim,
     ClaimGraph,
     ClaimKind,
+    DocumentInfo,
+    EvidenceBundle,
     ExtractionMeta,
+    FindingsReport,
+    IngestMethod,
     Recovery,
+    ReportStatus,
     SourceInfo,
     SpanProvenance,
+    VerificationReport,
 )
 
 # The achievements section, verbatim.
@@ -114,4 +121,41 @@ def make_graph(
             span_failures=span_failures,
             filtered=filtered or {},
         ),
+    )
+
+
+def contract_report(
+    verification_id: str, status: ReportStatus = ReportStatus.COMPLETED
+) -> VerificationReport:
+    """An empty report in the contract's shape, built by the same function the CLI
+    and the API use — so a fixture cannot drift from what production emits."""
+    from cvv.pipeline import verification_report
+
+    now = datetime.datetime(2026, 9, 4, tzinfo=datetime.UTC)
+    graph = ClaimGraph(
+        graph_id="cg_t",
+        source=SourceInfo(document_id="doc_t", normalised_text="ASHUTOSH RANJAN 23CS10004"),
+        claims=[],
+        extraction_meta=ExtractionMeta(
+            model_id="test", prompt_version="t/v1", input_hash="sha256:t", extracted_at=now
+        ),
+    )
+    built = verification_report(
+        verification_id=verification_id,
+        document=DocumentInfo(
+            document_id="doc_t", sha256="0" * 64, pages=1, ingest_method=IngestMethod.PDF_TEXT
+        ),
+        graph=graph,
+        bundle=EvidenceBundle(bundle_id="eb_t", graph_id="cg_t", gathered_at=now),
+        findings=FindingsReport(
+            report_id="fr_t", graph_id="cg_t", discrepancies=[], rule_outcomes=[],
+            buckets=Buckets(
+                verified=[], contradicted=[], needs_context=[], not_evaluated=[], out_of_scope=[]
+            ),
+            evaluated_at=now,
+        ),
+    )
+    failure = "ValueError: test" if status is ReportStatus.FAILED else None
+    return VerificationReport.model_validate(
+        {**built.model_dump(), "status": status, "failure": failure}
     )

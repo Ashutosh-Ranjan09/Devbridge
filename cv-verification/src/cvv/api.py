@@ -48,13 +48,16 @@ from cvv.logs import configure, get
 from cvv.models import (
     ApiError,
     ClaimGraph,
+    DocumentInfo,
     EvidenceBundle,
     FindingsReport,
     Gap,
     GapReason,
     Narrative,
     ProvenanceView,
+    ReportProvenance,
     ReportStatus,
+    Subject,
     Usage,
     VerificationAccepted,
     VerificationReport,
@@ -62,8 +65,9 @@ from cvv.models import (
     Webhook,
 )
 from cvv.narrative import PROMPT_VERSION, narrate
+from cvv.pipeline import CONTRACT_VERSION, verification_report
 from cvv.providers import default_provider
-from cvv.report import assemble
+from cvv.report import assemble, coverage
 from cvv.rules import REGISTRY
 from cvv.store import STORE, Duplicate
 
@@ -134,7 +138,12 @@ def _offline_bundle(graph: ClaimGraph, bundle_id: str) -> EvidenceBundle:
 
 
 def run_verification(
-    verification_id: str, path: Path, *, offline: bool, want_narrative: bool
+    verification_id: str,
+    path: Path,
+    *,
+    offline: bool,
+    want_narrative: bool,
+    subject: Subject | None = None,
 ) -> None:
     """The whole pipeline, and never an exception.
 
@@ -145,31 +154,39 @@ def run_verification(
     """
     created = datetime.datetime.now(datetime.UTC)
     log.info("verification.started", verification_id=verification_id, offline=offline)
+    document: DocumentInfo | None = None
     try:
-        document = read(path)
+        doc = read(path)
+        document = document_info(doc)
         graph, _ = extract(
-            document,
+            doc,
             provider=default_provider(),
-            graph_id=f"cg_{document.document_id[4:]}",
+            graph_id=f"cg_{doc.document_id[4:]}",
         )
         bundle = (
-            _offline_bundle(graph, f"eb_{document.document_id[4:]}")
+            _offline_bundle(graph, f"eb_{doc.document_id[4:]}")
             if offline
-            else gather(graph, bundle_id=f"eb_{document.document_id[4:]}")
+            else gather(graph, bundle_id=f"eb_{doc.document_id[4:]}")
         )
         findings = assemble(
             graph,
             bundle,
-            report_id=f"fr_{document.document_id[4:]}",
-            document=document_info(document),
+            report_id=f"fr_{doc.document_id[4:]}",
+            document=document,
         )
-        narrative = _narrative(findings) if want_narrative else None
-
-        outcome = _status(graph, bundle)
+        report = verification_report(
+            verification_id=verification_id,
+            document=document,
+            graph=graph,
+            bundle=bundle,
+            findings=findings,
+            subject=subject,
+            narrative=_narrative(findings) if want_narrative else None,
+        )
         log.info(
             "verification.completed",
             verification_id=verification_id,
-            status=outcome.value,
+            status=report.status.value,
             claims=len(graph.claims),
             dropped=graph.extraction_meta.span_failures,
             findings=len(findings.discrepancies),
@@ -178,83 +195,72 @@ def run_verification(
                 (datetime.datetime.now(datetime.UTC) - created).total_seconds(), 1
             ),
         )
-        STORE.complete(
-            VerificationReport(
-                verification_id=verification_id,
-                status=outcome,
-                claim_graph=graph,
-                findings=findings,
-                narrative=narrative,
-                created_at=created,
-                completed_at=datetime.datetime.now(datetime.UTC),
-            )
-        )
+        STORE.complete(report)
     except Exception as exc:
         # The client sees `status: failed` and one line. Without this the stack that
         # produced it is gone, and the task ran in a thread nobody was watching.
         log.exception(
             "verification.failed", verification_id=verification_id, error=type(exc).__name__
         )
-        STORE.complete(_failed(verification_id, created, f"{type(exc).__name__}: {exc}"))
+        STORE.complete(
+            _failed(verification_id, f"{type(exc).__name__}: {exc}", document, subject)
+        )
     finally:
         path.unlink(missing_ok=True)
         _fire_webhooks(verification_id)
 
 
-# Transient. A source that was unreachable or throttled would have answered on a
-# better day, and re-running the verification may produce more coverage.
-TRANSIENT = (GapReason.UNREACHABLE, GapReason.RATE_LIMITED)
-
-
-def _status(graph: ClaimGraph, bundle: EvidenceBundle) -> ReportStatus:
-    """`completed_degraded` has to MEAN something, or every report carries it.
-
-    Any gap at all was the first definition and it was useless: before its scraper
-    existed, CodeChef was a gap on every run, so every report was degraded. A missing connector is
-    a permanent property of this system, not a degradation of this run — and a
-    NOT_FOUND account is a FINDING (G2), not a failure to look.
-
-    What is left is the honest meaning: something transient stopped a check that
-    could otherwise have run, so running it again may return more. That, plus an
-    extraction that dropped more claims than it kept.
-    """
-    if graph.extraction_meta.degraded:
-        return ReportStatus.COMPLETED_DEGRADED
-    if any(gap.reason in TRANSIENT for gap in bundle.gaps):
-        return ReportStatus.COMPLETED_DEGRADED
-    return ReportStatus.COMPLETED
-
-
-def _failed(verification_id: str, created: datetime.datetime, reason: str) -> VerificationReport:
-    """A failure is still a report. `claim_graph` and `findings` are empty rather than
-    absent, because a client parsing VerificationReport must not need two shapes."""
+def _failed(
+    verification_id: str,
+    reason: str,
+    document: DocumentInfo | None = None,
+    subject: Subject | None = None,
+) -> VerificationReport:
+    """A failure is still a report. Claims, evidence and findings are empty rather
+    than absent, because a client parsing VerificationReport must not need two
+    shapes. `document` is what was read before the failure — None when the file
+    itself could not be read, which is the one report the contract cannot express."""
     now = datetime.datetime.now(datetime.UTC)
     from cvv.models import Buckets, ExtractionMeta, SourceInfo
 
     empty_graph = ClaimGraph(
         graph_id="cg_failed",
-        source=SourceInfo(document_id="doc_failed", normalised_text=""),
+        source=SourceInfo(
+            document_id=document.document_id if document else "doc_failed",
+            normalised_text="",
+        ),
         claims=[],
         extraction_meta=ExtractionMeta(
             model_id="-", prompt_version="-", input_hash="sha256:-", extracted_at=now
         ),
     )
+    findings = FindingsReport(
+        report_id="fr_failed",
+        graph_id="cg_failed",
+        discrepancies=[],
+        rule_outcomes=[],
+        buckets=Buckets(
+            verified=[], contradicted=[], needs_context=[], not_evaluated=[], out_of_scope=[]
+        ),
+        evaluated_at=now,
+    )
     return VerificationReport(
         verification_id=verification_id,
         status=ReportStatus.FAILED,
+        subject=subject or Subject(subject_ref=f"subject:{verification_id}"),
+        document=document,
         claim_graph=empty_graph,
-        findings=FindingsReport(
-            report_id="fr_failed",
-            graph_id="cg_failed",
-            discrepancies=[],
-            rule_outcomes=[],
-            buckets=Buckets(
-                verified=[], contradicted=[], needs_context=[], not_evaluated=[], out_of_scope=[]
-            ),
-            evaluated_at=now,
+        evidence_bundle=EvidenceBundle(
+            bundle_id="eb_failed", graph_id="cg_failed", gathered_at=now
         ),
-        created_at=created,
-        completed_at=now,
+        findings=findings,
+        coverage=coverage(findings),
+        provenance=ReportProvenance(
+            cvv_version=__version__,
+            contract_version=CONTRACT_VERSION,
+            rule_versions={rule.rule_id: rule.rule_version for rule in REGISTRY},
+        ),
+        valid_as_of=now,
         failure=reason,
     )
 
@@ -376,6 +382,7 @@ def create_verification(
         path,
         offline=request.options.offline,
         want_narrative=request.options.narrative,
+        subject=request.subject,
     )
     return VerificationAccepted(
         verification_id=verification_id, status="queued", estimated_seconds=30

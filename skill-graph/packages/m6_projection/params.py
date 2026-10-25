@@ -83,6 +83,12 @@ class Rules:
         return f
 
     @property
+    def deployment_frameworks(self) -> tuple[str, ...]:
+        """Frameworks a live deployment may credit, most specific first."""
+        cfg = self._t.get("deployment_framework") or {}
+        return tuple(str(v) for v in cfg.get("prefer") or ())
+
+    @property
     def aliases(self) -> dict[str, str]:
         return {str(k).lower(): str(v) for k, v in self._t["aliases"].items()}
 
@@ -110,18 +116,22 @@ class Rules:
         return frozenset(cfg.get("metrics") or ())
 
     @property
+    def rated_platforms(self) -> frozenset[str]:
+        """Platforms whose rating scale 6.3 holds a reference distribution for."""
+        cfg = self._t.get("rating_reference") or {}
+        return frozenset(str(v) for v in cfg.get("platforms") or ())
+
+    @property
+    def confirmable_metrics(self) -> tuple[str, ...]:
+        """Metrics an unplaced platform may confirm a claim on — higher is better."""
+        cfg = self._t.get("rating_reference") or {}
+        return tuple(str(v) for v in cfg.get("confirmable_metrics") or ())
+
+    @property
     def scraped_source_qualities(self) -> frozenset[str]:
         """source_quality values that mark a platform reading as a scrape."""
         cfg = self._t.get("scraped_source_quality") or {}
         return frozenset(str(v).lower() for v in (cfg.get("values") or ()))
-
-    @property
-    def require_consent_ref(self) -> bool:
-        return bool(self._t["consent"]["require_consent_ref"])
-
-    @property
-    def consent_scope_required(self) -> str:
-        return str(self._t["consent"]["scope_required"])
 
 
 @functools.lru_cache(maxsize=4)

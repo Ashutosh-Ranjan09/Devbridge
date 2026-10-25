@@ -4,13 +4,13 @@ The invariant is "an unknown skill_id is emitted and quarantined by M6, never
 silently dropped". Both halves matter: dropping loses evidence the ontology has
 merely not caught up with, and scoring it invents a node nobody defined.
 """
-from fixtures import consented, ingestor, mutate_event
+from fixtures import batch, ingestor, mutate_event
 from m6_ingestor import EventLog, Ingestor
 from m6_ontology import AcceptAll, SeedOntology, default_ontology
 
 
 def _with_unknown_skill(skill="quantum_telepathy"):
-    doc = consented()
+    doc = batch()
     doc["events"][0]["skill_refs"] = [{"skill_id": skill, "relevance": 0.9}]
     return doc
 
@@ -29,7 +29,7 @@ def test_the_seed_ontology_knows_the_worked_examples_skills():
 
 
 def test_a_fully_known_batch_quarantines_nothing():
-    receipt = seeded().ingest(consented())
+    receipt = seeded().ingest(batch())
     assert receipt.stored == 8
     assert receipt.quarantined == {}
 
@@ -68,7 +68,7 @@ def test_known_skills_on_the_same_event_are_not_quarantined():
     """An event naming three skills where one is unknown must still contribute
     to the two that are. Quarantine is per skill, not per event."""
     ing = seeded()
-    doc = consented()
+    doc = batch()
     doc["events"][0]["skill_refs"] = [{"skill_id": "python", "relevance": 0.9},
                                       {"skill_id": "quantum_telepathy", "relevance": 0.5}]
     ing.ingest(doc)
@@ -97,7 +97,7 @@ def test_the_ontology_is_swappable():
     """6.1 replaces this by substitution, so the seam has to be real."""
     tiny = SeedOntology({"python": {"tier": "ecosystem"}}, "test-0.1")
     ing = Ingestor(EventLog(":memory:"), ontology=tiny)
-    receipt = ing.ingest(consented())
+    receipt = ing.ingest(batch())
     assert receipt.ontology_version == "test-0.1"
     assert len(receipt.quarantined) >= 7, "only python should have resolved"
 
@@ -105,8 +105,8 @@ def test_the_ontology_is_swappable():
 def test_the_receipt_records_which_ontology_judged_it():
     """A quarantine decision is only interpretable against a version — the same
     event is quarantined under 0.1.0 and admitted under 0.2.0."""
-    assert seeded().ingest(consented()).ontology_version == default_ontology().ontology_version
-    assert ingestor(ontology=AcceptAll()).ingest(consented()).ontology_version == "accept-all"
+    assert seeded().ingest(batch()).ontology_version == default_ontology().ontology_version
+    assert ingestor(ontology=AcceptAll()).ingest(batch()).ontology_version == "accept-all"
 
 
 def test_quarantine_does_not_change_the_stored_document():

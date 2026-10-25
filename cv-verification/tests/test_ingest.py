@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from cvv.ingest import TEXT_LAYER_FLOOR, read, read_docx, sections
+from cvv.ingest import TEXT_LAYER_FLOOR, pdf_date, read, read_docx, sections
 from cvv.models import IngestMethod
 
 
@@ -146,3 +146,35 @@ class TestScannedDocuments:
         assert doc.ocr_confidence is not None and doc.ocr_confidence > 0.8
         assert "23CS10004" in doc.text, "the roll number must survive OCR"
         assert len(doc.text) > 1000
+
+
+class TestPdfDates:
+    """The contract's `document.created_at` is an ISO 8601 date-time, and M6 refuses a
+    report it cannot date. A PDF writes `D:YYYYMMDDHHmmSS+HH'mm'`."""
+
+    @pytest.mark.parametrize(
+        ("raw", "iso"),
+        [
+            ("D:20250704194743+05'30'", "2025-07-04T19:47:43+05:30"),
+            ("D:20250704194743-08'00", "2025-07-04T19:47:43-08:00"),
+            ("D:20250704194743Z", "2025-07-04T19:47:43+00:00"),
+            ("D:20250704194743Z00'00'", "2025-07-04T19:47:43+00:00"),
+            ("D:20250704", "2025-07-04T00:00:00"),
+        ],
+    )
+    def test_a_pdf_date_becomes_iso(self, raw: str, iso: str) -> None:
+        assert pdf_date(raw) == iso
+
+    @pytest.mark.parametrize("raw", ["D:2025", "D:20251399", "yesterday", "", None])
+    def test_an_unreadable_date_is_none_not_a_guess(self, raw: str | None) -> None:
+        """D4 compares days. A year alone has no day, and 2025-13-99 is not one."""
+        assert pdf_date(raw) is None
+
+    @pytest.mark.skipif(not Path("docs/CV-SDE-AR.pdf").is_file(), reason="no reference CV")
+    def test_the_reference_cv_is_dated_in_iso(self) -> None:
+        import datetime
+
+        doc = read(Path("docs/CV-SDE-AR.pdf"))
+        assert doc.created_at is not None
+        assert datetime.datetime.fromisoformat(doc.created_at).tzinfo is not None
+

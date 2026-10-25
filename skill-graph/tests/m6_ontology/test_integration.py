@@ -129,12 +129,12 @@ def test_the_ontology_version_that_judged_a_batch_reaches_the_receipt():
     event is held under 0.1.0 and admitted under 0.2.0."""
     import sys
     sys.path.insert(0, str(ROOT / "tests" / "m6_ingestor"))
-    from fixtures import consented, ingestor
+    from fixtures import batch, ingestor
     from m6_ingestor import EventLog
 
     receipt = ingestor(log=EventLog(":memory:"),
                        ontology=SeedOntology({"python": {"tier": "ecosystem"}},
-                                             "probe-9.9")).ingest(consented())
+                                             "probe-9.9")).ingest(batch())
     assert receipt.ontology_version == "probe-9.9"
 
 

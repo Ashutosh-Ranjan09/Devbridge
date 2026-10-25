@@ -69,19 +69,6 @@ def test_replaying_the_batch_changes_no_score():
     assert before == after
 
 
-def test_an_unconsented_report_produces_an_empty_graph():
-    """Both gates in sequence, then the scorer having nothing to score."""
-    from m6_ingestor import ConsentRefused
-    log = EventLog(":memory:")
-    batch = project(report("report-degraded.json"), module_version="0.4.1").to_dict()
-    try:
-        Ingestor(log, ontology=default_ontology()).ingest(batch)
-        raise AssertionError("an unconsented batch was ingested")
-    except ConsentRefused:
-        pass
-    assert engine().fold_all([e.document for e in log.events()], AS_OF) == {}
-
-
 def test_the_graph_decays_as_a_whole_without_new_evidence():
     """Every skill must lose confidence, and none may gain any."""
     log = pipeline()

@@ -25,7 +25,6 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "packages"))
 
 from m6 import M6                                    # noqa: E402
-from m6_ingestor import ConsentRefused               # noqa: E402
 
 DEFAULT_INPUT = HERE / "input" / "verification-report-extensive.json"
 OUTPUT = HERE / "output"
@@ -65,7 +64,6 @@ def step1_input(report: dict) -> None:
         kinds[c["kind"]] = kinds.get(c["kind"], 0) + 1
     print(f"   verification_id : {report['verification_id']}")
     print(f"   subject         : {report['subject']['subject_ref']}")
-    print(f"   consent_ref     : {report['subject'].get('consent_ref')}")
     print(f"   CV written      : {report['document']['created_at'][:10]}")
     print(f"   verified        : {report['valid_as_of'][:10]}")
     print(f"\n   {len(graph['claims'])} claims: "
@@ -112,7 +110,7 @@ def step2_projection(m6: M6, report: dict) -> dict:
 
 def step3_ingest(m6: M6, report: dict) -> None:
     head(3, "6.2  EVIDENCE INGESTOR — may this enter the log?",
-         "Validation, consent, idempotency, immutable storage, quarantine.")
+         "Validation, idempotency, immutable storage, quarantine.")
     receipt = m6.ingest_report(report)
     print(f"   accepted   : {receipt.stored}")
     print(f"   duplicates : {len(receipt.duplicates)}")
@@ -124,16 +122,6 @@ def step3_ingest(m6: M6, report: dict) -> None:
     again = m6.ingest_report(report)
     print(f"     replayed={again.replayed}, accepted={len(again.accepted)}, "
           f"log still holds {m6.log.count()} events")
-
-    print(f"\n   {BOLD}Consent is checked here too, not only in 6.0:{OFF}")
-    unconsented = json.loads(json.dumps(report))
-    unconsented["subject"].pop("consent_ref", None)
-    unconsented["verification_id"] += "_noconsent"
-    try:
-        m6.ingest_report(unconsented)
-        print("     ERROR: an unconsented report was accepted")
-    except ConsentRefused as exc:
-        print(f"     refused: {exc}")
 
     print(f"\n   {BOLD}The log is append-only, enforced by the database:{OFF}")
     import sqlite3

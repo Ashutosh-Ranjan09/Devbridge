@@ -41,6 +41,34 @@ def test_unmatched_repo_falls_to_the_neutral_middle_not_the_top():
     assert band != "large"
 
 
+def test_an_unknown_commit_count_is_not_zero():
+    """M5 sends null when it never asked. Read as 0, it made every repository on
+    the first real report trivial — one of them 299 kB across 111 authored files."""
+    cases = [
+        (dict(commit_count=None, size_kb=299), "substantial"),  # nothing demotes it
+        (dict(commit_count=None, size_kb=73), "small"),         # size alone demotes
+        (dict(commit_count=None, size_kb=None), "substantial"), # nothing known: the middle
+        (dict(size_kb=5000), "substantial"),                    # absent is unknown too
+    ]
+    for spec, expected in cases:
+        got, _ = substance_band(spec, R)
+        assert got == expected, f"{spec} -> {got}, expected {expected}"
+
+
+def test_large_needs_every_counter_actually_read():
+    """Promotion is AND-ed, so an unknown counter must count against it — a repo
+    reaches the top band on evidence, never on a gap."""
+    band, _ = substance_band(dict(commit_count=None, size_kb=99999), R)
+    assert band != "large"
+
+
+def test_a_counted_zero_is_still_zero():
+    """None is "did not ask"; 0 is "asked, and there were none". Only one of them
+    is trivial."""
+    band, _ = substance_band(dict(commit_count=0, size_kb=5000), R)
+    assert band == "trivial"
+
+
 def test_repo_strength_tracks_band_index():
     strengths = [repo_strength(substance_band(s, R)[1], R) for s in
                  (dict(commit_count=5, size_kb=5), dict(commit_count=31, size_kb=240),

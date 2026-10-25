@@ -96,7 +96,18 @@ class Parameters:
 
     @property
     def ecdf_anchors(self) -> dict[int, float]:
-        table = self._dist["codeforces_rated_ecdf"]
+        anchors = self.ecdf_anchors_for("codeforces")
+        assert anchors is not None, "the Codeforces table is the published worked example"
+        return anchors
+
+    def ecdf_anchors_for(self, platform: str) -> dict[int, float] | None:
+        """The rated-population ECDF for one platform's scale, or None if this
+        repository holds none. Ratings on different platforms are different
+        units; one table for all of them priced a CodeChef 3-star as a
+        Codeforces expert."""
+        table = self._dist.get(f"{platform}_rated_ecdf")
+        if table is None:
+            return None
         return {int(k): float(v) for k, v in table["anchors"].items()}
 
     @property

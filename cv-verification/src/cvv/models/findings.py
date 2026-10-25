@@ -93,6 +93,12 @@ class VerificationCoverage(Model):
     rules_evaluated: int = Field(ge=0)
     rules_abstained: int = Field(ge=0)
     coverage: Confidence
+    # Optional in the contract and not computed here: C1, the only check that could
+    # set attestation_depth, is out of scope, and identity is never proven without
+    # OAuth or a challenge. Carried so a partner's report parses; left out of ours
+    # rather than written as null, which the contract's enums do not allow.
+    attestation_depth: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    identity_confidence: str | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class FindingsReport(Frozen):

@@ -14,7 +14,10 @@
 # half-life h_s = 0.35 / lambda_s. Getting a tier wrong is the difference between
 # a skill that fades in a year and one that holds for a decade, so tier is a
 # claim about the SKILL, not about any candidate.
-ontology_version: "0.1.0"
+# 0.2.0 — eight skills and three edges, added from what the first real M5 report
+# quarantined: a student CV's HTML, CSS, Bash, Git, OOP, Express, Tailwind CSS and
+# Matplotlib. Tools that are not skills (VS Code, Postman, Jupyter, Office) stay out.
+ontology_version: "0.2.0"
 
 tiers:
   fundamental: >
@@ -35,6 +38,7 @@ skills:
   data_structures:   {tier: fundamental, label: Data structures}
   cryptography:      {tier: fundamental, label: Cryptography}
   networking:        {tier: fundamental, label: Networking}
+  oop:               {tier: fundamental, label: Object-oriented programming}
   # ── ecosystem ─────────────────────────────────────────────────────────────
   typescript:        {tier: ecosystem, label: TypeScript}
   javascript:        {tier: ecosystem, label: JavaScript}
@@ -43,6 +47,10 @@ skills:
   go:                {tier: ecosystem, label: Go}
   rust:              {tier: ecosystem, label: Rust}
   sql:               {tier: ecosystem, label: SQL}
+  html:              {tier: ecosystem, label: HTML}
+  css:               {tier: ecosystem, label: CSS}
+  bash:              {tier: ecosystem, label: Bash}
+  git:               {tier: ecosystem, label: Git}
   # ── framework ─────────────────────────────────────────────────────────────
   react:             {tier: framework, label: React}
   nextjs:            {tier: framework, label: "Next.js"}
@@ -57,6 +65,9 @@ skills:
   kubernetes:        {tier: framework, label: Kubernetes}
   numpy:             {tier: framework, label: NumPy}
   pandas:            {tier: framework, label: pandas}
+  matplotlib:        {tier: framework, label: Matplotlib}
+  express:           {tier: framework, label: Express}
+  tailwindcss:       {tier: framework, label: Tailwind CSS}
 
 edges:
   # from -> to, with the edge type whose gamma damps propagation (m6-parameters).
@@ -79,3 +90,6 @@ edges:
   - {from: kubernetes, to: docker,           type: REQUIRES}
   - {from: numpy,      to: python,           type: REQUIRES}
   - {from: pandas,     to: numpy,            type: REQUIRES}
+  - {from: matplotlib, to: python,           type: REQUIRES}
+  - {from: express,    to: nodejs,           type: REQUIRES}
+  - {from: tailwindcss, to: css,             type: REQUIRES}

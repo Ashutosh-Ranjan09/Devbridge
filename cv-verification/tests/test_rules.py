@@ -1089,6 +1089,7 @@ def document_info(
 ) -> DocumentInfo:
     return DocumentInfo(
         document_id="doc_test",
+        sha256="0" * 64,
         pages=1,
         ingest_method=IngestMethod.PDF_TEXT,
         producer=producer,

@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import datetime
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from cvv.models.claims import ClaimGraph, Id, Model, Url
+from cvv.models.claims import ClaimGraph, DocumentInfo, Id, Model, Url
 from cvv.models.enums import ReportStatus
-from cvv.models.findings import FindingsReport
+from cvv.models.evidence import EvidenceBundle
+from cvv.models.findings import FindingsReport, VerificationCoverage
 
 
 class Narrative(Model):
@@ -55,10 +56,26 @@ class VerificationOptions(Model):
     offline: bool = False  # skip evidence gathering; document-intrinsic checks only
 
 
+class Subject(Model):
+    """Who a report is about, by reference only.
+
+    `subject_ref` comes from the caller, never from the CV: minting an identifier out
+    of a name or a roll number makes someone linkable across verifications they never
+    connected. `consent_ref` is the contract's, and this system never sets it.
+    """
+
+    subject_ref: str
+    # The schema types this as a string, not a nullable one, so an unknown tenant is
+    # left out of the JSON rather than written as null.
+    tenant_id: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    consent_ref: str | None = None
+
+
 class VerificationRequest(Model):
     """The JSON body. A multipart upload carries the file instead of `document_url`."""
 
     document_url: Url | None = None
+    subject: Subject | None = None
     external_signals: ExternalSignals | None = None
     options: VerificationOptions = Field(default_factory=VerificationOptions)
 
@@ -69,22 +86,56 @@ class VerificationAccepted(Model):
     estimated_seconds: int
 
 
-class VerificationReport(Model):
-    """What a client gets back. The whole audit trail, in one object.
+class ReportProvenance(Model):
+    """Everything needed to explain a finding months later, when the sources have moved."""
 
-    `claim_graph` travels with the findings on purpose: a finding cites claim ids,
-    and a report whose claims live somewhere else is a report nobody can check.
+    cvv_version: str
+    contract_version: str
+    model_id: str | None = None
+    prompt_versions: dict[str, str] = Field(default_factory=dict)
+    rule_versions: dict[str, str]
+    sources_queried: list[dict[str, object]] = Field(default_factory=list)
+
+
+class VerificationReport(Model):
+    """The contract's VerificationReport — the one artefact M6 reads.
+
+    Every stage travels together on purpose: a finding cites claim ids and evidence,
+    and a report whose claims or evidence live somewhere else is a report nobody can
+    check — and one M6 cannot project, because the capability signals are in the
+    evidence bundle, not in the findings.
+
+    `failure` is this system's one addition at this level: the contract has no field
+    for why a verification failed, and a failure that cannot say why leaves the
+    client nothing to tell the candidate.
     """
 
     schema_version: str = "1.0.0"
     verification_id: Id
     status: ReportStatus
+    supersedes: Id | None = None
+    subject: Subject
+    # None only on a failed report whose file could not be read at all.
+    document: DocumentInfo | None
     claim_graph: ClaimGraph
+    evidence_bundle: EvidenceBundle
     findings: FindingsReport
     narrative: Narrative | None = None
-    created_at: datetime.datetime
-    completed_at: datetime.datetime | None = None
-    failure: str | None = None
+    coverage: VerificationCoverage
+    provenance: ReportProvenance
+    valid_as_of: datetime.datetime
+    signature: dict[str, str] | None = None
+    failure: str | None = Field(default=None, exclude_if=lambda v: v is None)
+
+    @model_validator(mode="after")
+    def _failure_is_explained(self) -> VerificationReport:
+        # A report that failed without saying why, or one that completed while
+        # carrying a failure, is a report a client cannot act on.
+        if (self.status is ReportStatus.FAILED) != (self.failure is not None):
+            raise ValueError("status=failed requires a failure reason, and only then")
+        if self.document is None and self.status is not ReportStatus.FAILED:
+            raise ValueError("only a failed report may lack its document")
+        return self
 
 
 class ProvenanceView(Model):

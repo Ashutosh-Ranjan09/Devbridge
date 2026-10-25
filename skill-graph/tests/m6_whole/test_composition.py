@@ -47,13 +47,6 @@ def test_ingesting_twice_changes_nothing_anywhere():
         assert m6.profile(GOLDEN_SUBJECT, GOLDEN_AS_OF) == before
 
 
-def test_consent_refusal_propagates_through_the_facade():
-    from m6_ingestor import ConsentRefused
-    with loaded() as m6:
-        raises(ConsentRefused, m6.ingest_report, report("report-degraded.json"))
-        assert "subj_2c1d77e0" not in m6.subjects()
-
-
 def test_two_subjects_stay_separate():
     with loaded(report(), demo_report()) as m6:
         assert set(m6.subjects()) == {GOLDEN_SUBJECT, DEMO_SUBJECT}

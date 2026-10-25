@@ -82,6 +82,30 @@ def test_interpolation_is_linear_between_anchors():
     assert interpolate(anchors, 2.5) == 0.25
 
 
+def test_a_rating_is_priced_on_its_own_platforms_table():
+    """Ratings on different platforms are different units. With one table for all,
+    a CodeChef 1810 was priced as a Codeforces 1810."""
+    cf = model().observed(event("platform_rating", max_rating=1495, platform="codeforces"))
+    unnamed = model().observed(event("platform_rating", max_rating=1495))
+    assert cf == unnamed, "an event that names no platform is the Codeforces example"
+
+
+def test_a_platform_with_no_reference_distribution_is_refused_not_guessed():
+    exc = raises(UnscoreableEvent, model().observed,
+                 event("platform_rating", max_rating=1810, platform="codechef"))
+    assert "codechef" in str(exc) and "rating_reference" in str(exc)
+
+
+def test_every_platform_the_projection_rates_has_a_table():
+    """6.0 sends platform_rating only for rating_reference.platforms; 6.3 prices it
+    from `<platform>_rated_ecdf`. The two files are edited separately, so this is
+    what keeps a platform from being projected as a rating nobody can price."""
+    from m6_projection.params import default_rules
+    p = engine().p
+    for platform in default_rules().rated_platforms:
+        assert p.ecdf_anchors_for(platform), f"{platform} has no reference distribution"
+
+
 def test_interpolation_clamps_outside_the_table():
     anchors = {100: 0.2, 200: 0.8}
     assert interpolate(anchors, 0) == 0.2

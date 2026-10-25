@@ -64,8 +64,10 @@ the "900+ problems across three platforms" claim carries M5's
 
 ## What to look for
 
-**Step 2** — the CodeChef rating comes in at reliability 0.63, not 0.90: it was
-scraped rather than read from an API, and the discount is named on the event.
+**Step 2** — the CodeChef rating is not priced as a rating. No reference
+distribution places CodeChef's scale, and against Codeforces' a 4-star 1810 read
+as a Codeforces 1810. It confirms the claimed 1810 instead, as `claim_corroborated`
+at reliability 0.56 — 0.80, with the named 0.7 discount for a scraped page.
 The CV claims are dated `2026-07-12`, the document's own date, not the
 verification date.
 

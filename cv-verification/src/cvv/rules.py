@@ -2850,14 +2850,15 @@ def _same_org(claimed: str, org_login: str) -> bool:
 
 
 def _doc_date(value: str | None) -> datetime.date | None:
-    """Two formats, because two ingest paths write them.
+    """ISO 8601, which ingest now writes for both PDF and DOCX, and the raw PDF form.
 
+        ISO     2025-07-04T19:47:43+05:30
         PDF     D:20250704194743+05'30'
-        DOCX    2013-12-23T23:15:00+00:00
 
-    Handling only the first meant D4 silently abstained on every DOCX — not a wrong
-    answer, but a check quietly not running, which is the failure this system exists
-    to avoid.
+    The PDF form is still read because reports stored before ingest converted it
+    carry it. Handling only that form, once, meant D4 silently abstained on every
+    DOCX — not a wrong answer, but a check quietly not running, which is the failure
+    this system exists to avoid.
     """
     if not value:
         return None

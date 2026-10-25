@@ -4,10 +4,6 @@
   "verification_id": "ver_01K2DEMO7QX4N",
   "subject_ref": "subj_c4f80a12",
   "emitted_at": "2026-08-30T00:00:00Z",
-  "consent_scope": [
-    "skill_graph_inclusion",
-    "recruiter_visibility"
-  ],
   "events": [
     {
       "event_id": "ev_135137e60ca5",
@@ -701,8 +697,8 @@
       }
     },
     {
-      "event_id": "ev_43e1413de142",
-      "kind": "platform_rating",
+      "event_id": "ev_54dbaeac9000",
+      "kind": "claim_corroborated",
       "occurred_at": "2026-08-30T00:00:00Z",
       "skill_refs": [
         {
@@ -714,8 +710,8 @@
           "relevance": 0.9
         }
       ],
-      "strength": 0.8,
-      "reliability": 0.63,
+      "strength": 0.7,
+      "reliability": 0.56,
       "direction": "positive",
       "source": {
         "module": "m5-cv-verification",
@@ -725,10 +721,10 @@
         "claim_refs": [
           "c22"
         ],
-        "evidence_ref": "codechef:ak_dev"
+        "evidence_ref": "c22:codechef"
       },
       "observed_at": "2026-08-30T00:00:00Z",
-      "reliability_base": 0.9,
+      "reliability_base": 0.8,
       "reliability_factors": [
         {
           "factor": "scraped_source",
@@ -738,9 +734,9 @@
       ],
       "payload": {
         "platform": "codechef",
-        "max_rating": 1810,
-        "rank_title": "4 star",
-        "problems_solved": 186,
+        "metric": "max_rating",
+        "claimed": 1810,
+        "platform_value": 1810,
         "source_quality": "scrape"
       }
     },

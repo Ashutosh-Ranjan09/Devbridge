@@ -1,12 +1,12 @@
 [
   {
     "skill_id": "algorithms",
-    "score": 0.703,
+    "score": 0.638,
     "interval": [
-      0.703,
-      0.811
+      0.638,
+      0.767
     ],
-    "mean": 0.761,
+    "mean": 0.707,
     "volatility_tier": "fundamental",
     "evidence_count": 2,
     "inferred": false,
@@ -15,35 +15,17 @@
   },
   {
     "skill_id": "problem_solving",
-    "score": 0.692,
+    "score": 0.628,
     "interval": [
-      0.692,
-      0.804
+      0.628,
+      0.76
     ],
-    "mean": 0.752,
+    "mean": 0.698,
     "volatility_tier": "fundamental",
     "evidence_count": 3,
     "inferred": false,
     "days_since_newest_evidence": 0,
     "propagated": null
-  },
-  {
-    "skill_id": "data_structures",
-    "score": 0.611,
-    "interval": [
-      0.611,
-      0.792
-    ],
-    "mean": 0.71,
-    "volatility_tier": "fundamental",
-    "evidence_count": 0,
-    "inferred": true,
-    "days_since_newest_evidence": 0,
-    "propagated": {
-      "from_skill_id": "algorithms",
-      "edge_type": "RELATED_TO",
-      "gamma": 0.4
-    }
   },
   {
     "skill_id": "cpp",
@@ -58,6 +40,24 @@
     "inferred": false,
     "days_since_newest_evidence": 203,
     "propagated": null
+  },
+  {
+    "skill_id": "data_structures",
+    "score": 0.541,
+    "interval": [
+      0.541,
+      0.749
+    ],
+    "mean": 0.652,
+    "volatility_tier": "fundamental",
+    "evidence_count": 0,
+    "inferred": true,
+    "days_since_newest_evidence": 0,
+    "propagated": {
+      "from_skill_id": "algorithms",
+      "edge_type": "RELATED_TO",
+      "gamma": 0.4
+    }
   },
   {
     "skill_id": "go",

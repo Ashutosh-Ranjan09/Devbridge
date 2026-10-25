@@ -1,9 +1,8 @@
 """Every way an ingest can fail, as a distinct type.
 
 The transport layer maps these to status codes, so the distinctions are the API
-contract: a schema failure is the producer's bug (400), a consent refusal is a
-policy decision that must never be retried into success (403), and a content
-conflict means two different events claim the same identity (409).
+contract: a schema failure is the producer's bug (400), and a content conflict
+means two different events claim the same identity (409).
 """
 from __future__ import annotations
 
@@ -24,14 +23,6 @@ class SchemaInvalid(IngestError):
     def __init__(self, message: str, path: str = "") -> None:
         super().__init__(f"{message} at {path}" if path else message)
         self.path = path
-
-
-class ConsentRefused(IngestError):
-    """consent_scope does not cover skill_graph_inclusion.
-
-    Not an error in the producer — a correct refusal. Recorded, never retried.
-    """
-    status = 403
 
 
 class ConflictingEvent(IngestError):

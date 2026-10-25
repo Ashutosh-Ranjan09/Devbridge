@@ -8,6 +8,7 @@ traced back to a position in the raw text, and from there to a bounding box.
 from __future__ import annotations
 
 import bisect
+import datetime
 import hashlib
 import re
 import unicodedata
@@ -26,6 +27,7 @@ class Document:
     is the offset in the raw text that normalised character `i` came from."""
 
     document_id: str
+    sha256: str
     text: str
     index_map: list[int]
     raw: str
@@ -35,6 +37,11 @@ class Document:
     created_at: str | None = None
     modified_at: str | None = None
     ocr_confidence: float | None = None
+
+
+def _digest(path: Path) -> str:
+    """SHA-256 of the file as received — the contract's `document.sha256`."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def normalise(raw: str) -> tuple[str, list[int]]:
@@ -159,6 +166,40 @@ def line_at(doc: Document, offset: int) -> tuple[int, int]:
     return lo, min(hi, len(doc.text))
 
 
+# The PDF date grammar, ISO 32000-1 §7.9.4: D:YYYYMMDDHHmmSS, then +, - or Z and an
+# offset written HH'mm'. Declared by the file format, not by a CV, so a pattern is the
+# right tool — the same reason GITHUB_REPO is one.
+_PDF_DATE = re.compile(
+    r"D:(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?"
+    r"(?:(Z)(?:00'?00'?)?|([+-])(\d{2})'?(\d{2})?'?)?"
+)
+
+
+def pdf_date(value: str | None) -> str | None:
+    """A PDF metadata date as the ISO 8601 the contract's `date-time` requires.
+
+    `D:20250704194743+05'30'` -> `2025-07-04T19:47:43+05:30`. Version 1 passed the
+    PDF string through, and M6 refused the whole report: it dates every uncorroborated
+    CV claim at the document's creation, and could not read that date. Needs the day
+    at least, because D4 compares days; anything unreadable is None, so D4 abstains
+    rather than reading a guess. An offset the file does not state is not invented.
+    """
+    if not value or not (m := _PDF_DATE.fullmatch(value.strip())):
+        return None
+    year, month, day, hour, minute, second, utc, sign, off_h, off_m = m.groups()
+    try:
+        moment = datetime.datetime(
+            int(year), int(month), int(day), int(hour or 0), int(minute or 0), int(second or 0)
+        )
+    except ValueError:
+        return None
+    if utc:
+        return f"{moment.isoformat()}+00:00"
+    if sign:
+        return f"{moment.isoformat()}{sign}{off_h}:{off_m or '00'}"
+    return moment.isoformat()
+
+
 def read_pdf(path: Path) -> Document:
     """PyMuPDF, one page at a time so page boundaries stay visible."""
     # pymupdf.open IS Document.__init__ and ships no type information, so mypy
@@ -170,7 +211,8 @@ def read_pdf(path: Path) -> Document:
     meta = pdf.metadata or {}
 
     return Document(
-        document_id="doc_" + hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        document_id="doc_" + _digest(path)[:12],
+        sha256=_digest(path),
         text=text,
         index_map=imap,
         raw=raw,
@@ -178,8 +220,8 @@ def read_pdf(path: Path) -> Document:
         ingest_method=IngestMethod.PDF_TEXT,
         # An institutional generator is itself a provenance signal — rule D4.
         producer=meta.get("producer") or None,
-        created_at=meta.get("creationDate") or None,
-        modified_at=meta.get("modDate") or None,
+        created_at=pdf_date(meta.get("creationDate")),
+        modified_at=pdf_date(meta.get("modDate")),
     )
 
 
@@ -219,7 +261,8 @@ def read_docx(path: Path) -> Document:
     core = file.core_properties
 
     return Document(
-        document_id="doc_" + hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        document_id="doc_" + _digest(path)[:12],
+        sha256=_digest(path),
         text=text,
         index_map=imap,
         raw=raw,
@@ -286,7 +329,8 @@ def read_scanned_pdf(path: Path, *, dpi: int = 200) -> Document:
     text, imap = normalise(raw)
 
     return Document(
-        document_id="doc_" + hashlib.sha256(path.read_bytes()).hexdigest()[:12],
+        document_id="doc_" + _digest(path)[:12],
+        sha256=_digest(path),
         text=text,
         index_map=imap,
         raw=raw,
@@ -300,6 +344,7 @@ def document_info(doc: Document) -> DocumentInfo:
     """The file's own provenance, for D4."""
     return DocumentInfo(
         document_id=doc.document_id,
+        sha256=doc.sha256,
         pages=doc.pages,
         ingest_method=doc.ingest_method,
         ocr_confidence=doc.ocr_confidence,

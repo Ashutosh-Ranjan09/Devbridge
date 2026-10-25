@@ -90,11 +90,11 @@ def test_the_port_trap_actually_fires():
 def test_the_ingestor_runs_against_the_bare_port():
     import sys
     sys.path.insert(0, str(ROOT / "tests" / "m6_ingestor"))
-    from fixtures import consented, ingestor
+    from fixtures import batch, ingestor
     from m6_ingestor import EventLog
 
     receipt = ingestor(log=EventLog(":memory:"),
-                       ontology=OnlyTheProtocol()).ingest(consented())
+                       ontology=OnlyTheProtocol()).ingest(batch())
     assert receipt.ontology_version == "port-only"
 
 
@@ -117,12 +117,12 @@ def test_a_substituted_ontology_changes_what_is_quarantined():
     the property that made that true."""
     import sys
     sys.path.insert(0, str(ROOT / "tests" / "m6_ingestor"))
-    from fixtures import consented, ingestor
+    from fixtures import batch, ingestor
     from m6_ingestor import EventLog
 
     tiny = SeedOntology({"python": {"tier": "ecosystem"}}, "tiny-1.0")
-    held = ingestor(log=EventLog(":memory:"), ontology=tiny).ingest(consented())
-    passed = ingestor(log=EventLog(":memory:"), ontology=AcceptAll()).ingest(consented())
+    held = ingestor(log=EventLog(":memory:"), ontology=tiny).ingest(batch())
+    passed = ingestor(log=EventLog(":memory:"), ontology=AcceptAll()).ingest(batch())
     assert held.quarantined and not passed.quarantined
 
 
@@ -134,12 +134,12 @@ def test_an_empty_ontology_is_honoured_rather_than_replaced():
     """
     import sys
     sys.path.insert(0, str(ROOT / "tests" / "m6_ingestor"))
-    from fixtures import consented
+    from fixtures import batch
     from m6_ingestor import EventLog, Ingestor
 
     empty = SeedOntology({}, "empty-1.0")
     assert not empty, "the premise: an empty ontology is falsy"
-    receipt = Ingestor(EventLog(":memory:"), ontology=empty).ingest(consented())
+    receipt = Ingestor(EventLog(":memory:"), ontology=empty).ingest(batch())
     assert receipt.ontology_version == "empty-1.0"
     assert receipt.quarantined, "nothing resolves against an empty graph"
 

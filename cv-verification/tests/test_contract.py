@@ -18,6 +18,7 @@ which is the opposite of what happened here.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,6 @@ from cvv import models as M  # noqa: N812 - a table of model classes reads bette
 SCHEMAS = Path("../schemas")
 EXAMPLES = Path("../schemas/examples")
 REPORT_SCHEMA = SCHEMAS / "verification-report.schema.json"
-EVENT_SCHEMA = SCHEMAS / "evidence-event.schema.json"
 
 pytestmark = pytest.mark.skipif(
     not REPORT_SCHEMA.is_file(), reason="the contract schemas are not present"
@@ -48,6 +48,8 @@ KNOWN_EXTENSIONS = {
     "GitHubEvidence.public_repos",      # skills the CV never mentions
     "GitHubEvidence.public_repo_count",
     "RuleOutcome.note",                 # what a Corroborated rule CONFIRMED
+    "Narrative.rejected_because",       # why the model's prose was not used
+    "VerificationReport.failure",       # why a verification failed; no contract field
 }
 
 
@@ -56,7 +58,6 @@ def defs(schema: Path) -> dict[str, Any]:
 
 
 REPORT_DEFS = defs(REPORT_SCHEMA) if REPORT_SCHEMA.is_file() else {}
-EVENT_DEFS = defs(EVENT_SCHEMA) if EVENT_SCHEMA.is_file() else {}
 
 PAIRED = [
     ("Claim", M.Claim, "report"), ("Resolution", M.Resolution, "report"),
@@ -68,13 +69,16 @@ PAIRED = [
     ("CredentialEvidence", M.CredentialEvidence, "report"),
     ("Discrepancy", M.Discrepancy, "report"), ("RuleOutcome", M.RuleOutcome, "report"),
     ("SectionConfidence", M.SectionConfidence, "report"),
-    ("EvidenceEvent", M.EvidenceEvent, "event"), ("SkillRef", M.SkillRef, "event"),
-    ("ReliabilityFactor", M.ReliabilityFactor, "event"),
+    ("Narrative", M.Narrative, "report"), ("ReportProvenance", M.ReportProvenance, "report"),
+    ("VerificationCoverage", M.VerificationCoverage, "report"),
+    ("VerificationReport", M.VerificationReport, "report"),
 ]
 
 
 def schema_for(name: str, which: str) -> dict[str, Any] | None:
-    return (REPORT_DEFS if which == "report" else EVENT_DEFS).get(name)
+    if name == "VerificationReport":  # the root of the schema, not one of its $defs
+        return json.loads(REPORT_SCHEMA.read_text())
+    return REPORT_DEFS.get(name)
 
 
 class TestNoFieldIsSilentlyMissing:
@@ -144,11 +148,15 @@ class TestTheReferencePayloadsParse:
         M.EvidenceBundle.model_validate(raw["evidence_bundle"])
         M.FindingsReport.model_validate(raw["findings"])
 
+    @pytest.mark.parametrize("name", ["report-full.json", "report-degraded.json"])
     @pytest.mark.skipif(not EXAMPLES.is_dir(), reason="reference payloads are not present")
-    def test_the_reference_event_batch_parses(self) -> None:
-        raw = json.loads((EXAMPLES / "evidence-events.json").read_text())
-        batch = M.EvidenceEventBatch.model_validate(raw)
-        assert batch.events
+    def test_a_whole_reference_report_parses(self, name: str) -> None:
+        """The stages parsing is not the report parsing. Until the report itself was
+        built from the contract, ours lacked the evidence bundle, the subject and the
+        provenance — and nothing failed, because nothing parsed the whole thing."""
+        raw = json.loads((EXAMPLES / name).read_text())
+        report = M.VerificationReport.model_validate(raw, context={"source_text_truncated": True})
+        assert report.evidence_bundle.bundle_id
 
     @pytest.mark.skipif(not EXAMPLES.is_dir(), reason="reference payloads are not present")
     def test_a_resolution_survives_the_round_trip(self) -> None:
@@ -167,23 +175,79 @@ class TestTheReferencePayloadsParse:
 
 
 class TestWhatWeEmit:
-    """Our own output, against the schema a consumer would use."""
+    """Our own output, against the schema a consumer would use — M6 among them."""
 
-    def test_an_event_batch_validates(self) -> None:
-        from cvv.models import ClaimKind
-        from tests.cvdata import DOCUMENT, SKILLS_LINE, make_claim, make_graph
-        from tests.test_events import emitted, empty_report
+    def test_a_report_is_valid_except_for_the_named_extensions(self) -> None:
+        """Built by the function the CLI and the API both call, over a graph with
+        claims and a bundle with real evidence, so the deep shapes are exercised.
+
+        Not `jsonschema.validate`: our output IS invalid, by exactly the fields in
+        KNOWN_EXTENSIONS, and that is the debt this file records. So every error must
+        be an unexpected field on that list, and anything else is a real break."""
+        from cvv.models import ClaimKind, DocumentInfo, IngestMethod
+        from cvv.pipeline import verification_report
+        from cvv.report import assemble
+        from tests.cvdata import CF_RATING, DOCUMENT, SKILLS_LINE, make_claim, make_graph
         from tests.test_rules import bundle, codeforces, github, repo
 
-        claim = make_claim(
-            SKILLS_LINE, DOCUMENT, claim_id="cskl01", kind=ClaimKind.SKILL,
-            skill_refs=["python"],
+        graph = make_graph(
+            [
+                make_claim(SKILLS_LINE, DOCUMENT, claim_id="cskl01", kind=ClaimKind.SKILL,
+                           skill_refs=["python"]),
+                make_claim(CF_RATING, DOCUMENT, claim_id="cach01", kind=ClaimKind.ACHIEVEMENT,
+                           platform="codeforces", metric="max_rating", value=1495),
+            ],
+            DOCUMENT,
         )
-        graph = make_graph([claim], DOCUMENT)
         evidence = bundle(graph, github=github(repos=(repo("x", languages=("Python",)),)),
                           platforms=[codeforces()])
-        batch = emitted(graph, evidence, empty_report(graph))
-        assert batch.events
-        jsonschema.validate(
-            json.loads(batch.model_dump_json()), json.loads(EVENT_SCHEMA.read_text())
+        document = DocumentInfo(
+            document_id="doc_t", sha256="0" * 64, pages=1, ingest_method=IngestMethod.PDF_TEXT
         )
+        report = verification_report(
+            verification_id="vr_t", document=document, graph=graph, bundle=evidence,
+            findings=assemble(graph, evidence, report_id="fr_t", document=document),
+        )
+        payload = json.loads(report.model_dump_json())
+        allowed = {name.split(".")[1] for name in KNOWN_EXTENSIONS}
+        errors = list(
+            jsonschema.Draft202012Validator(json.loads(REPORT_SCHEMA.read_text()))
+            .iter_errors(payload)
+        )
+
+        def owed(e: jsonschema.ValidationError) -> bool:
+            """An unexpected field on the debt list — directly, or as the only thing
+            wrong with one branch of a `oneOf` (`github` is GitHubEvidence or null,
+            so its extensions surface as "valid under none of the schemas")."""
+            if e.validator == "additionalProperties":
+                return set(re.findall(r"'([^']+)'", e.message)) <= allowed
+            if e.validator in ("oneOf", "anyOf"):
+                branches: dict[object, list[jsonschema.ValidationError]] = {}
+                for sub in e.context or []:
+                    branches.setdefault(sub.relative_schema_path[0], []).append(sub)
+                return any(all(owed(sub) for sub in subs) for subs in branches.values())
+            return False
+
+        unexpected = [
+            f"{'/'.join(map(str, e.absolute_path))}: {e.message}"
+            for e in errors
+            if not owed(e)
+        ]
+        assert not unexpected, unexpected
+        assert payload["evidence_bundle"]["github"], "the bundle travels with the report"
+
+    def test_document_dates_are_iso_date_times(self) -> None:
+        """jsonschema checks `format: date-time` only with an optional package this
+        project does not install, so the test above passes a PDF's `D:2025…` string.
+        M6 does not: it refused the first real report it was given."""
+        import datetime
+
+        from cvv.ingest import document_info, read
+
+        cv = Path("docs/CV-SDE-AR.pdf")
+        if not cv.is_file():
+            pytest.skip("the reference CV is not present")
+        info = document_info(read(cv))
+        for value in (info.created_at, info.modified_at):
+            assert value is not None
+            assert datetime.datetime.fromisoformat(value).tzinfo is not None

@@ -107,7 +107,14 @@ class ObservationModel:
         if rating is None:
             raise UnscoreableEvent(
                 f"{event.get('event_id')}: platform_rating with no max_rating in payload")
-        ecdf = interpolate(self.p.ecdf_anchors, float(rating))
+        platform = str(payload.get("platform") or "codeforces")
+        anchors = self.p.ecdf_anchors_for(platform)
+        if anchors is None:
+            raise UnscoreableEvent(
+                f"{event.get('event_id')}: no reference distribution for {platform!r} "
+                "ratings. The projection should have sent a claim_corroborated "
+                "instead — see projection-rules.yaml rating_reference.")
+        ecdf = interpolate(anchors, float(rating))
         return float(spec["a"]) + float(spec["b"]) * ecdf
 
     # ── observation variance ────────────────────────────────────────────────

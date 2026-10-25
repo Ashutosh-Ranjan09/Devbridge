@@ -67,12 +67,6 @@ def test_posting_the_same_report_twice_is_a_no_op():
     assert status == 202 and body["replayed"] is True and body["accepted"] == []
 
 
-def test_an_unconsented_report_is_403_over_http():
-    with Server() as s:
-        status, body = s.call("POST", "/evidence/report", report("report-degraded.json"))
-    assert status == 403 and body["error"] == "ConsentRefused"
-
-
 def test_a_malformed_report_is_400():
     with Server() as s:
         status, _ = s.call("POST", "/evidence/report", {"not": "a report"})

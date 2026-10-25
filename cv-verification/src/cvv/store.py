@@ -249,7 +249,7 @@ class PostgresStore:
                 "WHERE verification_id = %s",
                 (
                     report.status.value,
-                    report.completed_at,
+                    datetime.datetime.now(datetime.UTC),
                     report.model_dump_json(),
                     report.verification_id,
                 ),

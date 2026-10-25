@@ -21,7 +21,7 @@ def run(*argv) -> tuple[int, str, str]:
 def test_check_passes_on_the_shipped_seed():
     code, out, _ = run("check", "--seed", str(SEED_PATH))
     assert code == 0
-    assert "27 skills" in out and "no problems" in out
+    assert "35 skills" in out and "no problems" in out
 
 
 def test_check_fails_and_names_every_problem():
@@ -66,8 +66,8 @@ def test_dump_is_json_a_client_can_read():
     import json
     _, out, _ = run("dump", "--seed", str(SEED_PATH))
     doc = json.loads(out)
-    assert doc["ontology_version"] == "0.1.0"
-    assert len(doc["skills"]) == 27 and len(doc["edges"]) == 12
+    assert doc["ontology_version"] == "0.2.0"
+    assert len(doc["skills"]) == 35 and len(doc["edges"]) == 15
 
 
 def test_a_broken_seed_still_lists_but_warns():
