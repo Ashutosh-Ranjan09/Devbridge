@@ -1,0 +1,219 @@
+{
+  "schema_version": "1.0.0",
+  "batch_id": "evb_01J9XQ7K2M4N",
+  "verification_id": "ver_01J9XQ7K2M4N",
+  "subject_ref": "subj_7a3f9e21",
+  "emitted_at": "2026-08-24T09:14:02Z",
+  "consent_scope": ["skill_graph_inclusion", "recruiter_visibility"],
+
+  "events": [
+    {
+      "event_id": "ev_001",
+      "kind": "platform_rating",
+      "occurred_at": "2025-01-14T00:00:00Z",
+      "observed_at": "2026-08-24T09:13:12Z",
+      "skill_refs": [
+        { "skill_id": "algorithms",       "relevance": 0.95 },
+        { "skill_id": "problem_solving",  "relevance": 0.90 },
+        { "skill_id": "cpp",              "relevance": 0.70 }
+      ],
+      "strength": 0.80,
+      "reliability": 0.90,
+      "reliability_base": 0.90,
+      "reliability_factors": [],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "codeforces_api", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c22", "c23"], "evidence_ref": "platforms[0]"
+      },
+      "payload": {
+        "max_rating": 1495, "rank_title": "specialist",
+        "problems_solved": 412, "best_contest_rank": 1106,
+        "note": "Authoritative public API. Handle ownership is irrelevant here - the handle resolved and the platform is the authority on its own ratings."
+      }
+    },
+    {
+      "event_id": "ev_002",
+      "kind": "repo_artifact",
+      "occurred_at": "2025-04-27T00:00:00Z",
+      "observed_at": "2026-08-24T09:13:30Z",
+      "skill_refs": [
+        { "skill_id": "typescript", "relevance": 0.90 },
+        { "skill_id": "nextjs",     "relevance": 0.80 },
+        { "skill_id": "mongodb",    "relevance": 0.60 }
+      ],
+      "strength": 0.60,
+      "reliability": 0.42,
+      "reliability_base": 0.70,
+      "reliability_factors": [
+        { "factor": "ownership_unverified", "value": 0.60,
+          "reason": "GitHub handle derived from repository URL; no OAuth or challenge completed" }
+      ],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "github_api", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c07"], "evidence_ref": "github.repos[0]"
+      },
+      "payload": {
+        "repo": "ATMA-Final", "commit_count": 142, "size_kb": 3820,
+        "is_fork": false, "languages": { "TypeScript": 184320, "JavaScript": 41200 },
+        "frameworks": ["next", "react", "mongoose"],
+        "window": "2025-03-11..2025-04-27"
+      }
+    },
+    {
+      "event_id": "ev_003",
+      "kind": "repo_artifact",
+      "occurred_at": "2025-06-19T00:00:00Z",
+      "observed_at": "2026-08-24T09:13:30Z",
+      "skill_refs": [
+        { "skill_id": "typescript", "relevance": 0.90 },
+        { "skill_id": "nextjs",     "relevance": 0.80 }
+      ],
+      "strength": 0.55,
+      "reliability": 0.42,
+      "reliability_base": 0.70,
+      "reliability_factors": [
+        { "factor": "ownership_unverified", "value": 0.60,
+          "reason": "GitHub handle derived from repository URL" }
+      ],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "github_api", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c08"], "evidence_ref": "github.repos[1]"
+      },
+      "payload": { "repo": "cf-connect", "commit_count": 97, "is_fork": false }
+    },
+    {
+      "event_id": "ev_004",
+      "kind": "repo_artifact",
+      "occurred_at": "2024-06-28T00:00:00Z",
+      "observed_at": "2026-08-24T09:13:30Z",
+      "skill_refs": [
+        { "skill_id": "python",       "relevance": 0.90 },
+        { "skill_id": "cryptography", "relevance": 0.50 },
+        { "skill_id": "networking",   "relevance": 0.45 }
+      ],
+      "strength": 0.50,
+      "reliability": 0.42,
+      "reliability_base": 0.70,
+      "reliability_factors": [
+        { "factor": "ownership_unverified", "value": 0.60, "reason": "handle derived from repository URL" }
+      ],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "github_api", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c10"], "evidence_ref": "github.repos[2]"
+      },
+      "payload": {
+        "repo": "Terminal-Chat-Room", "commit_count": 31,
+        "note": "occurred_at is 26 months before observation. M6's decay kernel widens sigma accordingly - the lower bound falls because we know less, not because ability fell."
+      }
+    },
+    {
+      "event_id": "ev_005",
+      "kind": "claim_corroborated",
+      "occurred_at": "2025-06-19T00:00:00Z",
+      "observed_at": "2026-08-24T09:13:30Z",
+      "skill_refs": [{ "skill_id": "typescript", "relevance": 1.0 }],
+      "strength": 0.70,
+      "reliability": 0.48,
+      "reliability_base": 0.80,
+      "reliability_factors": [
+        { "factor": "ownership_unverified", "value": 0.60, "reason": "handle derived from repository URL" }
+      ],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "github_api", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c19"], "evidence_ref": "github.repos"
+      },
+      "payload": {
+        "claimed": "familiar", "observed": "335320 bytes across 2 non-fork repositories",
+        "note": "Shipped volume materially exceeds the stated proficiency band."
+      }
+    },
+    {
+      "event_id": "ev_006",
+      "kind": "artifact_live",
+      "occurred_at": "2026-08-24T09:13:41Z",
+      "observed_at": "2026-08-24T09:13:41Z",
+      "skill_refs": [
+        { "skill_id": "nextjs",     "relevance": 0.60 },
+        { "skill_id": "deployment", "relevance": 0.70 }
+      ],
+      "strength": 0.40,
+      "reliability": 0.51,
+      "reliability_base": 0.85,
+      "reliability_factors": [
+        { "factor": "ownership_unverified", "value": 0.60, "reason": "linked from an unverified account's repository" }
+      ],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "http_probe", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c07"], "evidence_ref": "deployments[0]"
+      },
+      "payload": { "url": "https://atma-rs.vercel.app", "status_code": 200 }
+    },
+    {
+      "event_id": "ev_007",
+      "kind": "cv_claim",
+      "occurred_at": "2025-07-04T00:00:00Z",
+      "observed_at": "2026-08-24T09:12:04Z",
+      "skill_refs": [{ "skill_id": "cpp", "relevance": 1.0 }],
+      "strength": 0.30,
+      "reliability": 0.20,
+      "reliability_base": 0.20,
+      "reliability_factors": [],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "cv_document", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c18"], "evidence_ref": null
+      },
+      "payload": {
+        "stated_proficiency": "proficient",
+        "note": "Self-reported and uncorroborated by any repository - competitive programming does not live in GitHub. The Codeforces event (ev_001) carries this skill instead."
+      }
+    },
+    {
+      "event_id": "ev_008",
+      "kind": "cv_claim",
+      "occurred_at": "2025-07-04T00:00:00Z",
+      "observed_at": "2026-08-24T09:12:04Z",
+      "skill_refs": [
+        { "skill_id": "numpy",  "relevance": 1.0 },
+        { "skill_id": "pandas", "relevance": 1.0 }
+      ],
+      "strength": 0.30,
+      "reliability": 0.20,
+      "reliability_base": 0.20,
+      "reliability_factors": [],
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification", "module_version": "0.4.1",
+        "origin": "cv_document", "verification_id": "ver_01J9XQ7K2M4N",
+        "claim_refs": ["c21"], "evidence_ref": null
+      },
+      "payload": { "note": "No corroborating artefact anywhere. Stays near the prior with a wide band." }
+    }
+  ],
+
+  "not_emitted": [
+    { "what": "W1 - cf-connect deployment returns 404",
+      "reason": "not_a_capability_signal" },
+    { "what": "G3 - GitHub account ownership unproven",
+      "reason": "non_scoring_rule" },
+    { "what": "CGPA 9.34 and coursework claims",
+      "reason": "institution_disclaimed" },
+    { "what": "Roll-number structure, institution registry match, supervisor directory match",
+      "reason": "no_skill_mapping" },
+    { "what": "JEE Advanced rank 873",
+      "reason": "no_skill_mapping" }
+  ]
+}

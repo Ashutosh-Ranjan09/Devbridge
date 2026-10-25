@@ -1,0 +1,452 @@
+<title>M6 Skill Graph Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --fix:#0F6E63; --fix-soft:#E2F0EE; --fix-line:#8FC4BC;
+  --open:#6244C5; --open-soft:#ECE7FA; --open-line:#B3A2EE;
+  --warn:#8A5A12; --warn-soft:#F6EEDF; --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --fix:#43C3B1; --fix-soft:#12312E; --fix-line:#2A6B62;
+  --open:#A48FF5; --open-soft:#221C3C; --open-line:#4B3E82;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --fix:#43C3B1; --fix-soft:#12312E; --fix-line:#2A6B62;
+  --open:#A48FF5; --open-soft:#221C3C; --open-line:#4B3E82;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.5rem); line-height:1.04; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:38px 0 42px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.72rem; letter-spacing:-.021em; line-height:1.17; margin:0 0 8px; text-wrap:balance; display:flex; gap:14px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.82rem; font-weight:500; color:var(--muted); flex:none}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.11rem; letter-spacing:-.01em; margin:32px 0 8px}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:26px 0 9px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.05rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.4px; line-height:1.6; margin:16px 0 20px; color:var(--ink-2)}
+pre b{color:var(--fix); font-weight:500} pre i{color:var(--muted); font-style:normal} pre u{color:var(--open); text-decoration:none}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.3px; line-height:1.47}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:10px 13px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:10px 13px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:11.8px; white-space:nowrap}
+.num-c{font-variant-numeric:tabular-nums; text-align:right}
+.tag{display:inline-block; font-family:var(--f-mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; padding:2px 6px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-fix{background:var(--fix-soft); color:var(--fix)} .t-open{background:var(--open-soft); color:var(--open)}
+.t-w{background:var(--warn-soft); color:var(--warn)} .t-c{background:var(--crit-soft); color:var(--crit)}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.f{border-left-color:var(--fix)} .note.o{border-left-color:var(--open)}
+.note.w{border-left-color:var(--warn)} .note.c{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.f h5{color:var(--fix)} .note.o h5{color:var(--open)} .note.w h5{color:var(--warn)} .note.c h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+figure{margin:22px 0 24px; background:var(--surface); border:1px solid var(--rule); border-radius:7px; padding:20px 20px 14px; box-shadow:var(--shadow)}
+.figscroll{overflow-x:auto}
+figure svg{display:block; width:100%; min-width:640px; height:auto; color:var(--ink)}
+figcaption{margin-top:14px; padding-top:11px; border-top:1px solid var(--rule); font-family:var(--f-display); font-size:12.8px; line-height:1.55; color:var(--muted)}
+figcaption b{color:var(--ink-2); font-weight:600}
+.mods{display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:15px; margin:22px 0}
+.mod{border:1px solid var(--rule); border-radius:7px; background:var(--surface); padding:17px 19px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:9px}
+.mod .mh{display:flex; align-items:baseline; justify-content:space-between; gap:10px}
+.mod .mid{font-family:var(--f-mono); font-size:11px; color:var(--muted); font-weight:500}
+.mod h4{margin:0; font-family:var(--f-display); font-size:1.05rem; font-weight:600; letter-spacing:-.01em; text-transform:none; color:var(--ink)}
+.mod p{font-size:13.4px; line-height:1.5; color:var(--muted); margin:0; max-width:none; font-family:var(--f-display)}
+.mod ul{margin:0; padding:0; list-style:none; font-family:var(--f-display); font-size:13px; max-width:none; border-top:1px solid var(--rule); padding-top:9px}
+.mod ul li{display:flex; gap:9px; padding:3.5px 0; margin:0; line-height:1.42; color:var(--ink-2)}
+.mod ul li::before{content:"·"; color:var(--muted); flex:none}
+.sched{margin:20px 0; border:1px solid var(--rule); border-radius:7px; overflow:hidden; background:var(--surface)}
+.sr{display:grid; grid-template-columns:70px 1fr; border-bottom:1px solid var(--rule)}
+.sr:last-child{border-bottom:none}
+.sr.hd{background:var(--surface-2)}
+.sr.hd div{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); padding:10px 13px; font-weight:500}
+.wk{font-family:var(--f-mono); font-size:11.5px; color:var(--muted); padding:13px; border-right:1px solid var(--rule); font-variant-numeric:tabular-nums; background:var(--surface-2)}
+.cc{padding:12px 15px; font-family:var(--f-display); font-size:13.3px; line-height:1.5; color:var(--ink-2); min-width:0}
+.cc b{color:var(--ink); font-weight:600}
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+:focus-visible{outline:2px solid var(--fix); outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M6 — Construction Plan</p>
+  <h1>M6 Skill Graph Plan</h1>
+  <p class="deck">What is already fixed by the committed schemas, what the design documents leave genuinely open, and the order to build it in. M6 can be built to completion without M5 existing — the input contract and a fully worked example are both already in the repository.</p>
+  <div class="meta">
+    <span><b>Input</b> evidence-event.schema.json</span>
+    <span><b>Trained models</b> none</span>
+    <span><b>Store</b> property graph</span>
+    <span><b>Worked example</b> committed</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>M6 does not read the ClaimGraph</h2>
+  <p class="lede">Worth settling first, because it changes what you build. The ClaimGraph is fixed, but it is not M6's input.</p>
+  <p><code>evidence-event.schema.json</code> states it directly: M6 <em>"does NOT consume discrepancies — it has no interest in fraud. It consumes corroborated capability signals, each carrying a reliability that determines how far it moves the latent-ability estimate."</em> The single thing M6 reads is an <code>EvidenceEventBatch</code>.</p>
+  <p>Producing that batch is a separate job. It reads all three M5 artefacts — the ClaimGraph for what was claimed, the EvidenceBundle for what the sources returned, the FindingsReport for which claims survived — and projects them into capability events. That projection is where the interesting decisions live, and it is the piece nobody currently owns.</p>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 920 306" role="img" aria-label="M5 produces a ClaimGraph, EvidenceBundle and FindingsReport; an unowned projection step turns all three into an EvidenceEventBatch, which is the only artefact M6 reads.">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+        <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--open)"/></marker>
+        <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--fix)"/></marker>
+      </defs>
+
+      <text x="30" y="20" font-family="IBM Plex Mono,monospace" font-size="10" letter-spacing="1.2" fill="var(--muted)">M5 OUTPUT — SCHEMAS FIXED</text>
+      <rect x="30" y="32" width="168" height="48" rx="5" fill="var(--surface)" stroke="var(--rule-2)"/>
+      <text x="114" y="53" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12.5" font-weight="600" fill="currentColor">ClaimGraph</text>
+      <text x="114" y="69" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">what was claimed</text>
+
+      <rect x="30" y="98" width="168" height="48" rx="5" fill="var(--surface)" stroke="var(--rule-2)"/>
+      <text x="114" y="119" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12.5" font-weight="600" fill="currentColor">EvidenceBundle</text>
+      <text x="114" y="135" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">what the sources returned</text>
+
+      <rect x="30" y="164" width="168" height="48" rx="5" fill="var(--surface)" stroke="var(--rule-2)"/>
+      <text x="114" y="185" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12.5" font-weight="600" fill="currentColor">FindingsReport</text>
+      <text x="114" y="201" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">which claims survived</text>
+
+      <rect x="272" y="70" width="176" height="104" rx="6" fill="var(--open-soft)" stroke="var(--open)" stroke-width="1.6" stroke-dasharray="6 4"/>
+      <text x="360" y="96" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12.5" font-weight="600" fill="currentColor">event projection</text>
+      <text x="360" y="115" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--open)">unowned in the work split</text>
+      <text x="360" y="136" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)">picks kind · strength</text>
+      <text x="360" y="150" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)">reliability · skill_refs</text>
+      <text x="360" y="164" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)">and what to suppress</text>
+
+      <rect x="522" y="70" width="176" height="104" rx="6" fill="var(--fix-soft)" stroke="var(--fix)" stroke-width="1.8"/>
+      <text x="610" y="96" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="12.5" font-weight="600" fill="currentColor">EvidenceEventBatch</text>
+      <text x="610" y="114" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--fix)">evidence-event.schema.json</text>
+      <text x="610" y="134" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">events[] + not_emitted[]</text>
+      <text x="610" y="150" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">+ consent_scope</text>
+      <text x="610" y="166" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" font-weight="600" fill="var(--fix)">the only thing M6 reads</text>
+
+      <rect x="762" y="32" width="128" height="180" rx="6" fill="var(--surface)" stroke="var(--rule-2)" stroke-width="1.4"/>
+      <text x="826" y="53" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="13" font-weight="700" fill="currentColor">M6</text>
+      <text x="826" y="78" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)">6.1 ontology</text>
+      <text x="826" y="99" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)">6.2 ingestor</text>
+      <text x="826" y="120" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--ink)">6.3 scoring</text>
+      <text x="826" y="141" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)">6.4 query</text>
+      <text x="826" y="162" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)">6.5 integrity</text>
+      <text x="826" y="190" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="9.5" fill="var(--muted)">no M5 import</text>
+
+      <g stroke="currentColor" stroke-width="1.2" fill="none" marker-end="url(#a1)">
+        <path d="M202 56 L236 56 L236 104 L268 104"/>
+        <path d="M202 122 L268 122"/>
+        <path d="M202 188 L236 188 L236 140 L268 140"/>
+      </g>
+      <path d="M452 122 L518 122" stroke="var(--open)" stroke-width="1.5" fill="none" marker-end="url(#a2)"/>
+      <path d="M702 122 L758 122" stroke="var(--fix)" stroke-width="1.8" fill="none" marker-end="url(#a3)"/>
+
+      <text x="360" y="232" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--open)">fire-and-forget — if the bus is down, verification still succeeds</text>
+      <text x="360" y="252" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--muted)">suppressions are recorded, not silent: <tspan font-family="IBM Plex Mono,monospace" font-size="9.5">not_emitted[]</tspan></text>
+      <text x="610" y="284" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--fix)">contract frozen · worked example committed · M6 can start today</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 1 — the seam.</b> M6's dependency is one JSON document, not M5. Because both the schema and a filled example already exist in the repository, every part of M6 can be built and tested before any of M5 runs — the same factoring that lets the reasoning service develop with no network.</figcaption>
+  </figure>
+
+  <div class="note o">
+    <h5>The gap worth naming now</h5>
+    <p>Neither track in <code>m5-work-split.html</code> lists the event projection. Track A ends at the narrative renderer; Track B ends at the five-bucket report. Somebody has to decide that a non-fork repository with 142 commits becomes <code>repo_artifact</code> at strength 0.60 with <code>skill_refs</code> weighted <code>typescript:0.9, nextjs:0.8, mongodb:0.6</code> — and that is a skill-graph judgement, not a verification one. Claiming it as part of M6 is the natural call, and it is where the modelling actually begins.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>What is already decided</h2>
+  <p class="lede">Inherited from the committed schemas and the design documents. Treat these as given; re-deriving them costs weeks and changes nothing.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Decision</th><th>As fixed</th><th class="mono">Source</th></tr></thead>
+      <tbody>
+        <tr><td>Event vocabulary</td><td>Seven kinds: <span class="mono">cv_claim · claim_corroborated · repo_artifact · platform_rating · artifact_live · credential_verified · claim_contradicted</span></td><td class="mono">evidence-event<br>schema</td></tr>
+        <tr><td>Prior strength &amp; reliability</td><td>Per kind, documented: cv_claim 0.30/0.20 · repo_artifact 0.60/0.70 · platform_rating 0.80/0.90 · credential_verified 0.60/0.95 · claim_contradicted 0.90/0.95</td><td class="mono">cv-to-skill-graph §05</td></tr>
+        <tr><td>Reliability is decomposed</td><td><span class="mono">reliability_base</span> × named <span class="mono">reliability_factors[]</span>, each with a reason. A capped value is auditable, never magic.</td><td class="mono">evidence-event<br>schema</td></tr>
+        <tr><td>Ownership asymmetry</td><td>Unverified GitHub ownership multiplies reliability by 0.6 — but only for events that would <em>raise</em> a score. Contradicting events are uncapped.</td><td class="mono">cv-to-skill-graph §05</td></tr>
+        <tr><td>State per (developer, skill)</td><td>Gaussian (μ, σ²), updated by closed-form Kalman. No optimiser, no labels, no learned weights.</td><td class="mono">devbridge-plan §06</td></tr>
+        <tr><td>Decay</td><td>σ²(t) = σ²(τ) + λ_s·Δt — uncertainty grows. μ mean-reverts toward the prior with half-life h_s. The score falls because we know less, not because the person got worse.</td><td class="mono">devbridge-plan §06</td></tr>
+        <tr><td>Displayed score</td><td>score = μ − z·σ, a lower confidence bound. <span class="tag t-fix">z = 1</span> — recoverable from the worked explain response: 0.68 − 0.56 = 0.12 = σ.</td><td class="mono">cv-to-skill-graph §06</td></tr>
+        <tr><td>Propagation</td><td>Damped by γ across ontology edges. Evidence for React partially informs JavaScript.</td><td class="mono">devbridge-plan §06</td></tr>
+        <tr><td>Evidence nodes immutable</td><td>Referenced by every score they touch, which is what makes <span class="mono">/explain</span> possible and ablation cheap.</td><td class="mono">devbridge-plan §06</td></tr>
+        <tr><td>Consent enforced at ingest</td><td>M6 <em>must</em> refuse events whose <span class="mono">consent_scope</span> does not cover skill-graph inclusion.</td><td class="mono">evidence-event<br>schema</td></tr>
+        <tr><td>What M6 refuses</td><td>Five suppression reasons, recorded in <span class="mono">not_emitted[]</span>: not_a_capability_signal · non_scoring_rule · no_skill_mapping · institution_disclaimed · consent_scope_excluded</td><td class="mono">evidence-event<br>schema</td></tr>
+        <tr><td>Parameters are not fitted</td><td>Set from documented reasoning, then swept. "Rank correlation stays above 0.9 across the plausible parameter space" is the result, not a fitted constant.</td><td class="mono">devbridge-plan §06</td></tr>
+        <tr><td><span class="mono">/explain</span> response shape</td><td>score · mean · sigma · contributions[] with weights · decay{days, lambda} · abstentions[]</td><td class="mono">cv-to-skill-graph §06</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>What the documents leave open</h2>
+  <p class="lede">This is the project. Everything above is settled; everything below is a decision you have to make and defend, and each one is a section of the report.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th class="mono">#</th><th>Open question</th><th>Why it is not a detail</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">O1</td><td><b>The observation model.</b> <span class="mono">observation_variance = f(ρ_k, context_difficulty, sample_size)</span> — <span class="mono">f</span> is never given. Nor is the map from an event to an observed ability value: how does <span class="mono">max_rating 1495</span> become a number the filter can absorb?</td><td>The single largest unspecified piece. Every score in the system passes through it. Expect a percentile against a reference distribution — the no-trained-models rule points straight at it.</td></tr>
+        <tr><td class="mono">O2</td><td><b>Bounded scale versus unbounded Gaussian.</b> Scores are shown in [0,1]; a Kalman update on a bounded quantity can walk outside it.</td><td>Filter in logit space and transform for display, or clip and document the bias clipping introduces. Silently clipping is the wrong answer and a panel will find it.</td></tr>
+        <tr><td class="mono">O3</td><td><b>Multi-skill events.</b> One event carries several <span class="mono">skill_refs</span> with a <span class="mono">relevance</span> each. How relevance modulates the update is unstated.</td><td>Every repo_artifact event is multi-skill. Folding relevance into observation variance is the obvious route, but it is a choice that needs writing down.</td></tr>
+        <tr><td class="mono">O4</td><td><b>Out-of-order arrival.</b> Events carry both <span class="mono">occurred_at</span> and <span class="mono">observed_at</span>, and a 2024 repository can be observed in 2026. Sequential Kalman updates are order-dependent.</td><td>The architecture principle says scores are "recomputable from the event log at any timestamp". Recompute-on-read from a sorted log satisfies that and removes the problem; decide it before you write the ingestor, not after.</td></tr>
+        <tr><td class="mono">O5</td><td><b>Propagation timing.</b> Applied when evidence lands, or when a score is read?</td><td>Write-time is fast to query but makes the graph a cache to invalidate. Read-time keeps a single source of truth and makes <span class="mono">as_of</span> queries natural. This is the main architectural fork in 6.3.</td></tr>
+        <tr><td class="mono">O6</td><td><b>Unset constants.</b> Prior μ₀ and σ₀² per skill; the three λ_s tiers and which skills sit in each; the h_s-to-λ_s ratio.</td><td>All are sweep inputs, so they need plausible ranges as well as point values. The sweep is the deliverable — the point values are just its centre.</td></tr>
+        <tr><td class="mono">O7</td><td><b>Edge types and γ disagree between documents.</b> <span class="mono">devbridge-plan</span> says a single global constant per edge type, with two types. <span class="mono">cv-to-skill-graph</span> shows four edges with four different γ values and a third type, <span class="mono">REQUIRES</span> — including two REQUIRES edges at 0.70 and 0.60.</td><td>Per-edge γ is a much larger parameter space to sweep and to defend. Settle on per-type before seeding the ontology, since the edges get written once.</td></tr>
+        <tr><td class="mono">O8</td><td><b>Where new skills come from.</b> L5 in the platform plan maps unseen skill strings to the ontology as an offline batch with a human approval queue — never in the request path.</td><td>The only LLM anywhere near M6, and it is optional. An event naming an unknown <span class="mono">skill_id</span> must quarantine, not silently drop.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note c">
+    <h5>One published number does not reconcile — check it before you build on it</h5>
+    <p>The worked <span class="mono">/explain</span> response reports <span class="mono">sigma 0.12</span> alongside <span class="mono">decay: { days_since_newest_evidence: 587, lambda: 0.00021 }</span>. Under the stated σ²(t) = σ²(τ) + λ_s·Δt, the decay term alone contributes 0.00021 × 587 ≈ 0.123 to the <em>variance</em>, which puts σ at 0.35 or above — nearly three times the figure shown. Either λ is being applied to σ rather than σ², or its units are not per-day, or σ is capped somewhere. For σ = 0.12 to hold with σ²(τ) ≈ 0, λ would need to be about 2.5 × 10⁻⁵. Worth resolving on paper in week 1; it is exactly the sort of thing that silently defines a model.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>The five submodules</h2>
+  <p class="lede">Names and boundaries follow <code>devbridge-plan.html</code> §03. Build them in this order — each one is testable on its own.</p>
+
+  <div class="mods">
+    <div class="mod">
+      <div class="mh"><h4>ontology-service</h4><span class="mid">6.1</span></div>
+      <p>The skill vocabulary and the edges evidence propagates along. Must land first: <code>skill_id</code> is the join key on every incoming event, so nothing binds until it exists.</p>
+      <ul>
+        <li>Skill nodes seeded from ESCO, plus a reviewed alias table</li>
+        <li>Edge types and γ per type — settle O7 here</li>
+        <li>Language versus framework distinction (claim shape 11: Next.js and NumPy resolve to framework nodes, not language nodes)</li>
+        <li>Quarantine path for unknown skill ids</li>
+      </ul>
+    </div>
+    <div class="mod">
+      <div class="mh"><h4>evidence-ingestor</h4><span class="mid">6.2</span></div>
+      <p>Validates, authorises and persists. Contains no modelling at all, which is what makes it finishable in days rather than weeks.</p>
+      <ul>
+        <li>Schema validation against the committed JSON Schema</li>
+        <li>Idempotent on <code>event_id</code> — replay must be safe</li>
+        <li><code>consent_scope</code> check; refuse what is not covered</li>
+        <li>Immutable evidence nodes, indexed by <code>occurred_at</code></li>
+        <li>Record refusals rather than dropping them</li>
+      </ul>
+    </div>
+    <div class="mod">
+      <div class="mh"><h4>scoring-engine</h4><span class="mid">6.3</span></div>
+      <p>The technical core and the part a panel interrogates hardest. Everything in §03 that is still open lands here.</p>
+      <ul>
+        <li>Observation model — event to (observed, variance)</li>
+        <li>Kalman update, in whichever space O2 resolves to</li>
+        <li>Decay kernel over elapsed time</li>
+        <li>Propagation across ontology edges</li>
+        <li>Deterministic recompute from the event log</li>
+      </ul>
+    </div>
+    <div class="mod">
+      <div class="mh"><h4>query-api</h4><span class="mid">6.4</span></div>
+      <p>The surface everything else reads. Its response shape is already fixed by the worked example, so build to that exactly.</p>
+      <ul>
+        <li><code>GET /v1/developers/{id}/skills</code></li>
+        <li><code>GET …/skills/{skill}/explain</code> — contributions, decay, abstentions</li>
+        <li><code>as_of</code> parameter for historical state</li>
+        <li>Health, readiness, metrics, OpenAPI — the house convention</li>
+      </ul>
+    </div>
+    <div class="mod">
+      <div class="mh"><h4>integrity-analytics</h4><span class="mid">6.5</span></div>
+      <p>Adversarial defence. Genuinely valuable and genuinely optional — cut this before cutting the validation work in §06.</p>
+      <ul>
+        <li>Commit-farming detection: many trivial commits</li>
+        <li>Anomaly detection on evidence-arrival patterns</li>
+        <li>Author date versus committer date versus push timestamp</li>
+        <li>Community detection is platform-scope, not M6-alone</li>
+      </ul>
+    </div>
+    <div class="mod">
+      <div class="mh"><h4>event projection</h4><span class="mid">new</span></div>
+      <p>The unowned piece from §01. Small in code, large in consequence — it decides what the model ever sees.</p>
+      <ul>
+        <li>ClaimGraph + EvidenceBundle + FindingsReport in, batch out</li>
+        <li>Kind selection and <code>skill_refs</code> relevance weighting</li>
+        <li>Reliability factors applied and named</li>
+        <li><code>not_emitted[]</code> populated with a reason every time</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>The example is a calibration target</h2>
+  <p class="lede">The repository already contains one CV traced end to end, with per-skill scores at the far end. That is unusually useful: the free constants in §03 can be chosen so the pipeline reproduces it.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Skill</th><th class="num-c">Target</th><th>Evidence behind it</th><th>What it pins down</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">algorithms</td><td class="num-c mono">0.61</td><td>platform_rating only, reliability 0.90</td><td>The single-strong-source ceiling</td></tr>
+        <tr><td class="mono">cpp</td><td class="num-c mono">0.56</td><td>platform_rating at relevance 0.7 + cv_claim + propagation from <span class="mono">c</span></td><td>How relevance and γ combine — O3 and O7 together</td></tr>
+        <tr><td class="mono">typescript</td><td class="num-c mono">0.48</td><td>two repo_artifact + claim_corroborated, all capped ×0.6</td><td>Accumulation of several mid-reliability events</td></tr>
+        <tr><td class="mono">nextjs</td><td class="num-c mono">0.45</td><td>repo_artifact + artifact_live</td><td>Whether a live deployment moves a score meaningfully</td></tr>
+        <tr><td class="mono">python</td><td class="num-c mono">0.29</td><td>one repo_artifact, 26 months stale</td><td>λ and the decay kernel — the cleanest single constraint</td></tr>
+        <tr><td class="mono">numpy</td><td class="num-c mono">0.12</td><td>cv_claim alone, nothing corroborating</td><td>The floor: what an uncorroborated claim is worth</td></tr>
+        <tr><td class="mono">javascript</td><td class="num-c mono">~0.31</td><td>no direct evidence — propagated only</td><td>γ damping and that a propagated band is wider</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note w">
+    <h5>Treat these as targets, not ground truth</h5>
+    <p>They come from a design document, not from a running implementation, and the document says so itself — the reliability constants are "documented priors, swept in the sensitivity analysis, not fitted." Use them to sanity-check that your parameter choices land in the right region and preserve the right <em>ordering</em>. Do not tune constants until the numbers match exactly; that would be fitting to a single fabricated example, which is worse than not matching.</p>
+  </div>
+
+  <p>The ordering is the part that must survive. <code>numpy</code> below <code>python</code> below <code>typescript</code> below <code>cpp</code>, and <code>python</code> depressed relative to its raw evidence purely by staleness — if a parameter sweep breaks that ordering, the sweep has found a real problem.</p>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Decay is the mechanism to get right</h2>
+  <p class="lede">It is the platform proposal's stated differentiator, the easiest thing to implement wrongly, and the clearest single figure in a viva.</p>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 392" role="img" aria-label="One skill's state over time. Three evidence arrivals each narrow the uncertainty band; during the silence that follows, the band widens and the displayed lower-bound score falls from 0.64 to 0.47 while the mean falls only from 0.72 to 0.66.">
+      <defs>
+        <marker id="d1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker>
+      </defs>
+
+      <line x1="70" y1="50" x2="70" y2="300" stroke="var(--rule-2)" stroke-width="1"/>
+      <line x1="70" y1="300" x2="864" y2="300" stroke="var(--rule-2)" stroke-width="1"/>
+      <g font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--muted)" text-anchor="end">
+        <text x="62" y="54">1.0</text><text x="62" y="179">0.5</text><text x="62" y="304">0</text>
+      </g>
+      <line x1="70" y1="175" x2="864" y2="175" stroke="var(--rule)" stroke-width="1" stroke-dasharray="2 5"/>
+      <text x="868" y="179" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)">prior</text>
+
+      <path d="M70 120 L180 115 L180 110 L330 102 L330 100 L470 95 L470 101 L860 87
+               L860 182 L470 139 L470 155 L330 150 L330 187 L180 180 L180 235 L70 230 Z"
+            fill="var(--fix)" opacity="0.13"/>
+
+      <polyline points="70,175 180,175 180,145 330,145 330,125 470,125 470,120 860,135"
+                fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <polyline points="70,230 180,235 180,180 330,187 330,150 470,155 470,139 860,182"
+                fill="none" stroke="var(--fix)" stroke-width="2.4"/>
+
+      <g stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3">
+        <line x1="180" y1="110" x2="180" y2="300"/>
+        <line x1="330" y1="100" x2="330" y2="300"/>
+        <line x1="470" y1="95" x2="470" y2="300"/>
+      </g>
+      <g fill="var(--ink)">
+        <circle cx="180" cy="300" r="3.5"/><circle cx="330" cy="300" r="3.5"/><circle cx="470" cy="300" r="3.5"/>
+      </g>
+      <g font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)" text-anchor="middle">
+        <text x="180" y="320">repo_artifact</text>
+        <text x="330" y="320">platform_rating</text>
+        <text x="470" y="320">claim_corroborated</text>
+        <text x="665" y="320">— no evidence —</text>
+      </g>
+
+      <text x="200" y="88" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--muted)">each arrival narrows the band</text>
+      <path d="M196 92 L182 106" stroke="var(--muted)" stroke-width="1" fill="none" marker-end="url(#d1)"/>
+
+      <text x="665" y="70" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--muted)">σ² grows with elapsed time · μ drifts toward the prior</text>
+
+      <line x1="860" y1="135" x2="860" y2="182" stroke="var(--crit)" stroke-width="2"/>
+      <text x="852" y="128" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="10" fill="currentColor">μ 0.72 → 0.66</text>
+      <text x="852" y="196" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="10" fill="var(--fix)">score 0.64 → 0.47</text>
+
+      <g font-family="IBM Plex Sans,sans-serif" font-size="11">
+        <line x1="90" y1="352" x2="122" y2="352" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="130" y="356" fill="var(--muted)">μ — the estimate</text>
+        <rect x="270" y="345" width="32" height="13" fill="var(--fix)" opacity="0.13"/>
+        <text x="310" y="356" fill="var(--muted)">±σ — what we do not know</text>
+        <line x1="540" y1="352" x2="572" y2="352" stroke="var(--fix)" stroke-width="2.4"/>
+        <text x="580" y="356" fill="var(--muted)">score = μ − σ — what is displayed</text>
+      </g>
+    </svg>
+    </div>
+    <figcaption><b>Figure 2 — why the score falls when nothing happens.</b> With z = 1 the displayed score <em>is</em> the lower edge of the uncertainty band, so it drops during silence chiefly because the band widened, not because the estimate did — a 0.17 fall against a 0.06 fall in μ. One fresh event snaps the band shut and the score recovers immediately, with nothing to re-earn. Drawing this correctly is most of what separates the model from "subtract points over time."</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="num">07</span>Validation is the deliverable</h2>
+  <p class="lede">A skill graph that produces plausible numbers is a demo. The three experiments below are what make it a project, and none of them needs a real user or a trained model.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Experiment</th><th>Construction</th><th>The claim it settles</th></tr></thead>
+      <tbody>
+        <tr><td><b>Parameter recovery</b></td><td>Generate synthetic developers with known true ability. Simulate evidence arriving from sources of known reliability, at irregular intervals. Run the filter.</td><td>That the model works at all. Ground truth is exact because you set it. Build the generator first — it is also your test corpus for everything else.</td></tr>
+        <tr><td><b>Sensitivity sweep</b></td><td>Sweep ρ_k, λ_s, h_s and γ across their full plausible ranges. Report Spearman rank correlation of candidate orderings against the centre-point run.</td><td>That the unfitted constants do not secretly determine the answer. "Rank correlation above 0.9 across the entire space" is stronger than any fitted value without a confidence interval.</td></tr>
+        <tr><td><b>Per-source ablation</b></td><td>Remove each evidence stream in turn — platform, repository, CV claim, deployment — and re-run. Immutable evidence nodes make this a filter over the log, not a re-collection.</td><td>The central multi-source thesis. The worked example predicts the shape of the answer: dropping platform evidence should gut <span class="mono">cpp</span> while leaving <span class="mono">typescript</span> intact, and dropping repositories should do the reverse.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note f">
+    <h5>The property that makes all three cheap</h5>
+    <p>Scores are recomputable from the immutable event log at any timestamp. That one architectural commitment turns ablation into a log filter, turns the sweep into a loop over parameter sets, and turns <span class="mono">as_of</span> queries into a free feature. If O4 and O5 are resolved toward recompute-from-log, this section costs days instead of weeks — which is the strongest practical argument for resolving them that way.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">08</span>Order of work</h2>
+  <p class="lede">Weeks 1–2 produce no scoring code. That is deliberate: every constant chosen before the synthetic generator exists is a constant chosen blind.</p>
+
+  <div class="sched">
+    <div class="sr hd"><div>Week</div><div>Work</div></div>
+    <div class="sr"><div class="wk">1</div><div class="cc"><b>Decisions, on paper.</b> Resolve O1–O7 and write each as a short decision record with its reasoning — the sweep needs the reasoning, not just the value. Reconcile the λ/σ arithmetic from §03. Generate Pydantic models from <code>evidence-event.schema.json</code>; load <code>examples/evidence-events.json</code> as fixture one.</div></div>
+    <div class="sr"><div class="wk">2</div><div class="cc"><b>Synthetic evidence generator.</b> Known-ability developers, configurable source reliabilities, irregular arrival times, out-of-order delivery. This is simultaneously the parameter-recovery harness, the load fixture and the only corpus you control completely.</div></div>
+    <div class="sr"><div class="wk">3</div><div class="cc"><b>6.1 ontology-service.</b> ESCO seed, alias table, edge types with per-type γ. Cover every skill named in the worked example so fixture one binds end to end.</div></div>
+    <div class="sr"><div class="wk">4</div><div class="cc"><b>6.2 evidence-ingestor.</b> Validation, idempotency, consent refusal, immutable persistence, quarantine for unknown skills. No modelling — this week should feel easy.</div></div>
+    <div class="sr"><div class="wk">5–7</div><div class="cc"><b>6.3 scoring-engine.</b> Observation model, Kalman update, decay kernel, recompute-from-log. Parameter recovery running by the end of week 7 — if the filter cannot recover a known ability from synthetic evidence, nothing downstream is worth building.</div></div>
+    <div class="sr"><div class="wk">8</div><div class="cc"><b>Propagation.</b> γ across ontology edges, contributions attributed by source. Checkpoint: reproduce the §05 ordering on the worked example, propagated <code>javascript</code> included.</div></div>
+    <div class="sr"><div class="wk">9–10</div><div class="cc"><b>6.4 query-api.</b> Skills endpoint, <code>/explain</code> to the fixed response shape, <code>as_of</code>. The explain endpoint is the demo — build it as a first-class deliverable, not an afterthought.</div></div>
+    <div class="sr"><div class="wk">11–12</div><div class="cc"><b>Sweep and ablation.</b> Full parameter sweep with rank-correlation reporting; per-source ablation table. These are the report's results chapters, so run them early enough to rerun them.</div></div>
+    <div class="sr"><div class="wk">13</div><div class="cc"><b>Event projection.</b> Only now, and only if the seam is needed live — M6 has been running on batches the whole time. If M5 is not ready, hand-write batches; the schema is what matters, not who produced it.</div></div>
+    <div class="sr"><div class="wk">14+</div><div class="cc"><b>6.5 integrity-analytics if time allows,</b> then writing. Cut 6.5 before cutting anything in week 11–12.</div></div>
+  </div>
+
+  <div class="note o">
+    <h5>Settle these before week 3</h5>
+    <p><b>O1</b> the observation model and <b>O2</b> the filtering space are the two that cannot be deferred — every later week assumes an answer. <b>O4</b> and <b>O5</b> shape the ingestor and must be settled by week 4. <b>O7</b> must be settled before the ontology is seeded, because edges are written once and re-seeding invalidates every stored score.</p>
+  </div>
+</section>
+
+<footer>
+  DevBridge M6 — skill graph construction plan. Input contract: <code>schemas/evidence-event.schema.json</code>. Model and parameters: <code>devbridge-plan.html</code> §06. Worked example and target scores: <code>cv-to-skill-graph.html</code> §05–§06. Open items O1–O8 are not yet decided anywhere in <code>docs/</code>.
+</footer>
+
+</div>

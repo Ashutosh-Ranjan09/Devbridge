@@ -1,0 +1,238 @@
+# DevBridge — event projection rules
+# ClaimGraph + EvidenceBundle + FindingsReport  ->  EvidenceEventBatch
+# This is the module that was unowned in m5-work-split.html. It belongs to M6,
+# because every choice in it is a skill-graph judgement, not a verification one.
+# Output must validate against docs/docs/schemas/evidence-event.schema.json
+contract_version: "1.0.0"
+
+emit:
+  - id: platform_rating
+    when: "platforms[].found == true and max_rating is not null"
+    kind: platform_rating
+    occurred_at: "date of the rating-defining contest, else gathered_at"
+    strength: 0.80
+    reliability_base: 0.90
+    direction: positive
+    skill_refs:
+      - {skill: algorithms,       relevance: 0.95}
+      - {skill: problem_solving,  relevance: 0.90}
+      - {skill: "<dominant language on the platform, if known>", relevance: 0.70}
+    note: >
+      Ownership is irrelevant here and no cap applies. The handle resolved and
+      the platform is the authority on its own ratings.
+
+  - id: repo_artifact
+    when: "repos[].exists and owner_matches and not is_fork and not is_readme_only"
+    kind: repo_artifact
+    occurred_at: "repo.last_commit"
+    strength: "0.45 + 0.05 * substance_band_index   # trivial 0, small 1, substantial 2, large 3"
+    reliability_base: 0.70
+    direction: positive
+    skill_refs:
+      language_skills:
+        formula: "relevance = clamp(0.5 + 0.5 * bytes_share, 0.50, 0.95)"
+        source: "repo.languages"
+        min_bytes_share: 0.10
+        note: >
+          Below a tenth of the repository a language is incidental — a CSS file
+          in a TypeScript project is not evidence of CSS ability. Emitting it
+          would fill the graph with skills nobody claimed.
+      claimed_stack_skills:
+        relevance_primary: 0.80     # framework consistent with the dominant language
+        relevance_secondary: 0.60   # datastore, auxiliary library
+        source: >
+          repo.frameworks where the bundle supplies it, else skill_refs on the
+          PROJECT claim this repo is attached to. A repo with no matching project
+          claim still emits its language and framework skills.
+    note: >
+      Language skills come from what the repository contains; framework and
+      datastore skills come from the claim the repository corroborates. Both are
+      only emitted once the repo itself is verified.
+
+  - id: claim_corroborated
+    when: "a skill claim is matched by verified repo or platform evidence (G6, P1-P4)"
+    kind: claim_corroborated
+    occurred_at: "date of the corroborating evidence"
+    strength: 0.70
+    reliability_base: 0.80
+    direction: positive
+    skill_refs: [{skill: "<the claimed skill>", relevance: 1.00}]
+
+  - id: artifact_live
+    when: "deployments[].reachable == true"
+    kind: artifact_live
+    occurred_at: gathered_at
+    strength: 0.40
+    reliability_base: 0.85
+    direction: positive
+    skill_refs:
+      - {skill: "<primary framework of the linked project>", relevance: 0.60}
+      - {skill: deployment, relevance: 0.70}
+
+  - id: credential_verified
+    when: "credentials[].verified == true"
+    kind: credential_verified
+    occurred_at: "credential issue date"
+    strength: 0.60
+    reliability_base: 0.95
+    direction: positive
+
+  - id: cv_claim
+    when: "a skill claim has no corroborating evidence anywhere in the bundle"
+    kind: cv_claim
+    occurred_at: "document date, else gathered_at"
+    strength: 0.30
+    reliability_base: 0.20
+    direction: positive
+    skill_refs: [{skill: "<the claimed skill>", relevance: 1.00}]
+    note: >
+      Emitted rather than suppressed. A self-report is weak evidence, not no
+      evidence, and dropping it would make the graph unable to distinguish
+      "claimed but unbacked" from "never mentioned".
+
+  - id: claim_contradicted
+    when: "a decisive check fails against a SKILL claim specifically"
+    kind: claim_contradicted
+    occurred_at: "date of the contradicting evidence"
+    strength: 0.90
+    reliability_base: 0.95
+    direction: negative
+    note: >
+      Only skill claims. An employment or education contradiction is a
+      verification finding and never reaches M6 — see suppress.
+
+reliability_factors:
+  # Applied multiplicatively to reliability_base; every one is NAMED on the event.
+  - factor: ownership_unverified
+    value: 0.6
+    applies_to: >
+      any event whose attribution to this candidate rests on the unverified
+      GitHub identity — repo_artifact, claim_corroborated over repo evidence,
+      and artifact_live on a repo-linked deployment. Not platform_rating: the
+      handle resolved and the platform is the authority on its own ratings.
+    direction_scope: positive_only
+    rationale: >
+      A self-claimed account that CONTRADICTS the CV is credible — nobody lists a
+      handle that undermines them. One that corroborates could be anyone's. So
+      the cap applies only to events that would raise a score.
+  - factor: scraped_source
+    value: 0.7
+    applies_to: "a platform whose source_quality is a scrape rather than an API"
+    direction_scope: both
+    rationale: >
+      A scraped profile page can be stale, partially rendered, or misparsed in
+      ways an API response cannot. The rating is still the platform's own claim,
+      so this discounts the reading rather than the achievement.
+  - factor: stale_evidence
+    value: 1.0
+    applies_to: none
+    rationale: >
+      Deliberately inert. Staleness is handled by the decay kernel at scoring
+      time, not by discounting reliability at ingest. Applying it in both places
+      would double-count.
+  - factor: aggregate_across_sources
+    value: 0.7
+    applies_to: "a claim M5 flagged aggregate_across_sources"
+    direction_scope: positive_only
+    rationale: >
+      The claim pools a count over several platforms, so no single source can
+      confirm the total. Where one of the named platforms IS verified, that part
+      is already carried by its own platform_rating event; what remains here is
+      the unverified remainder, and only the remainder should be weighed.
+  - factor: open_bound
+    value: 0.85
+    applies_to: "a claim whose context.bound is `open` — \"500+\" rather than \"500\""
+    direction_scope: positive_only
+    rationale: >
+      An open bound cannot be contradicted by any observation, so it carries less
+      information than the same claim stated exactly. positive_only for the usual
+      reason: nobody understates themselves on a CV.
+
+suppress:
+  # Every suppression is RECORDED in not_emitted[] with one of the five schema reasons.
+  - what: "employment and education discrepancies"
+    reason: not_a_capability_signal
+  - what: "findings from rules with scoring == false (D11 timeline gap, D12 title progression)"
+    reason: non_scoring_rule
+  - what: "a deployment that returns 404"
+    reason: not_a_capability_signal
+    note: "A dead link says nothing about skill. It is a report finding."
+  - what: "roll-number structure, institution registry match, supervisor directory match, entrance rank"
+    reason: no_skill_mapping
+  - what: "CGPA and coursework carrying an inherit_unverified declaration_marker"
+    reason: institution_disclaimed
+  - what: "anything whose consent_scope does not cover skill_graph_inclusion"
+    reason: consent_scope_excluded
+
+invariants:
+  - "Every emitted event validates against evidence-event.schema.json."
+  - "Every suppression appears in not_emitted[] with a reason. Silence is never an option."
+  - "reliability == reliability_base * product(reliability_factors[].value)."
+  - "occurred_at is when the activity happened, never when it was observed."
+  - "An unknown skill_id is emitted and quarantined by M6, never silently dropped."
+  - "Emission is fire-and-forget. If the bus is down, verification still succeeds."
+
+# ── machine-readable thresholds ───────────────────────────────────────────────
+# The projection decides FACTS (which band a repo is in). m6-parameters.yaml
+# decides what a band is WORTH. Keeping the value judgement in the parameter file
+# is what lets the sensitivity sweep reach it without touching this module.
+#
+# NOTE: an EvidenceEvent carries no `observed` field — evidence-event.schema.json
+# sets additionalProperties:false and does not define one. The projection emits
+# raw facts in `payload`; the scoring engine applies m6-parameters.yaml
+# `observed_value` to turn them into a number. That boundary is deliberate.
+thresholds:
+  substance_bands:
+    order: [trivial, small, substantial, large]
+    trivial:     {index: 0, commits_lt: 10}
+    small:       {index: 1, commits_lt: 50, size_kb_lt: 100}
+    substantial: {index: 2, commits_lt: 120}
+    large:       {index: 3, commits_gte: 120, size_kb_gte: 1000}
+  strength:
+    repo_artifact: {base: 0.45, per_band: 0.05}
+  language_relevance:
+    intercept: 0.50
+    slope: 0.50
+    min: 0.50
+    max: 0.95
+    min_bytes_share: 0.10
+  framework_relevance:
+    primary: 0.80
+    secondary: 0.60
+    secondary_skills: [mongodb, jwt, redis, postgresql]
+  aliases:
+    mongoose: mongodb
+    next: nextjs
+    "c++": cpp
+    golang: go
+  achievement_skill_map:
+    # An achievement claim with no platform evidence still bears on a competency.
+    # Without an entry here it is suppressed as no_skill_mapping rather than guessed.
+    problems_solved: [problem_solving]
+    max_rating: [algorithms, problem_solving]
+    contest_rank: [algorithms, problem_solving]
+  claim_discounts:
+    # M5 already tells us when a claim is softer than it looks. Reading those
+    # signals here — rather than ignoring them — is what stops an unfalsifiable
+    # aggregate from entering the graph at the same weight as a precise claim.
+    # The discount is expressed as a NAMED reliability factor, so a candidate can
+    # be told exactly why their claim counted for less.
+    flags:
+      aggregate_across_sources: aggregate_across_sources
+    bounds:
+      open: open_bound
+  partial_corroboration:
+    # A claim naming several platforms where only some were verified. The
+    # verified count is recorded in the payload so the scoring engine can use the
+    # real number instead of the asserted one; the claim itself is discounted to
+    # the unverified remainder. Both halves of the evidence are kept, and neither
+    # is counted twice.
+    record_in_payload: true
+    metrics: [problems_solved]
+  scraped_source_quality:
+    # source_quality values that mean "we read a page", not "we called an API".
+    # Listed here so adding a platform is a contract edit, not a code edit.
+    values: [scraped, scrape, html_scrape, profile_scrape]
+  consent:
+    require_consent_ref: true
+    scope_required: skill_graph_inclusion

@@ -1,0 +1,121 @@
+# DevBridge M6 — integrity analytics rules (submodule 6.5)
+#
+# What this is NOT: a fraud score, a trust adjustment, or anything that touches a
+# number in the skill graph. 6.5 reads the evidence log and reports what a
+# careful reader should notice about the SHAPE of the evidence. It never writes.
+#
+# The reason for that separation is the same one that keeps the LLM out of
+# judgement everywhere else: a signal that silently moved a score would be an
+# unexplainable penalty, and there is no overall trust number here to absorb it.
+# So every check below produces a FINDING with named evidence, and the score it
+# describes is computed exactly as it would have been without 6.5 running.
+#
+# Severity is deliberately two-valued. There is no "fail": nothing here is
+# certain enough to condemn a candidate, and a three-tier scale would invite
+# someone to threshold on the top one.
+contract_version: "1.0.0"
+
+severities:
+  notice: >
+    Worth knowing when reading the graph. Usually a limitation of the evidence
+    rather than anything about the person.
+  attention: >
+    A reader should look at the underlying evidence before relying on this
+    skill. Still not an accusation — every one of these has a mundane
+    explanation, which the finding is required to state.
+
+checks:
+  - id: EVIDENCE_BURST
+    severity: attention
+    what: >
+      A large share of the evidence was created shortly before verification.
+    window_days: 45
+    min_share: 0.60
+    min_events: 4
+    innocent_explanation: >
+      A student finishing coursework or a portfolio push before job applications
+      produces exactly this pattern. It is a reason to read the repositories,
+      not a reason to discount them.
+
+  - id: SINGLE_SOURCE
+    severity: notice
+    what: >
+      Every event supporting a skill came from one origin, so nothing
+      independently corroborates it.
+    min_events: 2
+    innocent_explanation: >
+      Most developers keep their work in one place. This describes our evidence,
+      not their ability.
+
+  - id: CLAIM_ONLY
+    severity: notice
+    what: >
+      A skill rests entirely on self-reported claims with nothing verified
+      behind them.
+    innocent_explanation: >
+      Plenty of real skill leaves no public artefact — internal work, private
+      repositories, employer-owned code.
+
+  - id: INFERRED_ONLY
+    severity: notice
+    what: >
+      The skill has no direct evidence at all; its score comes from a neighbour
+      across an ontology edge.
+    innocent_explanation: >
+      Propagation is a modelling choice, working as designed. The finding exists
+      so the number is never mistaken for a measurement.
+
+  - id: OWNERSHIP_UNPROVEN
+    severity: attention
+    what: >
+      A large share of the evidence is attributed through an unproven account
+      identity.
+    min_share: 0.50
+    min_events: 3
+    innocent_explanation: >
+      The candidate simply has not completed OAuth or the challenge flow. The
+      reliability cap already accounts for it; this says how much of the graph
+      depends on it.
+
+  - id: CONTRADICTED
+    severity: attention
+    what: >
+      The same skill carries both supporting and contradicting evidence.
+    innocent_explanation: >
+      A claim can be stale rather than false — someone genuinely used a tool at
+      a job whose repositories are private.
+
+  - id: WHOLLY_STALE
+    severity: notice
+    what: >
+      Every event for this skill is older than the skill's own half-life, so
+      the score is now driven more by decay than by observation.
+    innocent_explanation: >
+      Ongoing work in private repositories is invisible here. Staleness is a
+      statement about our evidence.
+
+  - id: BREADTH_FROM_ONE_ARTEFACT
+    severity: notice
+    what: >
+      Many skills were derived from a single artefact, so they rise and fall
+      together rather than being independently supported.
+    min_skills: 5
+    innocent_explanation: >
+      One substantial full-stack project legitimately demonstrates a wide stack.
+
+  - id: QUARANTINED_EVIDENCE
+    severity: notice
+    what: >
+      Evidence was accepted but held out of scoring because it names skills the
+      ontology does not carry.
+    innocent_explanation: >
+      The ontology is incomplete, which is our problem and not the candidate's.
+      The events are stored and will count once the skills are added.
+
+reporting:
+  # Findings are ordered for a reader, not scored. Attention before notice, then
+  # by how much of the graph each one touches.
+  order: [severity, coverage_share, check_id]
+  # A hard cap, because a report nobody finishes is the same as no report.
+  max_findings: 40
+  always_report_clean: true   # "nothing to flag" is a result and must be said

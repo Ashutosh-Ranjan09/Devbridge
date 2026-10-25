@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.0.0",
+  "verification_id": "ver_01J9XR2P8Q1W",
+  "status": "completed_degraded",
+  "supersedes": null,
+  "subject": { "subject_ref": "subj_4c9e0b73", "tenant_id": "tnt_acme_ats", "consent_ref": null },
+  "document": {
+    "document_id": "doc_2a8f4c60",
+    "sha256": "7e2d4a09b1c8f36e05a7d92b4f1c6e83a0d5b7c294e1f8a6d03b5c7e9f2a4d18",
+    "pages": 2, "ingest_method": "ocr", "ocr_confidence": 0.81,
+    "producer": null, "created_at": null, "modified_at": null
+  },
+  "claim_graph": {
+    "graph_id": "cg_01J9XR2P8Q1W",
+    "source": { "document_id": "doc_2a8f4c60", "normalised_text": "[scanned CV, OCR output; truncated in this example]" },
+    "claims": [
+      {
+        "claim_id": "c01", "kind": "employment",
+        "interval": { "start": { "year": 2021, "precision": "year" },
+                      "end": { "year": 2023, "precision": "year" }, "ongoing": false },
+        "org": "Techno Solutions Pvt Ltd", "title": "Software Engineer",
+        "employment_type": "full_time",
+        "provenance": { "char_start": 142, "char_end": 198, "page": 1,
+                        "verbatim": "Software Engineer, Techno Solutions Pvt Ltd, 2021 - 2023",
+                        "recovery": "exact" },
+        "resolution": { "status": "unresolved", "canonical_id": null, "registry": "companies",
+                        "score": 0.41, "method": "threshold" },
+        "flags": ["date_imprecise"]
+      },
+      {
+        "claim_id": "c02", "kind": "skill", "skill_refs": ["python"],
+        "proficiency": "expert", "stated_years": 8,
+        "provenance": { "char_start": 640, "char_end": 662, "page": 2,
+                        "verbatim": "Python (8 years)", "recovery": "exact" },
+        "flags": []
+      }
+    ],
+    "extraction_meta": {
+      "model_id": "claude-opus-5", "prompt_version": "extract/v3",
+      "input_hash": "sha256:2f7a91c4e8b0d63512a7f4c9e0b3d68a1c5f7e29b4d0a86c3e1f5b7d9a204c68",
+      "span_failures": 3, "retries": 1,
+      "extracted_at": "2026-08-24T11:02:19Z", "degraded": true
+    }
+  },
+  "evidence_bundle": {
+    "bundle_id": "eb_01J9XR2P8Q1W", "graph_id": "cg_01J9XR2P8Q1W",
+    "github": null, "platforms": [], "deployments": [], "credentials": [],
+    "registries": { "Techno Solutions Pvt Ltd": { "status": "unresolved", "canonical_id": null,
+                                                   "registry": "companies", "score": 0.41,
+                                                   "method": "threshold" } },
+    "gathered_at": "2026-08-24T11:02:44Z",
+    "gaps": [
+      { "source": "github",     "reason": "no_handle_in_cv", "detail": "No GitHub URL or handle anywhere in the document" },
+      { "source": "codeforces", "reason": "no_handle_in_cv", "detail": "No competitive-programming profile claimed" },
+      { "source": "leetcode",   "reason": "no_handle_in_cv", "detail": null },
+      { "source": "issuers",    "reason": "not_supplied",    "detail": "No credentials with verifiable IDs claimed" },
+      { "source": "m3_activity","reason": "not_supplied",    "detail": "No external_signals block in the request" }
+    ]
+  },
+  "findings": {
+    "report_id": "fr_01J9XR2P8Q1W", "graph_id": "cg_01J9XR2P8Q1W",
+    "discrepancies": [
+      {
+        "finding_id": "f01", "rule_id": "D4", "rule_version": "1.0",
+        "tier": "attention", "severity": "low", "confidence": 0.40, "scoring": true,
+        "claim_refs": [], "evidence_refs": ["document.ocr_confidence"],
+        "params": { "ocr_confidence": 0.81, "span_failures": 3 },
+        "explanation": "Document required OCR at 0.81 confidence; three extracted claims could not be grounded to source text and were dropped.",
+        "innocent_explanation": "Scanned or photographed CVs are common and reduce extraction reliability without implying anything about the candidate."
+      }
+    ],
+    "rule_outcomes": [
+      { "rule_id": "D4", "rule_version": "1.0", "status": "fired", "reason": null },
+      { "rule_id": "D5", "rule_version": "1.2", "status": "clean", "reason": null },
+      { "rule_id": "D7", "rule_version": "1.3", "status": "clean", "reason": null },
+      { "rule_id": "G3", "rule_version": "1.1", "status": "abstained", "reason": "No GitHub handle present in the document." },
+      { "rule_id": "G4", "rule_version": "1.0", "status": "abstained", "reason": "No repositories claimed." },
+      { "rule_id": "G9", "rule_version": "1.0", "status": "abstained", "reason": "No GitHub evidence; cannot bound Python tenure against first commit." },
+      { "rule_id": "G10","rule_version": "1.0", "status": "abstained", "reason": "No activity data supplied; employment period cannot be reconciled." },
+      { "rule_id": "P1", "rule_version": "1.0", "status": "abstained", "reason": "No competitive-programming handle claimed." },
+      { "rule_id": "W1", "rule_version": "1.0", "status": "abstained", "reason": "No deployment URLs claimed." },
+      { "rule_id": "C1", "rule_version": "1.0", "status": "abstained", "reason": "No credential IDs supplied." },
+      { "rule_id": "C4", "rule_version": "1.0", "status": "fired", "reason": null }
+    ],
+    "section_confidence": [
+      { "section": "employment", "confidence": 0.31, "basis_finding_ids": [] },
+      { "section": "skills",     "confidence": 0.18, "basis_finding_ids": [] }
+    ],
+    "buckets": {
+      "verified": [],
+      "contradicted": [],
+      "needs_context": ["f01"],
+      "not_evaluated": [
+        "GitHub repositories, activity and language tenure - no handle in the document",
+        "Competitive-programming claims - none made",
+        "Deployment liveness - no URLs claimed",
+        "Credential attestation - no verifiable credential IDs",
+        "Employment period reconciliation - no activity data supplied",
+        "Employer existence - 'Techno Solutions Pvt Ltd' did not resolve against the company registry (score 0.41); registry incompleteness is far more likely than fabrication"
+      ],
+      "out_of_scope": [
+        "Employment history - not verifiable without the employer",
+        "Identity - the system cannot confirm a person exists"
+      ]
+    },
+    "evaluated_at": "2026-08-24T11:02:51Z"
+  },
+  "narrative": {
+    "summary": "This CV contains no verifiable artefacts. No repository, profile, deployment or credential identifier was found, so eight checks could not run. Internal consistency checks passed. The report establishes that nothing contradicts itself; it establishes almost nothing else.",
+    "sections": {
+      "coverage": "Ten of eleven applicable checks abstained for want of a source. The document was scanned and required OCR, and three extracted claims were dropped because their source text could not be located [f01]."
+    },
+    "cited_finding_ids": ["f01"],
+    "model_id": "claude-opus-5", "prompt_version": "narrate/v2", "fallback_used": false
+  },
+  "coverage": {
+    "rules_total": 41, "rules_evaluated": 3, "rules_abstained": 8,
+    "coverage": 0.27, "attestation_depth": "none", "identity_confidence": "unverified"
+  },
+  "provenance": {
+    "cvv_version": "0.4.1", "contract_version": "1.0.0", "model_id": "claude-opus-5",
+    "prompt_versions": { "extract": "extract/v3", "narrate": "narrate/v2" },
+    "rule_versions": { "D4": "1.0", "D5": "1.2", "D7": "1.3", "G3": "1.1", "G4": "1.0",
+                       "G9": "1.0", "G10": "1.0", "P1": "1.0", "W1": "1.0", "C1": "1.0", "C4": "1.0" },
+    "sources_queried": []
+  },
+  "valid_as_of": "2026-08-24T11:02:51Z",
+  "signature": null
+}

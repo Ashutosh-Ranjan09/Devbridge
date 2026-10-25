@@ -1,0 +1,908 @@
+<title>The Life of a Skill Score</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  :root{
+    --ground:#F2F4F2; --surface:#FBFCFA; --sunken:#E8EDEA;
+    --ink:#161C19; --ink-2:#3E4A46; --muted:#6B7772;
+    --rule:#D5DED9; --rule-2:#C2CEC8;
+    --accent:#1C6A5E; --accent-2:#2E8C7C; --band:rgba(28,106,94,.16);
+    --negative:#9C4A21; --warn:#8A6A17;
+    --on-accent:#F7FAF9;
+    --shadow:0 2px 10px rgba(22,28,25,.10);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1412; --surface:#151D1A; --sunken:#1B2523;
+      --ink:#E3EAE7; --ink-2:#B2C0BB; --muted:#84918C;
+      --rule:#28352F; --rule-2:#35443E;
+      --accent:#63C3AD; --accent-2:#86D6C3; --band:rgba(99,195,173,.17);
+      --negative:#DE9066; --warn:#D5B463;
+      --on-accent:#0E1412;
+      --shadow:0 2px 10px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1412; --surface:#151D1A; --sunken:#1B2523;
+    --ink:#E3EAE7; --ink-2:#B2C0BB; --muted:#84918C;
+    --rule:#28352F; --rule-2:#35443E;
+    --accent:#63C3AD; --accent-2:#86D6C3; --band:rgba(99,195,173,.17);
+    --negative:#DE9066; --warn:#D5B463;
+    --on-accent:#0E1412;
+    --shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:"IBM Plex Serif",Georgia,serif;
+    font-size:16px; line-height:1.6;
+    padding-inline:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+  main{ max-width:900px; margin-inline:auto; display:flex; flex-direction:column;
+        gap:2.6rem; padding-block:2.8rem 4.5rem; }
+  h1,h2,h3,.eyebrow,button,.mono,label,input{font-family:"IBM Plex Sans",system-ui,sans-serif}
+  h1{font-size:2.15rem; line-height:1.12; font-weight:700; letter-spacing:-.02em; margin:0; text-wrap:balance}
+  h2{font-size:1.2rem; font-weight:600; letter-spacing:-.008em; margin:0; color:var(--ink)}
+  p{margin:0}
+  .eyebrow{font-size:.68rem; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+           color:var(--muted); margin:0 0 .5rem}
+  .lede{font-size:1.04rem; color:var(--ink-2); margin-top:.75rem; max-width:62ch}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums}
+  a{color:var(--accent)}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  section{ display:flex; flex-direction:column; gap:1.1rem; }
+  .scene-head{ display:flex; flex-direction:column; gap:.3rem; padding-bottom:.4rem;
+               border-bottom:2px solid var(--ink); }
+  .scene-head p{ color:var(--ink-2); font-size:.95rem; max-width:64ch }
+
+  /* ---- buttons & controls ------------------------------------------------ */
+  .controls{ display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
+  button.btn{
+    font-size:.82rem; font-weight:600; letter-spacing:.01em; cursor:pointer;
+    border-radius:5px; padding:.6rem 1.05rem; border:1px solid var(--accent);
+    background:var(--accent); color:var(--on-accent); transition:filter .15s, transform .1s;
+  }
+  button.btn:hover{ filter:brightness(1.08) }
+  button.btn:active{ transform:translateY(1px) }
+  button.btn.secondary{ background:transparent; color:var(--ink-2); border-color:var(--rule-2) }
+  button.btn:disabled{ opacity:.4; cursor:default; filter:none }
+  .stage-status{ font-size:.78rem; color:var(--muted); margin-left:.2rem }
+
+  /* ---- pipeline ----------------------------------------------------------*/
+  .pipeline-row{ position:relative; display:flex; gap:.6rem; align-items:stretch;
+                 padding:2.4rem 0 2.9rem; }
+  .pipeline-line{ position:absolute; left:0; right:0; top:50%;
+                  height:2px; background:var(--rule); z-index:0; }
+  .stage-box{ flex:1; min-width:0; text-align:center; padding:.85rem .5rem;
+              border:1px solid var(--rule); border-radius:7px; background:var(--surface);
+              position:relative; z-index:1; transition:border-color .3s, box-shadow .3s; }
+  .stage-box.endpoint{ border-style:dashed; color:var(--ink-2) }
+  .stage-box.active{ border-color:var(--accent); box-shadow:0 0 0 3px var(--band) }
+  .stage-box .tagnum{ font-family:"IBM Plex Mono",monospace; font-size:.65rem; font-weight:600;
+                       color:var(--accent); letter-spacing:.04em; display:block }
+  .stage-box .taglabel{ font-size:.78rem; font-weight:600; margin-top:.15rem; color:var(--ink) }
+  .stage-box.endpoint .taglabel{ color:var(--ink-2); font-weight:500 }
+
+  .token{
+    position:absolute; top:50%; transform:translate(-50%,-50%);
+    padding:.3rem .6rem; border-radius:20px; background:var(--accent); color:var(--on-accent);
+    font-family:"IBM Plex Mono",monospace; font-size:.68rem; font-weight:600; white-space:nowrap;
+    box-shadow:var(--shadow); z-index:2; left:5%;
+    transition:left .85s cubic-bezier(.45,0,.2,1), opacity .3s;
+  }
+
+  .detail-panel{ background:var(--surface); border:1px solid var(--rule); border-radius:7px;
+                 padding:1.15rem 1.3rem; min-height:120px; display:flex; flex-direction:column;
+                 justify-content:flex-start; }
+  .detail-view{ display:flex; flex-direction:column; gap:.55rem }
+  .detail-view .kicker{ font-size:.68rem; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
+                         color:var(--accent) }
+  .detail-view p{ font-size:.92rem; color:var(--ink-2); max-width:60ch }
+  .kv-row{ display:flex; gap:1.3rem; flex-wrap:wrap; font-size:.82rem; margin-top:.15rem }
+  .kv-row span{ color:var(--muted) }
+  .kv-row b{ color:var(--ink); font-weight:600 }
+
+  .calc{ margin-top:.7rem; padding:.65rem .85rem; background:var(--sunken);
+         border:1px solid var(--rule-2); border-radius:5px;
+         font-family:"IBM Plex Mono",monospace; font-size:.76rem; line-height:1.6; }
+  .cline{ white-space:pre-wrap; color:var(--ink-2) }
+  .cline.result{ color:var(--accent); font-weight:600; margin-top:.2rem }
+  .cite-row{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.55rem }
+  .cite{ display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.66rem;
+         color:var(--muted); background:var(--surface); border:1px solid var(--rule-2);
+         border-radius:3px; padding:.15rem .5rem; }
+  .cite b{ color:var(--ink-2); font-weight:600 }
+
+  .belief-track{ position:relative; height:13px; background:var(--sunken); border-radius:7px;
+                 margin:1.05rem 0 .3rem; }
+  .belief-band{ position:absolute; top:0; bottom:0; background:var(--band); border-radius:7px;
+                transition:left .8s ease, width .8s ease; }
+  .belief-mean{ position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--accent-2);
+                transition:left .8s ease; }
+  .belief-score{ position:absolute; top:-6px; bottom:-6px; width:3px; border-radius:2px;
+                 background:var(--accent); transition:left .8s ease; }
+  .belief-axis{ display:flex; justify-content:space-between; font-size:.66rem; color:var(--muted) }
+  .belief-legend{ display:flex; gap:1.1rem; font-size:.74rem; color:var(--muted); margin-top:.25rem }
+  .belief-legend span{ display:inline-flex; align-items:center; gap:.35rem }
+  .sw{ width:11px; height:11px; border-radius:2px; display:inline-block }
+  .sw.line{ width:12px; height:3px; border-radius:1px }
+
+  /* ---- decay chart ---------------------------------------------------------*/
+  .chart-wrap{ background:var(--surface); border:1px solid var(--rule); border-radius:7px;
+               padding:1rem 1.1rem .5rem; }
+  .chart-wrap svg{ display:block; width:100%; height:auto }
+  .axislabel{ fill:var(--muted); font-family:"IBM Plex Mono",monospace; font-size:10.5px }
+  .gridline{ stroke:var(--rule); stroke-opacity:.7 }
+  .reflines{ stroke:var(--muted); stroke-dasharray:3 3; stroke-width:1 }
+  .reflabel{ fill:var(--muted); font-family:"IBM Plex Sans",sans-serif; font-size:10px }
+  .ghostpath{ fill:none; stroke:var(--rule-2); stroke-width:1.4; stroke-dasharray:1 4;
+              stroke-linecap:round }
+  .bandfill{ fill:var(--band) }
+  .meanpath{ fill:none; stroke:var(--accent-2); stroke-width:2 }
+  .scorepath{ fill:none; stroke:var(--accent); stroke-width:2.6; stroke-linecap:round;
+              stroke-linejoin:round }
+  .needle{ stroke:var(--ink-2); stroke-width:1.2; stroke-dasharray:2 2 }
+  .dot{ fill:var(--accent); stroke:var(--surface); stroke-width:2 }
+
+  .scrub-row{ display:flex; flex-direction:column; gap:.5rem; margin-top:.3rem }
+  input[type="range"]{ width:100%; accent-color:var(--accent); height:1.4rem; cursor:pointer }
+  .scrub-readout{ display:flex; gap:1.5rem; flex-wrap:wrap; font-size:.85rem }
+  .scrub-readout .item{ display:flex; flex-direction:column; gap:.1rem }
+  .scrub-readout .item .k{ font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted) }
+  .scrub-readout .item .v{ font-family:"IBM Plex Mono",monospace; font-size:1.02rem; font-weight:600; color:var(--ink) }
+  .scrub-readout .item .v.score{ color:var(--accent) }
+  .regime-note{ font-size:.88rem; color:var(--ink-2); border-left:3px solid var(--accent);
+                padding:.55rem .8rem; background:var(--sunken); border-radius:0 5px 5px 0; margin-top:.2rem }
+
+  /* ---- the live decay calculation & the contracts reference table -------- */
+  #decayCalc .calc{ margin-top:.85rem }
+  .contracts-table{ overflow-x:auto; border:1px solid var(--rule); border-radius:7px;
+                     background:var(--surface); }
+  .contracts-table table{ border-collapse:collapse; width:100%; font-size:.82rem }
+  .contracts-table th{ font-size:.66rem; text-transform:uppercase; letter-spacing:.07em;
+                        font-weight:600; color:var(--muted); text-align:left;
+                        padding:.55rem .8rem; border-bottom:1px solid var(--rule-2);
+                        background:var(--sunken); white-space:nowrap }
+  .contracts-table td{ padding:.5rem .8rem; border-bottom:1px solid var(--rule); vertical-align:top }
+  .contracts-table tbody tr:last-child td{ border-bottom:0 }
+  .contracts-table td.file{ font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--ink-2);
+                             white-space:nowrap }
+  .contracts-table td.key{ font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--muted) }
+  .contracts-table td.val{ font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--accent);
+                            white-space:nowrap; font-variant-numeric:tabular-nums }
+  .contracts-table td.governs{ color:var(--ink-2) }
+
+  footer{ font-size:.82rem; color:var(--muted); border-top:1px solid var(--rule); padding-top:1.1rem }
+
+  @media (max-width:640px){
+    .pipeline-row{ flex-wrap:wrap; gap:.5rem .5rem; padding:1.6rem 0 2rem }
+    .pipeline-line{ display:none }
+    .stage-box{ flex:1 1 40%; }
+    .token{ display:none }
+    h1{ font-size:1.7rem }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .token, .belief-band, .belief-mean, .belief-score, .stage-box{ transition:none }
+  }
+</style>
+
+<main>
+
+<header>
+  <p class="eyebrow">DevBridge &middot; Module 6 &middot; skill graph</p>
+  <h1>The Life of a Skill Score</h1>
+  <p class="lede">One skill &mdash; <strong class="mono">go</strong>, for one candidate &mdash;
+  from the moment a commit becomes evidence, through every layer of Module&nbsp;6, to a
+  published number. Then: what happens to that number when nothing new ever arrives again.</p>
+</header>
+
+<!-- ================================================================== -->
+<section id="scene-pipeline">
+  <div class="scene-head">
+    <p class="eyebrow">Part one</p>
+    <h2>How the score gets built</h2>
+    <p>Two pieces of evidence, each projected, ingested, and folded in turn. Press play to
+    watch them move through the layers; the belief narrows a little more each time.</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="playBtn">&#9654; Play the journey</button>
+    <button class="btn secondary" id="pauseBtn" disabled>&#9208; Pause</button>
+    <button class="btn secondary" id="resetPipelineBtn">Reset</button>
+    <span class="stage-status mono" id="stageStatus">ready &mdash; showing the published result</span>
+  </div>
+
+  <div class="pipeline-row" id="pipelineRow">
+    <div class="pipeline-line" id="pipelineLine"></div>
+    <div class="stage-box endpoint" data-stage="source">
+      <span class="tagnum">M5</span><span class="taglabel">Verification&nbsp;report</span>
+    </div>
+    <div class="stage-box" data-stage="p0">
+      <span class="tagnum">6.0</span><span class="taglabel">Projection</span>
+    </div>
+    <div class="stage-box" data-stage="p2">
+      <span class="tagnum">6.2</span><span class="taglabel">Ingestor</span>
+    </div>
+    <div class="stage-box" data-stage="p3">
+      <span class="tagnum">6.3</span><span class="taglabel">Scoring</span>
+    </div>
+    <div class="stage-box endpoint" data-stage="p4">
+      <span class="tagnum">6.4</span><span class="taglabel">Published</span>
+    </div>
+    <div class="token" id="token">evidence</div>
+  </div>
+
+  <div class="detail-panel" id="detailPanel"><!-- filled by JS --></div>
+</section>
+
+<!-- ================================================================== -->
+<section id="scene-decay">
+  <div class="scene-head">
+    <p class="eyebrow">Part two</p>
+    <h2>What happens if nothing new arrives</h2>
+    <p>Drag the handle, or press play, to move forward in time from the day of that evidence.
+    The score falls and the band widens &mdash; not a verdict on the person, only the system
+    admitting it knows less than it did.</p>
+  </div>
+
+  <div class="chart-wrap">
+    <svg id="decayChart" viewBox="0 0 900 320" role="img"
+         aria-label="A chart of the go skill's score, mean and upper bound against days since the last evidence, from day zero to about six years out.">
+    </svg>
+  </div>
+
+  <div class="scrub-row">
+    <input type="range" id="dtSlider" min="0" max="2200" step="1" value="81"
+           aria-label="Days since the last evidence for the go skill">
+    <div class="scrub-readout">
+      <div class="item"><span class="k">Days since evidence</span><span class="v mono" id="roDays">81</span></div>
+      <div class="item"><span class="k">Published score</span><span class="v mono score" id="roScore">0.536</span></div>
+      <div class="item"><span class="k">Mean belief</span><span class="v mono" id="roMean">0.622</span></div>
+      <div class="item"><span class="k">Upper bound</span><span class="v mono" id="roUpper">0.700</span></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="playDecayBtn">&#9654; Play forward</button>
+      <button class="btn secondary" id="pauseDecayBtn" disabled>&#9208; Pause</button>
+      <button class="btn secondary" id="resetDecayBtn">Reset to today</button>
+    </div>
+    <p class="regime-note" id="regimeNote"></p>
+    <div id="decayCalc"></div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="scene-contracts">
+  <div class="scene-head">
+    <p class="eyebrow">Reference</p>
+    <h2>Every contract value this page reads</h2>
+    <p>Nothing above is tuned for the demo. Each constant is declared once, with a reason, in
+    one of these three files — change the file and every number on this page changes with it.</p>
+  </div>
+  <div class="contracts-table" id="contractsTable"></div>
+</section>
+
+<footer>
+  Every calculation above runs live in this page, in JavaScript that mirrors
+  <span class="mono">packages/m6_scoring</span> line for line — nothing here is looked up from a
+  precomputed table. <span class="mono">go</span> is an <em>ecosystem</em>-tier skill:
+  &lambda;&nbsp;=&nbsp;3.0&times;10&#8315;&#8308; per day, half-life ratio k&nbsp;=&nbsp;0.35.
+</footer>
+
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- the model: identical to packages/m6_scoring, verified against it ----
+  const THETA0 = 0.25, SIGMA0 = 1.30, S0 = 0.10, Z = 1.0, K_H = 0.35;
+  const LAMBDA_ECOSYSTEM = 3.0e-4;
+  const MU0 = Math.log(THETA0 / (1 - THETA0));
+
+  const logit = p => Math.log(p / (1 - p));
+  const sigmoid = x => 1 / (1 + Math.exp(-x));
+  function initial(){ return { mu: MU0, v: SIGMA0 * SIGMA0 }; }
+  function decay(state, dt, lambda){
+    lambda = lambda || LAMBDA_ECOSYSTEM;
+    if (dt <= 0) return state;
+    return {
+      mu: state.mu + (MU0 - state.mu) * (1 - Math.exp(-dt * lambda / K_H)),
+      v: state.v + lambda * dt,
+    };
+  }
+  function update(state, observed, obsVar){
+    const k = state.v / (state.v + obsVar);
+    return { mu: state.mu + k * (logit(observed) - state.mu), v: state.v * (1 - k), k: k };
+  }
+  function obsVar(reliability, relevance, strength){ return S0 / (reliability * relevance * strength); }
+  const scoreOf = s => sigmoid(s.mu - Z * Math.sqrt(s.v));
+  const meanOf  = s => sigmoid(s.mu);
+  const upperOf = s => sigmoid(s.mu + Z * Math.sqrt(s.v));
+  const pct = x => (x * 100).toFixed(3) + "%";
+  const fmt = x => x.toFixed(3);
+
+  // ---- the two real events from demo/output/04-explain.json ---------------
+  const EVENT1 = { kind:"repo_artifact", strength:0.60, reliability:0.70, relevance:0.95,
+                   observed:0.66, note:"distributed-kv — 168 commits, 92% Go" };
+  const EVENT2 = { kind:"claim_corroborated", strength:0.70, reliability:0.80, relevance:1.00,
+                   observed:0.68, note:"the CV's Go claim, now backed by that repo" };
+
+  const prior = initial();
+  const u1 = update(prior, EVENT1.observed, obsVar(EVENT1.reliability, EVENT1.relevance, EVENT1.strength));
+  const s1 = { mu:u1.mu, v:u1.v };
+  const u2 = update(s1, EVENT2.observed, obsVar(EVENT2.reliability, EVENT2.relevance, EVENT2.strength));
+  const s2 = { mu:u2.mu, v:u2.v };          // state the instant both events are folded
+  const PUBLISHED_DT = 81;                  // days from event date to "today" in the demo
+  const published = decay(s2, PUBLISHED_DT);
+
+  // =========================================================================
+  // PART ONE — the pipeline animation
+  // =========================================================================
+  const row = document.getElementById("pipelineRow");
+  const token = document.getElementById("token");
+  const panel = document.getElementById("detailPanel");
+  const stageStatus = document.getElementById("stageStatus");
+  const playBtn = document.getElementById("playBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resetPipelineBtn = document.getElementById("resetPipelineBtn");
+  const boxes = {};
+  row.querySelectorAll(".stage-box").forEach(b => boxes[b.dataset.stage] = b);
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function beliefTrackHTML(id){
+    return (
+      '<div class="belief-track" id="'+id+'">' +
+        '<div class="belief-band" id="'+id+'-band"></div>' +
+        '<div class="belief-mean" id="'+id+'-mean"></div>' +
+        '<div class="belief-score" id="'+id+'-score"></div>' +
+      '</div>' +
+      '<div class="belief-axis"><span>0.0</span><span>0.25</span><span>0.5</span><span>0.75</span><span>1.0</span></div>' +
+      '<div class="belief-legend">' +
+        '<span><i class="sw" style="background:var(--band)"></i> interval (score&#8594;upper)</span>' +
+        '<span><i class="sw line" style="background:var(--accent-2)"></i> mean</span>' +
+        '<span><i class="sw line" style="background:var(--accent)"></i> score (published)</span>' +
+      '</div>'
+    );
+  }
+  function paintBelief(id, state){
+    const sc = scoreOf(state), mn = meanOf(state), up = upperOf(state);
+    const band = document.getElementById(id+"-band");
+    const mean = document.getElementById(id+"-mean");
+    const scoreEl = document.getElementById(id+"-score");
+    if (!band) return;
+    band.style.left = pct(sc); band.style.width = pct(Math.max(up-sc,0.003));
+    mean.style.left = pct(mn);
+    scoreEl.style.left = pct(sc);
+  }
+
+  function view(html){ panel.innerHTML = html; }
+
+  function kvRow(state, k){
+    return '<div class="kv-row">' +
+      '<span>&mu; <b>'+state.mu.toFixed(3)+'</b></span>' +
+      '<span>&sigma; <b>'+Math.sqrt(state.v).toFixed(3)+'</b></span>' +
+      (k!=null ? '<span>gain K <b>'+k.toFixed(3)+'</b></span>' : '') +
+      '<span>score <b>'+fmt(scoreOf(state))+'</b></span>' +
+      '<span>mean <b>'+fmt(meanOf(state))+'</b></span>' +
+      '</div>';
+  }
+
+  // A worked calculation: each argument is one line, rendered top to bottom.
+  // The FINAL numbers in every call below come from the same live variables
+  // (u1, s1, u2, s2, published, ...) that kvRow reads — never re-typed by
+  // hand — so a calc block can never drift out of sync with the number it
+  // is explaining.
+  function calc(){
+    const lines = Array.prototype.slice.call(arguments);
+    // result() already returns its own div.cline.result — don't re-wrap it.
+    return '<div class="calc">' +
+      lines.map(l => l.indexOf('<div') === 0 ? l : '<div class="cline">'+l+'</div>').join('') +
+      '</div>';
+  }
+  function result(s){ return '<div class="cline result">= '+s+'</div>'; }
+  // A citation: which contract file and key this number is pinned by.
+  function cites(){
+    const items = Array.prototype.slice.call(arguments);
+    return '<div class="cite-row">' + items.map(c=>'<span class="cite">'+c+'</span>').join('') + '</div>';
+  }
+
+  // Every stop in the journey: which box to highlight, where the token sits,
+  // token label, and what the detail panel shows.
+  const STOPS = [
+    { box:"source", label:"report", status:"the M5 verification report",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">what M5 sent</span>' +
+        '<p>Among the claims in this candidate’s verification report: a repository that is '+
+        '92% Go with 168 commits, and a CV line claiming Go proficiency that the repository now '+
+        'corroborates. Two separate pieces of evidence &mdash; watch them travel one at a time.</p></div>'
+      ); }
+    },
+    { box:"p0", label:"repo_artifact", status:"6.0 projection — event 1 of 2",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.0 &middot; event projection</span>' +
+        '<p>The repository becomes a <b>repo_artifact</b> event. Nothing here is inferred: strength '+
+        'and reliability come straight off the projection rule table.</p>' +
+        calc(
+          'strength = 0.45 + 0.05 &times; band_index',
+          '         = 0.45 + 0.05 &times; 3&nbsp;&nbsp;(large: 168 commits, 1420&nbsp;KB &rarr; index&nbsp;3)',
+          result(EVENT1.strength.toFixed(2)),
+          '',
+          'relevance(go) = clamp(0.5 + 0.5 &times; bytes_share, 0.50, 0.95)',
+          '              = clamp(0.5 + 0.5 &times; 0.949, 0.50, 0.95)&nbsp;&nbsp;(412000 / 434200 Go bytes)',
+          result(EVENT1.relevance.toFixed(2)),
+          '',
+          'reliability = reliability_base &times; &Pi; factors = 0.70 &times; 1&nbsp;&nbsp;(GitHub ownership OAuth-verified &mdash; no discount)',
+          result(EVENT1.reliability.toFixed(2))
+        ) +
+        cites(
+          '<b>contracts/projection-rules.yaml</b> &rarr; emit.repo_artifact.strength',
+          '<b>contracts/projection-rules.yaml</b> &rarr; emit.repo_artifact.skill_refs.language_skills.formula',
+          '<b>contracts/projection-rules.yaml</b> &rarr; emit.repo_artifact.reliability_base (0.70)'
+        ) +
+        '</div>'
+      ); }
+    },
+    { box:"p2", label:"repo_artifact", status:"6.2 ingestor — event 1 of 2",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.2 &middot; evidence ingestor</span>' +
+        '<p>The ontology is asked one question: is <span class="mono">go</span> a known skill? '+
+        'It is &mdash; an <em>ecosystem</em>-tier skill &mdash; so the event is accepted into the '+
+        'append-only log rather than quarantined. That tier is what fixes how fast this evidence '+
+        'will decay, later in the journey.</p>' +
+        calc(
+          'tier(go) = ecosystem',
+          result('&lambda; = 3.0&times;10&#8315;&#8308; /day&nbsp;&nbsp;&mdash;&nbsp;&nbsp;half-life ratio k = 0.35')
+        ) +
+        cites(
+          '<b>contracts/ontology-seed.yaml</b> &rarr; skills.go.tier (v0.1.0)',
+          '<b>contracts/m6-parameters.yaml</b> &rarr; decay.lambda_per_day.ecosystem'
+        ) +
+        '<div class="kv-row"><span>skill <b class="mono">go</b></span>' +
+        '<span>ontology <b>knows() &rarr; true</b></span>' +
+        '<span>decision <b>accepted</b></span></div></div>'
+      ); }
+    },
+    { box:"p3", label:"repo_artifact", status:"6.3 scoring — update 1 of 2",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.3 &middot; scoring engine &mdash; the first update</span>' +
+        '<p>Against the wide prior, this single event moves the belief most of the way: a gain of '+
+        u1.k.toFixed(3)+' out of a possible 1.0.</p>' +
+        beliefTrackHTML("bt1") + kvRow(s1, u1.k) +
+        calc(
+          '&sigma;&sup2;_obs = S&#8320; / (reliability &times; relevance &times; strength)',
+          '        = 0.10 / (0.70 &times; 0.95 &times; 0.60)',
+          result(obsVar(EVENT1.reliability,EVENT1.relevance,EVENT1.strength).toFixed(4)),
+          '',
+          'K = &sigma;&sup2; / (&sigma;&sup2; + &sigma;&sup2;_obs) = '+prior.v.toFixed(4)+' / ('+prior.v.toFixed(4)+' + '+obsVar(EVENT1.reliability,EVENT1.relevance,EVENT1.strength).toFixed(4)+')',
+          result(u1.k.toFixed(3)),
+          '',
+          '&mu;&prime; = &mu; + K&middot;(logit(0.66) &minus; &mu;) = '+prior.mu.toFixed(4)+' + '+u1.k.toFixed(3)+'&times;(0.6633 &minus; ('+prior.mu.toFixed(4)+'))',
+          result(s1.mu.toFixed(4)),
+          '',
+          '&sigma;&sup2;&prime; = &sigma;&sup2;&times;(1&minus;K) = '+prior.v.toFixed(4)+' &times; (1 &minus; '+u1.k.toFixed(3)+')',
+          result(s1.v.toFixed(4))
+        ) +
+        cites(
+          '<b>contracts/m6-parameters.yaml</b> &rarr; observation.formula, observation.S0 (0.10)',
+          '<b>packages/m6_scoring/filter.py</b> &rarr; State.updated() &mdash; the closed-form Kalman step',
+          '<b>contracts/reference/m6_model.py</b> &rarr; the executable spec this reproduces'
+        ) +
+        '</div>'
+      ); paintBelief("bt1", reduceMotion? s1 : prior);
+         if (!reduceMotion) requestAnimationFrame(()=>requestAnimationFrame(()=>paintBelief("bt1", s1)));
+      }
+    },
+    { box:"p0", label:"claim_corroborated", status:"6.0 projection — event 2 of 2",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.0 &middot; event projection</span>' +
+        '<p>The CV’s Go claim, now that a repository backs it, becomes a '+
+        '<b>claim_corroborated</b> event &mdash; a different kind of evidence about the same skill. '+
+        'Unlike the repo event, none of these three numbers are computed: this emit rule fixes them '+
+        'as flat constants.</p>' +
+        calc(
+          'strength = 0.70&nbsp;&nbsp;(flat, every claim_corroborated event)',
+          'reliability = reliability_base &times; &Pi; factors = 0.80 &times; 1&nbsp;&nbsp;(no discount)',
+          'relevance(go) = 1.00&nbsp;&nbsp;(a corroborated claim is always fully relevant to its own skill)',
+          'observed = 0.68&nbsp;&nbsp;(flat &mdash; the evidence itself, not the claimed proficiency band)'
+        ) +
+        cites(
+          '<b>contracts/projection-rules.yaml</b> &rarr; emit.claim_corroborated',
+          '<b>contracts/m6-parameters.yaml</b> &rarr; observed_value.claim_corroborated.observed (0.68)'
+        ) +
+        '</div>'
+      ); }
+    },
+    { box:"p2", label:"claim_corroborated", status:"6.2 ingestor — event 2 of 2",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.2 &middot; evidence ingestor</span>' +
+        '<p>Accepted the same way. The log now holds two independent events for '+
+        '<span class="mono">go</span>, each dated and each carrying its own reliability.</p>' +
+        '<div class="kv-row"><span>skill <b class="mono">go</b></span>' +
+        '<span>events on record <b>2</b></span><span>decision <b>accepted</b></span></div></div>'
+      ); }
+    },
+    { box:"p3", label:"claim_corroborated", status:"6.3 scoring — update 2 of 2",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.3 &middot; scoring engine &mdash; the second update</span>' +
+        '<p>Belief is already fairly narrow, so this event carries less weight than the first &mdash; '+
+        'gain '+u2.k.toFixed(3)+', down from '+u1.k.toFixed(3)+'. That ordering is exactly the point: '+
+        'the first observation against a wide prior always moves the furthest.</p>' +
+        beliefTrackHTML("bt2") + kvRow(s2, u2.k) +
+        calc(
+          '&sigma;&sup2;_obs = 0.10 / (0.80 &times; 1.00 &times; 0.70)',
+          result(obsVar(EVENT2.reliability,EVENT2.relevance,EVENT2.strength).toFixed(4)),
+          '',
+          'K = '+s1.v.toFixed(4)+' / ('+s1.v.toFixed(4)+' + '+obsVar(EVENT2.reliability,EVENT2.relevance,EVENT2.strength).toFixed(4)+')&nbsp;&nbsp;&larr; a much smaller &sigma;&sup2; now, so K falls',
+          result(u2.k.toFixed(3)),
+          '',
+          '&mu;&prime; = '+s1.mu.toFixed(4)+' + '+u2.k.toFixed(3)+'&times;(0.7538 &minus; '+s1.mu.toFixed(4)+')',
+          result(s2.mu.toFixed(4)),
+          '',
+          '&sigma;&sup2;&prime; = '+s1.v.toFixed(4)+' &times; (1 &minus; '+u2.k.toFixed(3)+')',
+          result(s2.v.toFixed(4))
+        ) +
+        cites(
+          '<b>contracts/m6-parameters.yaml</b> &rarr; observation.S0 (0.10), reused unchanged',
+          '<b>packages/m6_scoring/engine.py</b> &rarr; ScoringEngine.fold() &mdash; folds events in occurred_at order'
+        ) +
+        '</div>'
+      ); paintBelief("bt2", reduceMotion? s2 : s1);
+         if (!reduceMotion) requestAnimationFrame(()=>requestAnimationFrame(()=>paintBelief("bt2", s2)));
+      }
+    },
+    { box:"p4", label:"published", status:"6.4 query — published",
+      render(){ view(
+        '<div class="detail-view"><span class="kicker">6.4 &middot; query &mdash; the published number</span>' +
+        '<p>Both events are dated the same day; 81 days have passed since. What the API returns is not '+
+        'the mean &mdash; it is the <b>lower bound</b> of the interval, decayed forward to today.</p>' +
+        beliefTrackHTML("btF") + kvRow(published, null) +
+        calc(
+          '&sigma;&sup2;(t) = &sigma;&sup2; + &lambda;&middot;&Delta;t = '+s2.v.toFixed(4)+' + 3.0&times;10&#8315;&#8308;&times;81',
+          result(published.v.toFixed(4)),
+          '',
+          '&mu;(t) = &mu; + (&mu;&#8320;&minus;&mu;)&times;(1&minus;e&#8315;81&times;&lambda;&#8725;0.35)',
+          result(published.mu.toFixed(4)+'&nbsp;&nbsp;(&mu;&#8320; = logit(0.25) = &minus;1.0986, the same prior every skill starts from)'),
+          '',
+          'score = sigmoid(&mu; &minus; z&middot;&sigma;), z = 1.0',
+          result(fmt(scoreOf(published))+'&nbsp;&nbsp;&mdash;&nbsp;&nbsp;the lower bound, not sigmoid(&mu;) = '+fmt(meanOf(published)))
+        ) +
+        cites(
+          '<b>contracts/m6-parameters.yaml</b> &rarr; decay.lambda_per_day.ecosystem, decay.h_ratio_k (k=0.35)',
+          '<b>contracts/m6-parameters.yaml</b> &rarr; display.z (1.0) &mdash; pinned by the published /explain example',
+          '<b>packages/m6_query/service.py</b> &rarr; SkillView.score is state.state.score(z), never the mean'
+        ) +
+        '</div>'
+      ); paintBelief("btF", published); }
+    },
+  ];
+
+  let stopIndex = STOPS.length - 1;   // page loads already resting on the final, published state
+  let playing = false;   // a play sequence is active (running or paused mid-way)
+  let paused = false;
+
+  // The line and the token both need the real vertical center of a stage box
+  // rather than a guessed CSS offset (box height depends on font metrics that
+  // vary slightly by viewer, so a hardcoded number drifts a few px off-center).
+  function layoutTrack(){
+    const rowRect = row.getBoundingClientRect();
+    const boxRect = boxes.p0.getBoundingClientRect();
+    const centerY = (boxRect.top - rowRect.top) + boxRect.height/2;
+    document.getElementById("pipelineLine").style.top = centerY + "px";
+    token.style.top = centerY + "px";
+    return { rowRect: rowRect, centerY: centerY };
+  }
+  function tokenLeftFor(boxKey){
+    const rowRect = row.getBoundingClientRect();
+    const boxRect = boxes[boxKey].getBoundingClientRect();
+    return (boxRect.left - rowRect.left) + boxRect.width/2;
+  }
+  function paintStop(i, animateToken){
+    layoutTrack();
+    Object.values(boxes).forEach(b=>b.classList.remove("active"));
+    const stop = STOPS[i];
+    boxes[stop.box].classList.add("active");
+    token.textContent = stop.label;
+    token.style.opacity = "1";
+    if (animateToken === false) {
+      token.style.transition = "none";
+      token.style.left = tokenLeftFor(stop.box) + "px";
+      // eslint-disable-next-line no-unused-expressions
+      token.offsetHeight; // force reflow before restoring transition
+      token.style.transition = "";
+    } else {
+      token.style.left = tokenLeftFor(stop.box) + "px";
+    }
+    stageStatus.textContent = i === STOPS.length-1
+      ? "ready — showing the published result"
+      : stop.status;
+    stop.render();
+  }
+
+  // A pausable step sequencer. Each stop dwells for a fixed time before the
+  // next one paints; pausing has to freeze that dwell and resume it with
+  // whatever time was left, not just restart the whole sequence.
+  const dwellFor = i => (i === 0 ? 700 : 1250);
+  let dwellTimer = null;
+  let dwellDeadline = 0;     // timestamp the current dwell is due to fire
+  let dwellRemaining = 0;    // ms left when paused mid-dwell
+
+  function updatePlayButtons(){
+    const midSequence = playing && stopIndex < STOPS.length - 1;
+    playBtn.textContent = paused ? "▶ Resume" : "▶ Play the journey";
+    playBtn.disabled = playing && !paused;
+    pauseBtn.disabled = !midSequence || paused;
+    resetPipelineBtn.disabled = false;   // always available as the way out
+  }
+
+  function scheduleAdvance(delay){
+    dwellDeadline = performance.now() + delay;
+    dwellTimer = setTimeout(advance, reduceMotion ? 0 : delay);
+  }
+  function advance(){
+    stopIndex += 1;
+    paintStop(stopIndex, true);
+    if (stopIndex < STOPS.length - 1) {
+      scheduleAdvance(dwellFor(stopIndex));
+    } else {
+      playing = false; paused = false;
+      updatePlayButtons();
+    }
+  }
+  function startPlay(){
+    if (playing) return;
+    playing = true; paused = false;
+    stopIndex = 0;
+    paintStop(0, true);
+    updatePlayButtons();
+    if (STOPS.length > 1) scheduleAdvance(dwellFor(0));
+    else { playing = false; updatePlayButtons(); }
+  }
+  function pausePlay(){
+    if (!playing || paused) return;
+    paused = true;
+    clearTimeout(dwellTimer);
+    dwellRemaining = Math.max(0, dwellDeadline - performance.now());
+    updatePlayButtons();
+  }
+  function resumePlay(){
+    if (!playing || !paused) return;
+    paused = false;
+    scheduleAdvance(dwellRemaining);
+    updatePlayButtons();
+  }
+
+  playBtn.addEventListener("click", ()=>{ paused ? resumePlay() : startPlay(); });
+  pauseBtn.addEventListener("click", pausePlay);
+  resetPipelineBtn.addEventListener("click", ()=>{
+    clearTimeout(dwellTimer);
+    playing = false; paused = false;
+    stopIndex = STOPS.length - 1;
+    paintStop(stopIndex, false);
+    updatePlayButtons();
+  });
+  window.addEventListener("resize", ()=> paintStop(stopIndex, false));
+
+  // paint the resting state once fonts/layout have settled
+  requestAnimationFrame(()=> paintStop(stopIndex, false));
+  updatePlayButtons();
+
+  // =========================================================================
+  // PART TWO — the decay timeline
+  // =========================================================================
+  const svg = document.getElementById("decayChart");
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const W = 900, H = 320, PAD_L = 46, PAD_R = 18, PAD_T = 18, PAD_B = 40;
+  const X0 = PAD_L, X1 = W - PAD_R, Y0 = H - PAD_B, Y1 = PAD_T;
+  const DT_MAX = 2200;
+  const xOf = dt => X0 + (dt/DT_MAX) * (X1-X0);
+  const yOf = v  => Y0 + (1-v) * (Y1-Y0);
+
+  function el(tag, attrs){
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function sample(maxDt, stepDays){
+    const pts = [];
+    for (let dt=0; dt<=maxDt; dt+=stepDays) pts.push(dt);
+    if (pts[pts.length-1] !== maxDt) pts.push(maxDt);
+    return pts.map(dt => { const s = decay(s2, dt); return { dt, score:scoreOf(s), mean:meanOf(s), upper:upperOf(s) }; });
+  }
+  function pathD(points, key){
+    return points.map((p,i)=> (i===0?"M":"L") + xOf(p.dt).toFixed(1) + "," + yOf(p[key]).toFixed(1)).join(" ");
+  }
+  function bandD(points){
+    const top = points.map(p=> xOf(p.dt).toFixed(1)+","+yOf(p.upper).toFixed(1));
+    const bot = points.slice().reverse().map(p=> xOf(p.dt).toFixed(1)+","+yOf(p.score).toFixed(1));
+    return "M"+top.join(" L ")+" L "+bot.join(" L ")+" Z";
+  }
+
+  // static chrome, built once
+  const gGrid = el("g", {});
+  [0,0.2,0.4,0.6,0.8,1.0].forEach(v=>{
+    gGrid.appendChild(el("line", {class:"gridline", x1:X0, x2:X1, y1:yOf(v), y2:yOf(v)}));
+    const t = el("text", {class:"axislabel", x:X0-8, y:yOf(v)+3, "text-anchor":"end"});
+    t.textContent = v.toFixed(1); gGrid.appendChild(t);
+  });
+  [0,400,800,1200,1600,2000].forEach(d=>{
+    const t = el("text", {class:"axislabel", x:xOf(d), y:Y0+18, "text-anchor":"middle"});
+    t.textContent = d; gGrid.appendChild(t);
+  });
+  const xAxisLabel = el("text", {class:"axislabel", x:X1, y:Y0+34, "text-anchor":"end"});
+  xAxisLabel.textContent = "days since the last evidence";
+  gGrid.appendChild(xAxisLabel);
+  svg.appendChild(gGrid);
+
+  const REFLINES = [
+    { dt:81,   label:"published" },
+    { dt:809,  label:"true half-life" },
+    { dt:1167, label:"τ (contract half-life)" },
+  ];
+  const gRef = el("g", {});
+  REFLINES.forEach(r=>{
+    gRef.appendChild(el("line", {class:"reflines", x1:xOf(r.dt), x2:xOf(r.dt), y1:Y1, y2:Y0}));
+    const t = el("text", {class:"reflabel", x:xOf(r.dt)+4, y:Y1+11});
+    t.textContent = r.label; gRef.appendChild(t);
+  });
+  svg.appendChild(gRef);
+
+  const ghostPts = sample(DT_MAX, 20);
+  const ghost = el("path", {class:"ghostpath", d: pathD(ghostPts, "score")});
+  svg.appendChild(ghost);
+
+  const bandFill = el("path", {class:"bandfill"});
+  const meanLine = el("path", {class:"meanpath"});
+  const scoreLine = el("path", {class:"scorepath"});
+  svg.appendChild(bandFill); svg.appendChild(meanLine); svg.appendChild(scoreLine);
+
+  const needle = el("line", {class:"needle", x1:0,x2:0,y1:Y1,y2:Y0});
+  const dot = el("circle", {class:"dot", r:4.5, cx:0, cy:0});
+  svg.appendChild(needle); svg.appendChild(dot);
+
+  const slider = document.getElementById("dtSlider");
+  const roDays = document.getElementById("roDays");
+  const roScore = document.getElementById("roScore");
+  const roMean = document.getElementById("roMean");
+  const roUpper = document.getElementById("roUpper");
+  const regimeNote = document.getElementById("regimeNote");
+
+  function regimeText(dt){
+    if (dt <= PUBLISHED_DT) return "This is the number published today — both events already folded in.";
+    if (dt < 809) return "Still inside the skill’s true half-life: more than half the original confidence remains.";
+    if (dt < 1167) return "Past the true half-life. The belief is most of the way back toward “unknown,” though the interval hasn’t reached the prior’s width yet.";
+    return "Well past τ. With nothing new on record, the score has settled close to where a total stranger would start.";
+  }
+
+  const decayCalcEl = document.getElementById("decayCalc");
+  function redraw(dt){
+    const pts = sample(dt, Math.max(2, Math.round(dt/110)) );
+    bandFill.setAttribute("d", bandD(pts));
+    meanLine.setAttribute("d", pathD(pts, "mean"));
+    scoreLine.setAttribute("d", pathD(pts, "score"));
+    const s = decay(s2, dt);
+    const x = xOf(dt);
+    needle.setAttribute("x1", x); needle.setAttribute("x2", x);
+    dot.setAttribute("cx", x); dot.setAttribute("cy", yOf(scoreOf(s)));
+    roDays.textContent = dt;
+    roScore.textContent = fmt(scoreOf(s));
+    roMean.textContent = fmt(meanOf(s));
+    roUpper.textContent = fmt(upperOf(s));
+    regimeNote.textContent = regimeText(dt);
+
+    // Re-substituted on every drag — the SAME decay() call that drew the
+    // chart, shown as arithmetic rather than only as a moving dot.
+    decayCalcEl.innerHTML = calc(
+      '&Delta;t = '+dt+' days since both events folded in',
+      '',
+      '&sigma;&sup2;(t) = &sigma;&sup2; + &lambda;&middot;&Delta;t = '+s2.v.toFixed(4)+' + 3.0&times;10&#8315;&#8308;&times;'+dt,
+      result(s.v.toFixed(4)),
+      '',
+      '&mu;(t) = &mu; + (&mu;&#8320;&minus;&mu;)&times;(1&minus;e&#8315;&#916;t&middot;&lambda;&#8725;k)',
+      '       = '+s2.mu.toFixed(4)+' + ('+MU0.toFixed(4)+' &minus; '+s2.mu.toFixed(4)+')&times;(1&minus;e&#8315;'+dt+'&times;&lambda;&#8725;0.35)',
+      result(s.mu.toFixed(4)),
+      '',
+      'score = sigmoid(&mu; &minus; z&middot;&sigma;) = sigmoid('+s.mu.toFixed(4)+' &minus; '+Math.sqrt(s.v).toFixed(4)+')',
+      result(fmt(scoreOf(s)))
+    ) + cites(
+      '<b>contracts/m6-parameters.yaml</b> &rarr; decay.lambda_per_day.ecosystem (3.0&times;10&#8315;&#8308;)',
+      '<b>contracts/m6-parameters.yaml</b> &rarr; decay.h_ratio_k (k=0.35)',
+      '<b>contracts/m6-parameters.yaml</b> &rarr; display.z (1.0)'
+    );
+  }
+
+  const playDecayBtn = document.getElementById("playDecayBtn");
+  const pauseDecayBtn = document.getElementById("pauseDecayBtn");
+  const resetDecayBtn = document.getElementById("resetDecayBtn");
+
+  // Same pause requirement as the pipeline, adapted to a requestAnimationFrame
+  // loop: track elapsed progress rather than a wall-clock start time, so a
+  // pause can freeze `elapsed` and a resume can keep accumulating from there
+  // instead of jumping ahead by however long the pause lasted.
+  let decayAnim = null;   // {startDt, endDt, duration, elapsed, paused, lastTs}
+
+  function updateDecayButtons(){
+    const running = !!decayAnim;
+    const isPaused = running && decayAnim.paused;
+    playDecayBtn.textContent = isPaused ? "▶ Resume" : "▶ Play forward";
+    playDecayBtn.disabled = running && !isPaused;
+    pauseDecayBtn.disabled = !running || isPaused;
+  }
+
+  function decayFrame(ts){
+    if (!decayAnim || decayAnim.paused) return;
+    if (decayAnim.lastTs == null) decayAnim.lastTs = ts;
+    decayAnim.elapsed += ts - decayAnim.lastTs;
+    decayAnim.lastTs = ts;
+    const t = Math.min(1, decayAnim.elapsed / decayAnim.duration);
+    const eased = 1 - Math.pow(1-t, 2);
+    const dt = Math.round(decayAnim.startDt + (decayAnim.endDt-decayAnim.startDt)*eased);
+    slider.value = dt; redraw(dt);
+    if (t < 1) { requestAnimationFrame(decayFrame); }
+    else { decayAnim = null; updateDecayButtons(); }
+  }
+  function startDecayPlay(){
+    if (decayAnim) return;
+    if (reduceMotion){ slider.value = DT_MAX; redraw(DT_MAX); return; }
+    decayAnim = { startDt:+slider.value, endDt:DT_MAX, duration:4200, elapsed:0, paused:false, lastTs:null };
+    updateDecayButtons();
+    requestAnimationFrame(decayFrame);
+  }
+  function pauseDecayPlay(){
+    if (!decayAnim || decayAnim.paused) return;
+    decayAnim.paused = true;
+    decayAnim.lastTs = null;
+    updateDecayButtons();
+  }
+  function resumeDecayPlay(){
+    if (!decayAnim || !decayAnim.paused) return;
+    decayAnim.paused = false;
+    decayAnim.lastTs = null;
+    updateDecayButtons();
+    requestAnimationFrame(decayFrame);
+  }
+
+  slider.addEventListener("input", ()=>{
+    if (decayAnim && !decayAnim.paused) pauseDecayPlay();   // a manual drag takes over from autoplay
+    redraw(+slider.value);
+  });
+  resetDecayBtn.addEventListener("click", ()=>{
+    decayAnim = null;
+    slider.value = PUBLISHED_DT; redraw(PUBLISHED_DT);
+    updateDecayButtons();
+  });
+  playDecayBtn.addEventListener("click", ()=>{
+    (decayAnim && decayAnim.paused) ? resumeDecayPlay() : startDecayPlay();
+  });
+  pauseDecayBtn.addEventListener("click", pauseDecayPlay);
+
+  redraw(+slider.value);
+  updateDecayButtons();
+
+  // =========================================================================
+  // The contracts reference table — every constant this page actually reads.
+  // =========================================================================
+  const CONTRACT_ROWS = [
+    ["contracts/ontology-seed.yaml",   "skills.go.tier",              "ecosystem",              "which decay rate and update path go uses"],
+    ["contracts/m6-parameters.yaml",   "prior.theta_0",                THETA0.toFixed(2),        "where a developer with no evidence sits"],
+    ["contracts/m6-parameters.yaml",   "prior.sigma_0",                SIGMA0.toFixed(2),        "how easily the first event can move the belief"],
+    ["contracts/m6-parameters.yaml",   "observation.S0",               S0.toFixed(2),            "the free scale in every &sigma;&sup2;_obs calculation"],
+    ["contracts/projection-rules.yaml","emit.repo_artifact",           "str 0.60 &middot; rel 0.70", "event 1 — strength (from substance band) &amp; reliability_base"],
+    ["contracts/m6-parameters.yaml",   "observed_value.repo_artifact.bands.large", "0.66",        "event 1's observed value, from 168 commits / 1420&nbsp;KB"],
+    ["contracts/projection-rules.yaml","emit.claim_corroborated",      "str 0.70 &middot; rel 0.80", "event 2 — both flat constants for this event kind"],
+    ["contracts/m6-parameters.yaml",   "observed_value.claim_corroborated.observed", "0.68",       "event 2's observed value, also flat"],
+    ["contracts/m6-parameters.yaml",   "decay.lambda_per_day.ecosystem","3.0&times;10&#8315;&#8308;", "how fast go's belief widens with no new evidence"],
+    ["contracts/m6-parameters.yaml",   "decay.h_ratio_k",              "0.35",                    "ties mean-reversion speed to the same &lambda;"],
+    ["contracts/m6-parameters.yaml",   "display.z",                    "1.0",                     "the published score is &mu; &minus; z&middot;&sigma;, not &mu;"],
+  ];
+  document.getElementById("contractsTable").innerHTML =
+    '<table><thead><tr><th>File</th><th>Key</th><th>Value</th><th>Governs</th></tr></thead><tbody>' +
+    CONTRACT_ROWS.map(r =>
+      '<tr><td class="file">'+r[0]+'</td><td class="key">'+r[1]+'</td>' +
+      '<td class="val">'+r[2]+'</td><td class="governs">'+r[3]+'</td></tr>'
+    ).join('') +
+    '</tbody></table>';
+})();
+</script>

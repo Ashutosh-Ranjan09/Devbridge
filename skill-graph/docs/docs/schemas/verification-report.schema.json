@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devbridge.dev/schemas/verification-report/1.0.0",
+  "title": "VerificationReport",
+  "description": "Canonical, immutable output of the DevBridge CV Verification Engine (M5). This is the only artefact persisted; the human view, ATS enrichment record, evidence events and signed attestation are all projections derived from it. Deliberately contains NO overall trust score: the system emits calibrated findings with provenance and leaves significance to a person.",
+  "type": "object",
+  "required": ["schema_version","verification_id","status","subject","document","claim_graph","evidence_bundle","findings","coverage","provenance","valid_as_of"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "verification_id": { "$ref": "#/$defs/Id" },
+    "status": {
+      "enum": ["completed","completed_degraded","failed"],
+      "description": "completed_degraded means the report is usable but incomplete - see coverage.gaps and extraction_meta.degraded."
+    },
+    "supersedes": {
+      "oneOf": [{ "$ref": "#/$defs/Id" }, { "type": "null" }],
+      "description": "Prior verification_id for the same subject. Reports are immutable; re-verification creates a new report. The chain enables temporal self-diff, the strongest finding class available without an external source."
+    },
+    "subject": {
+      "type": "object",
+      "required": ["subject_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "subject_ref": { "type": "string", "description": "Pseudonymous stable reference. Never a name or email." },
+        "tenant_id": { "type": "string" },
+        "consent_ref": { "type": ["string","null"], "description": "Attestation that the subject authorised this processing. Required for external_signals; DPDP purpose-limitation record." }
+      }
+    },
+    "document": {
+      "type": "object",
+      "required": ["document_id","sha256","pages","ingest_method"],
+      "additionalProperties": false,
+      "properties": {
+        "document_id": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "pages": { "type": "integer", "minimum": 1 },
+        "ingest_method": { "enum": ["pdf_text","docx","ocr"] },
+        "ocr_confidence": { "type": ["number","null"], "minimum": 0, "maximum": 1 },
+        "producer": { "type": ["string","null"], "description": "PDF /Producer. An institutional generator (e.g. iText from a placement cell) is itself a provenance signal - see rule D4." },
+        "created_at": { "type": ["string","null"], "format": "date-time" },
+        "modified_at": { "type": ["string","null"], "format": "date-time" }
+      }
+    },
+    "claim_graph": { "$ref": "#/$defs/ClaimGraph" },
+    "evidence_bundle": { "$ref": "#/$defs/EvidenceBundle" },
+    "findings": { "$ref": "#/$defs/FindingsReport" },
+    "narrative": { "oneOf": [{ "$ref": "#/$defs/Narrative" }, { "type": "null" }] },
+    "coverage": { "$ref": "#/$defs/VerificationCoverage" },
+    "provenance": { "$ref": "#/$defs/ReportProvenance" },
+    "valid_as_of": {
+      "type": "string", "format": "date-time",
+      "description": "A verification is a snapshot of a moving world. Ratings change, repos are deleted. Nothing here is asserted beyond this instant."
+    },
+    "signature": {
+      "type": ["object","null"],
+      "description": "Optional Ed25519 signature over the JCS-canonicalised report, enabling third-party verification without calling the API.",
+      "additionalProperties": false,
+      "properties": {
+        "alg": { "const": "Ed25519" },
+        "canonicalisation": { "const": "RFC8785" },
+        "key_id": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    }
+  },
+
+  "$defs": {
+    "Id": { "type": "string", "minLength": 3, "maxLength": 64 },
+    "Confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+
+    "FuzzyDate": {
+      "type": "object",
+      "description": "A CV date denotes a SET of possible dates, not a point. '2021' expands to 2021-01-01..2021-12-31.",
+      "required": ["year","precision"],
+      "additionalProperties": false,
+      "properties": {
+        "year": { "type": "integer", "minimum": 1950, "maximum": 2100 },
+        "month": { "type": ["integer","null"], "minimum": 1, "maximum": 12 },
+        "day": { "type": ["integer","null"], "minimum": 1, "maximum": 31 },
+        "precision": { "enum": ["exact","month","year"] }
+      }
+    },
+
+    "Interval": {
+      "type": "object",
+      "required": ["start"],
+      "additionalProperties": false,
+      "properties": {
+        "start": { "$ref": "#/$defs/FuzzyDate" },
+        "end": { "oneOf": [{ "$ref": "#/$defs/FuzzyDate" }, { "type": "null" }] },
+        "ongoing": { "type": "boolean", "default": false }
+      }
+    },
+
+    "SpanProvenance": {
+      "type": "object",
+      "description": "Every claim links to the exact source region it came from. char offsets index claim_graph.source.normalised_text.",
+      "required": ["char_start","char_end","verbatim","recovery"],
+      "additionalProperties": false,
+      "properties": {
+        "char_start": { "type": "integer", "minimum": 0 },
+        "char_end": { "type": "integer", "minimum": 0 },
+        "page": { "type": ["integer","null"], "minimum": 1 },
+        "bbox": { "type": ["array","null"], "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
+        "verbatim": { "type": "string", "description": "MUST occur in the source after NFKC + whitespace normalisation, else the claim is rejected." },
+        "recovery": { "enum": ["exact","fuzzy"] }
+      }
+    },
+
+    "Resolution": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["resolved","ambiguous","unresolved"] },
+        "canonical_id": { "type": ["string","null"] },
+        "registry": { "type": ["string","null"], "examples": ["esco","aicte","ugc","companies","iitkgp_faculty"] },
+        "score": { "type": ["number","null"], "minimum": 0, "maximum": 1 },
+        "method": { "enum": ["threshold","llm_tiebreak","none"], "default": "none" }
+      }
+    },
+
+    "Artefact": {
+      "type": "object",
+      "required": ["type","url"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["repo","deployment","package","paper","other"] },
+        "platform": { "type": ["string","null"], "examples": ["github","gitlab","vercel","npm"] },
+        "url": { "type": "string", "format": "uri" },
+        "owner": { "type": ["string","null"], "description": "For repos: the account segment parsed from the URL path." }
+      }
+    },
+
+    "Claim": {
+      "type": "object",
+      "required": ["claim_id","kind","provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/Id" },
+        "kind": {
+          "enum": ["employment","education","certification","project","skill","profile","achievement","identifier","declaration_marker"]
+        },
+        "interval": { "oneOf": [{ "$ref": "#/$defs/Interval" }, { "type": "null" }] },
+        "org": { "type": ["string","null"] },
+        "title": { "type": ["string","null"] },
+        "degree": { "type": ["string","null"] },
+        "issuer": { "type": ["string","null"] },
+        "credential_id": { "type": ["string","null"] },
+        "employment_type": { "enum": ["full_time","part_time","internship","freelance","unstated"], "default": "unstated" },
+        "skill_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "proficiency": { "enum": ["familiar","intermediate","proficient","expert",null], "default": null },
+        "stated_years": { "type": ["number","null"], "minimum": 0 },
+        "platform": { "type": ["string","null"], "description": "For kind=profile/achievement: github, codeforces, leetcode, codechef, atcoder." },
+        "handle": { "type": ["string","null"] },
+        "metric": { "type": ["string","null"], "examples": ["max_rating","contest_rank","problems_solved"] },
+        "value": { "type": ["number","string","null"] },
+        "qualifier": { "type": ["string","null"], "examples": ["Specialist","3-star"] },
+        "context": { "type": ["object","null"], "additionalProperties": true },
+        "parsed": { "type": ["object","null"], "additionalProperties": true, "description": "For kind=identifier: structure decoded from the id, e.g. {admission_year, dept_code, serial}." },
+        "supervisor": { "type": ["string","null"] },
+        "artefacts": { "type": "array", "items": { "$ref": "#/$defs/Artefact" }, "default": [] },
+        "scope": { "type": "array", "items": { "type": "string" }, "default": [], "description": "For kind=declaration_marker: which claim groups the disclaimer covers." },
+        "asserted_by": { "enum": ["candidate","institution",null], "default": null },
+        "effect": { "enum": ["inherit_unverified",null], "default": null },
+        "provenance": { "$ref": "#/$defs/SpanProvenance" },
+        "resolution": { "oneOf": [{ "$ref": "#/$defs/Resolution" }, { "type": "null" }] },
+        "flags": { "type": "array", "items": { "type": "string" }, "default": [],
+                   "examples": [["end_in_future"],["derived_from_repo_url"],["date_imprecise"]] }
+      }
+    },
+
+    "ExtractionMeta": {
+      "type": "object",
+      "required": ["model_id","prompt_version","input_hash","extracted_at"],
+      "additionalProperties": false,
+      "properties": {
+        "model_id": { "type": "string", "examples": ["claude-opus-5"] },
+        "prompt_version": { "type": "string", "examples": ["extract/v3"] },
+        "input_hash": { "type": "string" },
+        "span_failures": { "type": "integer", "minimum": 0, "default": 0 },
+        "retries": { "type": "integer", "minimum": 0, "default": 0 },
+        "extracted_at": { "type": "string", "format": "date-time" },
+        "degraded": { "type": "boolean", "default": false }
+      }
+    },
+
+    "ClaimGraph": {
+      "type": "object",
+      "description": "What the candidate says about themselves. Produced by the acquisition service.",
+      "required": ["graph_id","source","claims","extraction_meta"],
+      "additionalProperties": false,
+      "properties": {
+        "graph_id": { "$ref": "#/$defs/Id" },
+        "source": {
+          "type": "object",
+          "required": ["document_id","normalised_text"],
+          "additionalProperties": false,
+          "properties": {
+            "document_id": { "type": "string" },
+            "normalised_text": { "type": "string", "description": "The exact string all char offsets index into." }
+          }
+        },
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/Claim" } },
+        "extraction_meta": { "$ref": "#/$defs/ExtractionMeta" }
+      }
+    },
+
+    "ActivityWindow": {
+      "type": "object",
+      "required": ["start","end","commit_count"],
+      "additionalProperties": false,
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" },
+        "commit_count": { "type": "integer", "minimum": 0 },
+        "active_days": { "type": ["integer","null"], "minimum": 0 },
+        "primary_languages": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "source_timestamps": { "const": "server_side", "description": "Git author/committer dates are attacker-controlled. Only platform-recorded push times are used." }
+      }
+    },
+
+    "RepoEvidence": {
+      "type": "object",
+      "required": ["name","exists"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "exists": { "type": "boolean" },
+        "is_fork": { "type": ["boolean","null"] },
+        "owner_matches": { "type": ["boolean","null"] },
+        "created_at": { "type": ["string","null"], "format": "date" },
+        "first_commit": { "type": ["string","null"], "format": "date" },
+        "last_commit": { "type": ["string","null"], "format": "date" },
+        "commit_count": { "type": ["integer","null"], "minimum": 0 },
+        "size_kb": { "type": ["integer","null"], "minimum": 0 },
+        "is_readme_only": { "type": ["boolean","null"] },
+        "languages": { "type": "object", "additionalProperties": { "type": "integer" }, "default": {},
+                       "description": "Bytes per language. NOTE: gives languages, not frameworks - React/Next.js appear as TypeScript. Framework detection requires dependency-manifest parsing." },
+        "frameworks": { "type": "array", "items": { "type": "string" }, "default": [],
+                        "description": "Parsed from package.json / requirements.txt / go.mod where available." }
+      }
+    },
+
+    "GitHubEvidence": {
+      "type": "object",
+      "required": ["handle","ownership"],
+      "additionalProperties": false,
+      "properties": {
+        "handle": { "type": "string" },
+        "ownership": {
+          "enum": ["verified_oauth","verified_challenge","claimed_unverified","not_found"],
+          "description": "claimed_unverified caps derived reliability and, critically, only for events that would RAISE a score. Contradicting evidence is not capped: nobody lists a handle that undermines them."
+        },
+        "account_created": { "type": ["string","null"], "format": "date" },
+        "contribution_windows": { "type": "array", "items": { "$ref": "#/$defs/ActivityWindow" }, "default": [] },
+        "repos": { "type": "array", "items": { "$ref": "#/$defs/RepoEvidence" }, "default": [] },
+        "org_memberships": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "first_commit_by_language": { "type": "object", "additionalProperties": { "type": "string", "format": "date" }, "default": {} }
+      }
+    },
+
+    "ContestResult": {
+      "type": "object",
+      "required": ["name","rank"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "rank": { "type": "integer", "minimum": 1 },
+        "date": { "type": ["string","null"], "format": "date" },
+        "rating_after": { "type": ["integer","null"] }
+      }
+    },
+
+    "PlatformEvidence": {
+      "type": "object",
+      "required": ["platform","handle","found"],
+      "additionalProperties": false,
+      "properties": {
+        "platform": { "enum": ["codeforces","leetcode","codechef","atcoder","hackerrank"] },
+        "handle": { "type": "string" },
+        "found": { "type": "boolean" },
+        "current_rating": { "type": ["integer","null"] },
+        "max_rating": { "type": ["integer","null"] },
+        "rank_title": { "type": ["string","null"] },
+        "problems_solved": { "type": ["integer","null"], "minimum": 0 },
+        "contests": { "type": "array", "items": { "$ref": "#/$defs/ContestResult" }, "default": [] },
+        "source_quality": { "enum": ["official_api","scrape"], "default": "official_api",
+                            "description": "Scraped sources degrade reliability at ingest." }
+      }
+    },
+
+    "DeploymentEvidence": {
+      "type": "object",
+      "required": ["url","reachable"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "reachable": { "type": "boolean" },
+        "status_code": { "type": ["integer","null"] },
+        "checked_at": { "type": ["string","null"], "format": "date-time" }
+      }
+    },
+
+    "CredentialEvidence": {
+      "type": "object",
+      "required": ["credential_id","issuer","status"],
+      "additionalProperties": false,
+      "properties": {
+        "credential_id": { "type": "string" },
+        "issuer": { "type": "string" },
+        "status": { "enum": ["verified","not_found","revoked","expired","issuer_unreachable"] },
+        "method": { "enum": ["issuer_api","w3c_vc","none"], "default": "none" },
+        "issued_at": { "type": ["string","null"], "format": "date" },
+        "expires_at": { "type": ["string","null"], "format": "date" }
+      }
+    },
+
+    "Gap": {
+      "type": "object",
+      "description": "Why a source could not be consulted. Load-bearing: rules abstain WITH this reason, which flows into the not_evaluated bucket. Silence would read as a pass.",
+      "required": ["source","reason"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "reason": { "enum": ["no_handle_in_cv","not_found","rate_limited","unreachable","ownership_unverified","no_consent","not_supplied"] },
+        "detail": { "type": ["string","null"] }
+      }
+    },
+
+    "EvidenceBundle": {
+      "type": "object",
+      "description": "What the outside world returned. Produced by the acquisition service; consumed by the reasoning service.",
+      "required": ["bundle_id","graph_id","gathered_at"],
+      "additionalProperties": false,
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/Id" },
+        "graph_id": { "$ref": "#/$defs/Id" },
+        "github": { "oneOf": [{ "$ref": "#/$defs/GitHubEvidence" }, { "type": "null" }] },
+        "platforms": { "type": "array", "items": { "$ref": "#/$defs/PlatformEvidence" }, "default": [] },
+        "deployments": { "type": "array", "items": { "$ref": "#/$defs/DeploymentEvidence" }, "default": [] },
+        "credentials": { "type": "array", "items": { "$ref": "#/$defs/CredentialEvidence" }, "default": [] },
+        "registries": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Resolution" }, "default": {} },
+        "gathered_at": { "type": "string", "format": "date-time" },
+        "gaps": { "type": "array", "items": { "$ref": "#/$defs/Gap" }, "default": [] }
+      }
+    },
+
+    "Discrepancy": {
+      "type": "object",
+      "required": ["finding_id","rule_id","rule_version","tier","severity","confidence","scoring","claim_refs","explanation"],
+      "additionalProperties": false,
+      "properties": {
+        "finding_id": { "$ref": "#/$defs/Id" },
+        "rule_id": { "type": "string", "examples": ["D7","G5","P1","W1"] },
+        "rule_version": { "type": "string" },
+        "tier": {
+          "enum": ["decisive","attention","evidence_only"],
+          "description": "decisive = authoritative source + deterministic comparison. attention = reliable signal with innocent explanations the system cannot see; presented as a QUESTION. evidence_only = material for a human, no machine conclusion. Tier determines the report bucket automatically."
+        },
+        "severity": { "enum": ["info","low","medium","high"] },
+        "confidence": { "$ref": "#/$defs/Confidence" },
+        "scoring": {
+          "type": "boolean",
+          "description": "false means the aggregator structurally cannot include it. Enforced in code for D11 (timeline gap) and D12 (title progression), which encode career-shape bias."
+        },
+        "claim_refs": { "type": "array", "items": { "$ref": "#/$defs/Id" } },
+        "evidence_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "params": { "type": "object", "additionalProperties": true, "default": {} },
+        "explanation": { "type": "string" },
+        "innocent_explanation": {
+          "type": ["string","null"],
+          "description": "Required for tier=attention. Shown alongside the signal so a reviewer sees the benign reading first."
+        }
+      }
+    },
+
+    "RuleOutcome": {
+      "type": "object",
+      "description": "EVERY registered rule appears here, including those that did not fire. A rule that raises is isolated and recorded as error; it never takes down the report.",
+      "required": ["rule_id","status"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": { "type": "string" },
+        "rule_version": { "type": ["string","null"] },
+        "status": { "enum": ["fired","clean","abstained","error","not_applicable"] },
+        "reason": { "type": ["string","null"], "description": "REQUIRED when status is abstained or error." }
+      }
+    },
+
+    "SectionConfidence": {
+      "type": "object",
+      "required": ["section","confidence","basis_finding_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "section": { "enum": ["employment","education","certification","skills","projects","achievements"] },
+        "confidence": { "$ref": "#/$defs/Confidence" },
+        "basis_finding_ids": { "type": "array", "items": { "$ref": "#/$defs/Id" } }
+      }
+    },
+
+    "FindingsReport": {
+      "type": "object",
+      "description": "NOTE: there is deliberately no overall_score field. Collapsing findings into one number turns an evidence report into an automated judgement and becomes a hiring threshold within a week of shipping.",
+      "required": ["report_id","graph_id","discrepancies","rule_outcomes","buckets","evaluated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "report_id": { "$ref": "#/$defs/Id" },
+        "graph_id": { "$ref": "#/$defs/Id" },
+        "discrepancies": { "type": "array", "items": { "$ref": "#/$defs/Discrepancy" } },
+        "rule_outcomes": { "type": "array", "items": { "$ref": "#/$defs/RuleOutcome" } },
+        "section_confidence": { "type": "array", "items": { "$ref": "#/$defs/SectionConfidence" }, "default": [] },
+        "buckets": {
+          "type": "object",
+          "description": "The five-bucket human view, derived from tier. A recruiter reads a report in about 60 seconds; caps are a design constraint, not a preference.",
+          "required": ["verified","contradicted","needs_context","not_evaluated","out_of_scope"],
+          "additionalProperties": false,
+          "properties": {
+            "verified": { "type": "array", "items": { "type": "string" }, "description": "Collapsed to a count plus one line in the UI." },
+            "contradicted": { "type": "array", "items": { "$ref": "#/$defs/Id" }, "maxItems": 5 },
+            "needs_context": { "type": "array", "items": { "$ref": "#/$defs/Id" } },
+            "not_evaluated": { "type": "array", "items": { "type": "string" } },
+            "out_of_scope": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "evaluated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "Narrative": {
+      "type": "object",
+      "description": "Rendered from the FindingsReport ONLY - never the document, never the ClaimGraph. The restriction is enforced by the endpoint signature, so the prose cannot introduce a fact nobody computed.",
+      "required": ["summary","cited_finding_ids","model_id","prompt_version"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "type": "string" },
+        "sections": { "type": "object", "additionalProperties": { "type": "string" }, "default": {} },
+        "cited_finding_ids": { "type": "array", "items": { "$ref": "#/$defs/Id" } },
+        "model_id": { "type": "string" },
+        "prompt_version": { "type": "string" },
+        "fallback_used": { "type": "boolean", "default": false, "description": "true when generation failed faithfulness validation twice and a deterministic template was rendered. The report must render even when generation does not." }
+      }
+    },
+
+    "VerificationCoverage": {
+      "type": "object",
+      "description": "A composite confidence about the VERIFICATION, not about the person. A high number means 'we checked thoroughly', never 'they are good' - so it cannot become a hiring threshold.",
+      "required": ["rules_total","rules_evaluated","rules_abstained","coverage"],
+      "additionalProperties": false,
+      "properties": {
+        "rules_total": { "type": "integer", "minimum": 0 },
+        "rules_evaluated": { "type": "integer", "minimum": 0 },
+        "rules_abstained": { "type": "integer", "minimum": 0 },
+        "coverage": { "$ref": "#/$defs/Confidence" },
+        "attestation_depth": { "enum": ["none","registry_only","issuer_verified"] },
+        "identity_confidence": {
+          "enum": ["unverified","claimed","proven"],
+          "description": "proven requires OAuth or a challenge. Gates whether corroborating evidence may raise a skill score."
+        }
+      }
+    },
+
+    "SourceQuery": {
+      "type": "object",
+      "required": ["source","queried_at","ttl_days"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "queried_at": { "type": "string", "format": "date-time" },
+        "response_hash": { "type": ["string","null"] },
+        "ttl_days": { "type": "integer", "minimum": 1, "description": "Freshness budget: codeforces 7, github 30, credentials 90." }
+      }
+    },
+
+    "ReportProvenance": {
+      "type": "object",
+      "description": "Everything needed to explain a finding months later, when the underlying sources have moved on.",
+      "required": ["cvv_version","contract_version","rule_versions"],
+      "additionalProperties": false,
+      "properties": {
+        "cvv_version": { "type": "string" },
+        "contract_version": { "type": "string" },
+        "model_id": { "type": ["string","null"] },
+        "prompt_versions": { "type": "object", "additionalProperties": { "type": "string" }, "default": {} },
+        "rule_versions": { "type": "object", "additionalProperties": { "type": "string" } },
+        "sources_queried": { "type": "array", "items": { "$ref": "#/$defs/SourceQuery" }, "default": [] }
+      }
+    }
+  }
+}

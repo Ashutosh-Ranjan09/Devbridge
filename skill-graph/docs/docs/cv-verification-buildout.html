@@ -1,0 +1,460 @@
+<title>CV Verification Buildout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --det:#0F6E63; --det-soft:#E2F0EE; --det-line:#8FC4BC;
+  --llm:#6244C5; --llm-soft:#ECE7FA; --llm-line:#B3A2EE;
+  --warn:#8A5A12; --warn-soft:#F6EEDF;
+  --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+    --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+    --det:#43C3B1; --det-soft:#12312E; --det-line:#2A6B62;
+    --llm:#A48FF5; --llm-soft:#221C3C; --llm-line:#4B3E82;
+    --warn:#D3A054; --warn-soft:#31281A;
+    --crit:#E08376; --crit-soft:#341F1C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --det-line:#2A6B62;
+  --llm:#A48FF5; --llm-soft:#221C3C; --llm-line:#4B3E82;
+  --warn:#D3A054; --warn-soft:#31281A;
+  --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1140px; margin:0 auto; padding:0 28px 110px}
+
+.mast{padding:70px 0 32px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.3rem,5.4vw,3.7rem); line-height:1.03; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.17rem; color:var(--ink-2); max-width:62ch; margin:20px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:10px 30px; margin-top:26px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+
+section{padding:40px 0 44px; border-bottom:1px solid var(--rule); scroll-margin-top:16px}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.8rem; letter-spacing:-.021em; line-height:1.16; margin:0 0 8px; text-wrap:balance; display:flex; gap:15px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.83rem; font-weight:500; color:var(--muted); flex:none; letter-spacing:0}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.13rem; letter-spacing:-.01em; margin:34px 0 8px; text-wrap:balance}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:26px 0 9px}
+p{margin:0 0 15px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.06rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 16px; padding-left:1.25em}
+li{margin-bottom:7px} li::marker{color:var(--muted)}
+a{color:var(--det)}
+code{font-family:var(--f-mono); font-size:.855em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:16px 18px; overflow-x:auto; font-family:var(--f-mono); font-size:12.5px; line-height:1.6; margin:18px 0 22px; color:var(--ink-2)}
+pre b{color:var(--det); font-weight:500} pre i{color:var(--muted); font-style:normal} pre u{color:var(--llm); text-decoration:none}
+
+.scroller{overflow-x:auto; margin:20px 0 24px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.5px; line-height:1.5}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:11px 14px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:12px; white-space:nowrap}
+
+.tag{display:inline-block; font-family:var(--f-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:2.5px 7px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-llm{background:var(--llm-soft); color:var(--llm)} .t-det{background:var(--det-soft); color:var(--det)}
+.t-warn{background:var(--warn-soft); color:var(--warn)} .t-crit{background:var(--crit-soft); color:var(--crit)}
+
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:16px 20px; margin:20px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.llm{border-left-color:var(--llm)} .note.det{border-left-color:var(--det)}
+.note.warn{border-left-color:var(--warn)} .note.crit{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 8px; font-weight:500; color:var(--muted)}
+.note.llm h5{color:var(--llm)} .note.det h5{color:var(--det)} .note.warn h5{color:var(--warn)} .note.crit h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+
+/* two-track */
+.tracks{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:24px 0}
+@media (max-width:860px){ .tracks{grid-template-columns:1fr} }
+.track{border:1px solid var(--rule); border-radius:7px; background:var(--surface); padding:20px 22px; box-shadow:var(--shadow)}
+.track.a{border-top:3px solid var(--llm)}
+.track.b{border-top:3px solid var(--det)}
+.track .who{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.15em; text-transform:uppercase; font-weight:500}
+.track.a .who{color:var(--llm)} .track.b .who{color:var(--det)}
+.track h4{margin:6px 0 4px; font-family:var(--f-display); font-size:1.12rem; font-weight:600; letter-spacing:-.01em; text-transform:none; color:var(--ink)}
+.track .sub{font-family:var(--f-display); font-size:13.5px; color:var(--muted); margin:0 0 14px; line-height:1.5}
+.track ul{margin:0; padding-left:0; list-style:none; font-family:var(--f-display); font-size:13.5px; max-width:none}
+.track ul li{display:flex; gap:10px; padding:6px 0; border-top:1px solid var(--rule); margin:0; line-height:1.45; color:var(--ink-2)}
+.track ul li b{font-family:var(--f-mono); font-size:11px; color:var(--muted); flex:none; width:34px; padding-top:2px; font-weight:400}
+
+/* schedule */
+.sched{margin:24px 0 8px; border:1px solid var(--rule); border-radius:7px; overflow:hidden; background:var(--surface)}
+.srow{display:grid; grid-template-columns:74px 1fr 1fr; border-bottom:1px solid var(--rule)}
+.srow:last-child{border-bottom:none}
+.srow.head{background:var(--surface-2)}
+.srow.head div{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); padding:10px 14px; font-weight:500}
+.srow.head .ha{color:var(--llm)} .srow.head .hb{color:var(--det)}
+.wk{font-family:var(--f-mono); font-size:11.5px; color:var(--muted); padding:14px; border-right:1px solid var(--rule); font-variant-numeric:tabular-nums; background:var(--surface-2)}
+.ca,.cb{padding:13px 15px; font-family:var(--f-display); font-size:13.5px; line-height:1.5; color:var(--ink-2); min-width:0}
+.ca{border-right:1px solid var(--rule); border-left:2px solid var(--llm-line)}
+.cb{border-left:2px solid var(--det-line)}
+.ca strong,.cb strong{display:block; color:var(--ink); font-weight:600; margin-bottom:3px; font-size:13.5px}
+.joint{grid-column:2 / span 2; padding:13px 15px; font-family:var(--f-display); font-size:13.5px; line-height:1.5; color:var(--ink-2); background:var(--surface-2); border-left:2px solid var(--rule-2)}
+.joint strong{display:block; color:var(--ink); font-weight:600; margin-bottom:3px}
+@media (max-width:860px){
+  .srow{grid-template-columns:60px 1fr} .srow.head{display:none}
+  .ca,.cb{grid-column:2; border-right:none}
+  .wk{grid-row:span 2}
+  .joint{grid-column:2}
+}
+footer{margin-top:52px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M5 — Two-Person Build Plan</p>
+  <h1>CV Verification Buildout</h1>
+  <p class="deck">The standalone verification engine, split into two tracks that can be built in parallel from week one and integrated without either person waiting on the other. One seam, one contract, two owners.</p>
+  <div class="meta">
+    <span><b>Module</b> M5 — cv-verification</span>
+    <span><b>Team</b> 2</span>
+    <span><b>Span</b> ~16 weeks</span>
+    <span><b>Training</b> none</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>What "standalone" has to mean</h2>
+  <p class="lede">Three constraints define this module. Everything else in the plan follows from them, and violating any one turns a product back into a feature.</p>
+  <ol>
+    <li><strong>It runs on any CV.</strong> A document from someone with no DevBridge account, no connected repositories, and no platform history must produce a complete, useful report. Anything the platform adds is an enhancement, never a prerequisite.</li>
+    <li><strong>It imports nothing from the platform.</strong> No marketplace models, no shared database, no internal calls. Whatever it needs from other modules arrives through its public request body — which means an enterprise customer can supply the same thing.</li>
+    <li><strong>It emits findings, never verdicts.</strong> Output is a structured set of discrepancies with calibrated confidence and source provenance. No score threshold, no pass/fail, no hiring recommendation.</li>
+  </ol>
+  <div class="note det">
+    <h5>How platform evidence enters without creating a dependency</h5>
+    <p>Cross-referencing CV claims against commit history is the highest-value rule in the catalogue — but M3 will not exist for months, and enterprise customers will never have it. So the verification request carries an <strong>optional <code>external_signals</code> block</strong>. When it is present, the commit-reconciliation rules fire. When it is absent, those rules <em>abstain explicitly</em> and say so in the report. M5 never calls M3; M3 (or a customer's own ATS) supplies the data as input.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>The seam</h2>
+  <p class="lede">A two-person project succeeds or fails on where you cut it. There is exactly one good cut here, and it falls between understanding the document and judging it.</p>
+
+  <div class="tracks">
+    <div class="track a">
+      <div class="who">Track A — Person 1</div>
+      <h4>Understanding</h4>
+      <p class="sub">Bytes in, a validated ClaimGraph out. Owns everything where language is ambiguous and a model is doing the reading.</p>
+      <ul>
+        <li><b>5.1</b>doc-ingest — layout-aware extraction, reading order, offset map</li>
+        <li><b>5.2</b>claim-extractor — text → typed claims with enforced spans <span class="tag t-llm">L1</span></li>
+        <li><b>5.3</b>entity-resolver — embedding retrieval + closed-set tie-break <span class="tag t-llm">L2</span></li>
+        <li><b>5.6b</b>narrative-renderer — findings → recruiter-readable prose <span class="tag t-llm">L3</span></li>
+      </ul>
+    </div>
+    <div class="track b">
+      <div class="who">Track B — Person 2</div>
+      <h4>Judgement</h4>
+      <p class="sub">A ClaimGraph in, a findings report out. Owns everything that must be deterministic, testable, and defensible line by line.</p>
+      <ul>
+        <li><b>5.4</b>consistency-engine — the rule catalogue and interval logic</li>
+        <li><b>5.5</b>external-attestation — VC verifier, issuer connectors, reference issuer</li>
+        <li><b>5.6a</b>finding-aggregator — confidence composition, report assembly</li>
+        <li><b>5.0</b>service shell — API, jobs, storage, metering, tenancy, CI</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>ClaimGraph — the one interface between them</h3>
+  <p>Track A produces it. Track B consumes it. Nothing else crosses. It is designed and frozen in week 1, before either person writes implementation code, and it ships with hand-authored golden fixtures covering every claim type and every edge case the rules will need.</p>
+
+<pre><b>ClaimGraph</b> {
+  graph_id, schema_version, document_id,
+  <i>source</i>: { pages, char_count, ingest_method, ocr_used },
+  <i>claims</i>: [ <b>Claim</b> ],
+  <i>extraction_meta</i>: { <u>model_id</u>, <u>prompt_version</u>, input_hash,
+                       span_failures, retries, extracted_at }
+}
+
+<b>Claim</b> {
+  claim_id, kind: employment | education | certification | project | skill,
+  <i>interval</i>: { start: {y, m?}, end: {y, m?} | "present",
+               precision: exact | month | year | open },
+  <i>attributes</i>: { org?, title?, degree?, issuer?, credential_id?, skill_refs[] },
+  <i>provenance</i>: { char_start, char_end, page, verbatim },
+  <i>resolution</i>: { canonical_id?, registry?, score, status: resolved | ambiguous | unresolved },
+  <i>flags</i>: [ date_imprecise, employment_type_unstated, ... ]
+}</pre>
+
+  <div class="note warn">
+    <h5>The fixtures are the real deliverable of week 1</h5>
+    <p>Roughly twenty hand-written ClaimGraph JSON files, committed to the repository: a clean CV, one with overlapping employment, one with an anachronistic skill claim, one with year-only precision throughout, one with an unresolvable employer, one with nothing but projects. <strong>Track B builds the entire rule engine against these and never once needs Track A's extractor to be working.</strong> That is what buys genuine parallelism instead of one person waiting.</p>
+  </div>
+
+  <h3>Why this cut and not another</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Property</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr><td>Single interface</td><td>One schema to agree on, one place integration can break, one thing to version.</td></tr>
+      <tr><td>Skill-aligned</td><td>Track A is prompts, schemas, retrieval, evaluation of fuzzy output. Track B is logic, state machines, APIs, test discipline. Different work, different debugging rhythm.</td></tr>
+      <tr><td>Track B is never blocked</td><td>Fixtures exist from week 1. If the API budget runs dry or extraction quality stalls, B keeps shipping at full speed.</td></tr>
+      <tr><td>Failure isolation</td><td>A bad report is traceable to a wrong claim (A) or a wrong rule (B) by inspecting the ClaimGraph between them. No shared blame surface.</td></tr>
+      <tr><td>Attributable for assessment</td><td>Each person owns modules, metrics, and a report chapter end to end — which matters when contributions are graded individually.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Track A — Understanding <span class="tag t-llm" style="align-self:center">LLM</span></h2>
+
+  <h3>5.1 doc-ingest <span class="tag t-det">deterministic</span></h3>
+  <p>Deterministic work, but it belongs to A because extraction quality depends on it and the two must be tuned together.</p>
+  <ul>
+    <li><strong>Text and geometry</strong> — PyMuPDF for text with bounding boxes; pdfplumber as a cross-check on tables.</li>
+    <li><strong>Reading order</strong> — the actual hard problem. Two-column résumés interleave catastrophically under naïve extraction. Recursive XY-cut segmentation, or x-coordinate clustering into columns then top-to-bottom within each.</li>
+    <li><strong>DOCX</strong> — parse the structure rather than flattening to text; headings and list nesting are signal.</li>
+    <li><strong>Scanned documents</strong> — PaddleOCR, with a confidence floor below which the document is rejected rather than guessed at.</li>
+    <li><strong>Section segmentation</strong> — heuristics on font size, weight, and heading vocabulary. Cheap, and it measurably improves extraction by giving the model explicit structure.</li>
+  </ul>
+  <p><strong>Output contract:</strong> normalised text plus a <code>char_index → (page, bbox)</code> map. That map is load-bearing — it is what lets the UI highlight the exact region a claim came from, and it is what makes span grounding verifiable rather than decorative.</p>
+
+  <h3>5.2 claim-extractor <span class="tag t-llm">L1</span></h3>
+  <p>A whole résumé fits in context with enormous room to spare, so there is no chunking, no retrieval, no windowing. One call, one document, strict schema.</p>
+
+  <h4>Span grounding — the core guarantee</h4>
+  <p>Every claim must carry the verbatim text it came from, and that text is verified to exist in the source before the claim is accepted. A fabricated employer cannot survive the check.</p>
+<pre><i>for each returned claim:</i>
+  norm = NFKC(collapse_whitespace(claim.verbatim))
+  <b>if</b> norm in normalised_source:
+      recover char offsets → accept
+  <b>elif</b> fuzzy_ratio(norm, best_window) &gt; 0.92:
+      accept with flag <i>span_recovered</i>
+  <b>else</b>:
+      reject claim → retry once with the failures named
+      → still failing: drop claim, record <i>span_failure</i></pre>
+  <div class="note llm">
+    <h5>The detail that decides whether this works in practice</h5>
+    <p>Naïve exact matching fails constantly on real PDFs — ligatures, non-breaking spaces, soft hyphens, and inconsistent whitespace from the extractor. Normalise both sides (NFKC, whitespace collapse) before comparing, and keep a fuzzy tier above it. Skip this and you will reject a third of your correct claims and conclude the model is hallucinating when it is not.</p>
+  </div>
+
+  <h4>Request configuration</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Setting</th><th>Choice</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Model</td><td class="mono">claude-opus-5</td><td>Accuracy-critical and the volume is low enough that the cost difference is not the binding constraint.</td></tr>
+      <tr><td>Output</td><td>Structured outputs — <code>output_config.format</code></td><td>Schema conformance is enforced server-side, so no parse-repair loop.</td></tr>
+      <tr><td>Thinking</td><td><code>{type:"adaptive"}</code>, effort <code>medium</code></td><td>Date reasoning and section disambiguation genuinely benefit; the task does not need <code>high</code>.</td></tr>
+      <tr><td>Caching</td><td>Schema + instructions + few-shot as a cached prefix</td><td>Large stable prefix, one variable document. Verify with <code>usage.cache_read_input_tokens</code> — if it reads zero, something varies inside the prefix.</td></tr>
+      <tr><td>Corpus runs</td><td>Batch API</td><td>Evaluation sweeps are not latency-sensitive and run at half cost.</td></tr>
+      <tr><td>Provenance</td><td><code>model_id</code> + <code>prompt_version</code> + <code>input_hash</code> stored per extraction</td><td>Makes every result reproducible and every prompt change measurable rather than anecdotal.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Deterministic post-validation <span class="tag t-det">no model</span></h4>
+  <p>Runs on every extraction before the ClaimGraph is released. Catches what span grounding cannot: dates that fail to parse, intervals ending before they start, dates in the future, <code>present</code> on more than one full-time role, empty required attributes, claim types that contradict their source section.</p>
+
+  <h3>5.3 entity-resolver <span class="tag t-llm">L2</span></h3>
+  <p>Retrieval first, model second, and the model only ever chooses from a closed set.</p>
+  <ol>
+    <li>Embed the surface form; retrieve top-k from the registry via <code>pgvector</code>.</li>
+    <li>If the top candidate clears an absolute threshold and beats the runner-up by a margin — accept, no model call. This is most cases.</li>
+    <li>Only when the top two are close: one model call, given <em>only</em> those candidates plus an explicit abstain option.</li>
+    <li>Nothing clears threshold — status <code>unresolved</code>. An honest unknown beats a confident wrong canonical ID.</li>
+  </ol>
+  <p><strong>Registries:</strong> ESCO for skills (free, downloadable, multilingual). AICTE and UGC publish institution lists for India. Employers are the hard one — seed from a public company registry and accept that the long tail stays unresolved.</p>
+
+  <h3>5.6b narrative-renderer <span class="tag t-llm">L3</span></h3>
+  <p>Input is the findings JSON and nothing else — never the CV, never the ClaimGraph. The model cannot introduce a fact it was not given if it was never given the document.</p>
+  <div class="note llm">
+    <h5>Faithfulness is checkable automatically</h5>
+    <p>Extract every numeral and every date from the generated prose and assert each one appears in the findings JSON. Assert every paragraph cites at least one finding ID. Both are a few lines of code, both run in CI on every prompt change, and together they catch the failure that matters — prose that sounds authoritative about something nobody computed. If validation fails twice, fall back to a deterministic template. <strong>The report must render even when generation does not.</strong></p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Track B — Judgement <span class="tag t-det" style="align-self:center">deterministic</span></h2>
+
+  <h3>5.4 consistency-engine</h3>
+  <p>The intellectual core of this half, and the part that most rewards being built carefully.</p>
+
+  <h4>Intervals are imprecise, and pretending otherwise is the classic bug</h4>
+  <p>"2021–2023" does not denote an interval. It denotes a <em>set</em> of possible intervals. Every date is stored as a bound pair, and every relation resolves to one of three answers rather than a boolean:</p>
+<pre><b>FuzzyInterval</b> { start_min, start_max, end_min, end_max }
+
+overlap(A, B) → <b>DEFINITE</b>   <i>overlaps under every consistent reading</i>
+              → <b>POSSIBLE</b>   <i>overlaps under some readings</i>
+              → <b>NONE</b>       <i>disjoint under every reading</i>
+
+<i>Only DEFINITE ever raises a discrepancy.</i>
+<i>POSSIBLE is recorded, surfaced as context, and never scored.</i></pre>
+  <p>Getting this right is what separates a rule engine that is trusted from one that cries wolf on every year-only résumé — which is most of them.</p>
+
+  <h4>Rule catalogue</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Rule</th><th>Basis</th><th>Strength</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">R1</td><td>Employment overlap</td><td>Two full-time roles, DEFINITE overlap</td><td>Strong</td></tr>
+      <tr><td class="mono">R2</td><td>Study/work conflict</td><td>Full-time degree DEFINITE-overlapping full-time role</td><td>Moderate — common and often legitimate</td></tr>
+      <tr><td class="mono">R3</td><td>Technology anachronism</td><td>Skill claimed before the technology existed, via a release-date registry</td><td><strong>Decisive</strong> — a hard fact, confidence 1.0</td></tr>
+      <tr><td class="mono">R4</td><td>Skill-tenure bound</td><td>Claimed years exceed time since first plausible exposure</td><td>Strong</td></tr>
+      <tr><td class="mono">R5</td><td>Duration arithmetic</td><td>Stated total experience vs. sum of non-overlapping intervals</td><td>Strong — pure arithmetic</td></tr>
+      <tr><td class="mono">R6</td><td>Internal contradiction</td><td>Same role given different dates in different sections</td><td>Strong</td></tr>
+      <tr><td class="mono">R7</td><td>Degree duration</td><td>Programme length vs. its known standard duration</td><td>Moderate</td></tr>
+      <tr><td class="mono">R8</td><td>Institution existence</td><td>Unresolvable against AICTE/UGC registries</td><td>Moderate — absence is weak evidence</td></tr>
+      <tr><td class="mono">R9</td><td>Credential attestation</td><td>Issuer verification via §5.5</td><td><strong>Decisive</strong> where an issuer responds</td></tr>
+      <tr><td class="mono">R10</td><td>Commit reconciliation</td><td>Claimed employment vs. supplied activity signals</td><td>Strong — abstains without <code>external_signals</code></td></tr>
+      <tr><td class="mono">R11</td><td>Title progression</td><td>Seniority trajectory vs. tenure</td><td class="mono">Advisory — non-scoring</td></tr>
+      <tr><td class="mono">R12</td><td>Timeline gap</td><td>Unexplained gap over threshold</td><td class="mono">Advisory — non-scoring</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <h5>R11 and R12 are deliberately non-scoring</h5>
+    <p>These two encode career-shape assumptions that penalise caregiving breaks, illness, non-linear paths, and non-Western title ladders. They stay in the system because a human reviewer may reasonably want to see them — but they are <strong>displayed only, never aggregated into any confidence figure</strong>, and the engine enforces that structurally: a rule declares <code>scoring: false</code> and the aggregator cannot include it. Making this a property of the code rather than a paragraph in the report is the difference between a stated principle and an enforced one.</p>
+  </div>
+
+  <h4>Rule interface</h4>
+  <p>Every rule is a pure function with the same shape, registered declaratively. Adding a rule means adding one file and one fixture — never touching the engine.</p>
+<pre><b>Rule</b> {
+  id, version, severity_class, <b>scoring</b>: bool,
+  requires: [ claim_kinds, external_signals? ],
+  evaluate(graph, signals) → [ <b>Discrepancy</b> ] | <b>ABSTAIN</b>(reason)
+}
+
+<b>Discrepancy</b> {
+  rule_id, rule_version, severity, confidence,
+  claim_refs[], params, explanation_template
+}</pre>
+  <p>Explicit abstention is not a detail. A rule that cannot run must say so and say why, and the report must show it — "commit reconciliation: not evaluated, no activity data supplied" is information a recruiter needs. Silence reads as a pass.</p>
+
+  <h4>Where confidence comes from without any fitting</h4>
+  <p>Each rule derives its own confidence from a documented formula over the evidence in front of it. No global weights, no learned parameters:</p>
+  <ul>
+    <li><strong>R3 anachronism</strong> — 1.0. The technology's release date is a fact.</li>
+    <li><strong>R1 overlap</strong> — scales with the overlap fraction that holds under <em>every</em> consistent date reading. Total overlap under all readings approaches 1.0; a marginal one stays low.</li>
+    <li><strong>R5 arithmetic</strong> — scales with the size of the discrepancy relative to date imprecision.</li>
+    <li><strong>R8 registry miss</strong> — capped low by construction, because registry incompleteness is far more likely than a fabricated institution.</li>
+  </ul>
+
+  <h3>5.5 external-attestation</h3>
+  <ul>
+    <li><strong>W3C Verifiable Credentials 2.0 verifier</strong> — signature validation, issuer DID resolution, expiry, revocation status.</li>
+    <li><strong>Reference issuer</strong> — a small companion service that issues signed VCs for degrees and certificates. This is how you demonstrate the whole trust path without a single institutional partnership, and implementing the protocol is a stronger result than borrowing one API key.</li>
+    <li><strong>Real integrations that are actually obtainable</strong> — Credly and Acclaim expose public badge verification, and Open Badges 3.0 is now aligned with the VC data model. At least one live issuer integration is within reach, and it is worth the effort: it turns the reference issuer from a substitute into a demonstration.</li>
+  </ul>
+
+  <h3>5.6a finding-aggregator</h3>
+  <p>Composes discrepancies into a report without collapsing them into a single number. Per-section confidence, computed by noisy-OR over independent scoring discrepancies within that section. Advisory findings pass through untouched and unweighted. Abstentions are listed as explicit coverage gaps.</p>
+  <div class="note det">
+    <h5>Deliberately absent</h5>
+    <p>No overall trust score. No threshold. No colour-coded verdict badge. The temptation to add one will be strong — it demos well — and it converts a defensible evidence report into an indefensible automated judgement. The report's top line is what was checked, what was found, and what could not be evaluated.</p>
+  </div>
+
+  <h3>5.0 service shell</h3>
+  <p>Unglamorous and entirely B's, because it is what makes the module a product rather than a script: FastAPI with an async job model (202 + webhook), Postgres for graphs and reports, object storage for documents, idempotency keys on every mutating endpoint, per-verification metering, API-key tenancy with a sandbox tier, OpenAPI 3.1 committed before implementation, and CI that fails when the served spec drifts from the committed one.</p>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Sixteen weeks, two tracks</h2>
+  <p class="lede">Grey rows are joint work. Everything else runs in parallel with no cross-blocking.</p>
+
+  <div class="sched">
+    <div class="srow head"><div>Week</div><div class="ha">Track A — Understanding</div><div class="hb">Track B — Judgement</div></div>
+
+    <div class="srow"><div class="wk">1</div><div class="joint"><strong>Contract design</strong> ClaimGraph and Discrepancy schemas. Repo, CI, OpenAPI skeleton. Decide claim kinds, interval representation, and resolution states together — this conversation is the highest-leverage hour of the project.</div></div>
+    <div class="srow"><div class="wk">2</div><div class="joint"><strong>Fixtures and consent</strong> ~20 hand-authored golden ClaimGraphs covering every rule's positive and negative case. In parallel, start the CV consent process — it has the longest lead time of anything here and everything downstream waits on it.</div></div>
+
+    <div class="srow"><div class="wk">3–4</div>
+      <div class="ca"><strong>Ingest</strong> PDF/DOCX extraction, reading-order handling, the char→bbox offset map. Test on the ugliest résumés you can find.</div>
+      <div class="cb"><strong>Interval algebra</strong> FuzzyInterval and the three-valued relations, exhaustively unit-tested. Rule engine skeleton and registry.</div></div>
+
+    <div class="srow"><div class="wk">5–6</div>
+      <div class="ca"><strong>Extractor v1</strong> Schema, prompt, span-grounding loop with normalisation, deterministic post-validators. First ClaimGraphs from real documents.</div>
+      <div class="cb"><strong>Rules R1–R7</strong> The intra-document catalogue, each with fixtures. Service shell: jobs, storage, endpoints.</div></div>
+
+    <div class="srow"><div class="wk">7</div><div class="joint"><strong>Integration checkpoint 1</strong> A's real ClaimGraphs replace fixtures in B's pipeline. First end-to-end run. Expect schema friction here — this week exists to absorb it, and it is why the checkpoint is scheduled rather than hoped for.</div></div>
+
+    <div class="srow"><div class="wk">8–9</div>
+      <div class="ca"><strong>Gold set + resolver</strong> Hand-label 100 CVs for extraction ground truth. First P/R/F1. Registry ingest, pgvector retrieval, closed-set tie-break.</div>
+      <div class="cb"><strong>Mutation engine</strong> Programmatic falsification injection — date shifts, employer swaps, inflated tenure, anachronistic skills. Ground truth by construction.</div></div>
+
+    <div class="srow"><div class="wk">10–11</div>
+      <div class="ca"><strong>Extraction hardening</strong> Error taxonomy from the gold set, targeted prompt revisions, per-claim-kind metrics. Cache hit rate verified, batch pipeline for corpus runs.</div>
+      <div class="cb"><strong>Attestation</strong> VC verifier, reference issuer, one live integration. R8–R10 including the <code>external_signals</code> path.</div></div>
+
+    <div class="srow"><div class="wk">12</div>
+      <div class="ca"><strong>Narrative renderer</strong> Findings → prose, with automated faithfulness checks and the deterministic template fallback.</div>
+      <div class="cb"><strong>Aggregator</strong> Noisy-OR composition, coverage-gap reporting, scoring/advisory separation enforced in code.</div></div>
+
+    <div class="srow"><div class="wk">13</div><div class="joint"><strong>Integration checkpoint 2 — feature freeze</strong> Full pipeline on the full corpus. No new features after this week; the remaining time is measurement and writing, and protecting it is the single most important scheduling decision in the plan.</div></div>
+
+    <div class="srow"><div class="wk">14</div><div class="joint"><strong>Evaluation runs</strong> Per-fraud-type detection at fixed FPR. Extraction metrics on the gold set. Clean-CV false-positive rate. Ablation: which rules carry the detection. Fairness disaggregation.</div></div>
+
+    <div class="srow"><div class="wk">15–16</div><div class="joint"><strong>Hardening and report</strong> API docs, demo path, error handling. Report chapters written against results that already exist — never against results still being generated.</div></div>
+  </div>
+
+  <div class="note warn">
+    <h5>Two scheduling decisions worth defending</h5>
+    <p><strong>Integration checkpoints are scheduled, not hoped for.</strong> Weeks 7 and 13 exist because "we'll integrate when both sides are ready" is how two-person projects discover in week 14 that their schemas never agreed. <strong>The freeze at week 13 is real.</strong> Three weeks of measurement and writing against a stable system beats five weeks of features and a rushed evaluation — the evaluation is what you are actually graded on.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Evaluation, split by owner</h2>
+  <p class="lede">Each person owns metrics end to end, so contributions stay individually attributable.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Owner</th><th>Metric</th><th>Instrument</th><th>Target</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">A</td><td>Claim extraction P / R / F1</td><td>100-CV hand-labelled gold set, per claim kind</td><td>Recall is the one that matters — a missed claim cannot be checked by any rule.</td></tr>
+      <tr><td class="mono">A</td><td>Span-grounding failure rate</td><td>Counted automatically on every extraction</td><td>Near zero after normalisation. A rising rate is the early warning that a prompt change went wrong.</td></tr>
+      <tr><td class="mono">A</td><td>Resolution accuracy &amp; abstention</td><td>Gold canonical IDs; abstention rate reported alongside</td><td>High accuracy on what it answers; honest abstention on the rest.</td></tr>
+      <tr><td class="mono">A</td><td>Narrative faithfulness</td><td>Automated numeral/date containment + citation check, in CI</td><td>Zero unsupported statements. Any failure blocks the build.</td></tr>
+      <tr><td class="mono">B</td><td>Per-fraud-type detection at fixed FPR</td><td>Injected-falsification corpus</td><td>The headline table of the whole project.</td></tr>
+      <tr><td class="mono">B</td><td>False-positive rate on clean CVs</td><td>Unmutated real corpus</td><td><strong>The number that actually matters.</strong> A system that flags honest people is worse than no system.</td></tr>
+      <tr><td class="mono">B</td><td>Rule ablation</td><td>Disable each rule, measure the detection drop</td><td>Shows which rules carry the work and which are decorative.</td></tr>
+      <tr><td class="mono">B</td><td>Fairness disaggregation</td><td>FPR across career-gap presence, institution region, phrasing register</td><td>A measured, published gap. This is a finding, not a failure.</td></tr>
+      <tr><td class="mono">joint</td><td>End-to-end latency and cost per verification</td><td>Instrumented pipeline</td><td>It is a priced product; unit economics belong in the report.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">07</span>Risks specific to this split</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Risk</th><th>Severity</th><th>Response</th></tr></thead>
+    <tbody>
+      <tr><td>Schema churn after week 7</td><td><span class="tag t-crit">high</span></td><td>Version the ClaimGraph from day one and require additive-only changes after checkpoint 1. A breaking change means both people stop and agree — it is never a unilateral edit.</td></tr>
+      <tr><td>No real CVs available</td><td><span class="tag t-crit">high</span></td><td>Start consent in week 2. Fall back to a designed synthetic distribution across seniority levels and formats, and state the external-validity limitation plainly in the report rather than hiding it.</td></tr>
+      <tr><td>Track A gated on API budget</td><td><span class="tag t-warn">medium</span></td><td>Batch API for all corpus runs, cached prefixes, a hard per-run token ceiling. B is structurally unblockable, so a budget stall costs one track, never both.</td></tr>
+      <tr><td>Unbalanced workload</td><td><span class="tag t-warn">medium</span></td><td>B carries more surface area but less uncertainty; A carries less surface but more iteration. If it skews, the transferable work is registry ingest and the mutation engine — both are self-contained and either person can take them.</td></tr>
+      <tr><td>Evaluation squeezed at the end</td><td><span class="tag t-crit">high</span></td><td>The week-13 freeze, enforced. Every metric in §06 should have produced a number by week 11, even a bad one on partial data — a metric first computed in week 14 is a metric that will not be trusted.</td></tr>
+      <tr><td>Demo pressure toward a single score</td><td><span class="tag t-warn">medium</span></td><td>Anticipate it and answer it in the report: explain why the system deliberately refuses to emit one, with the fairness numbers as the supporting evidence.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>DevBridge M5 — two-person build plan. Companion to the DevBridge engineering plan. Pre-implementation; the ClaimGraph schema is the one thing to settle before any code is written.</footer>
+
+</div>

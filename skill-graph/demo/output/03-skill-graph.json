@@ -1,0 +1,284 @@
+[
+  {
+    "skill_id": "algorithms",
+    "score": 0.703,
+    "interval": [
+      0.703,
+      0.811
+    ],
+    "mean": 0.761,
+    "volatility_tier": "fundamental",
+    "evidence_count": 2,
+    "inferred": false,
+    "days_since_newest_evidence": 0,
+    "propagated": null
+  },
+  {
+    "skill_id": "problem_solving",
+    "score": 0.692,
+    "interval": [
+      0.692,
+      0.804
+    ],
+    "mean": 0.752,
+    "volatility_tier": "fundamental",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 0,
+    "propagated": null
+  },
+  {
+    "skill_id": "data_structures",
+    "score": 0.611,
+    "interval": [
+      0.611,
+      0.792
+    ],
+    "mean": 0.71,
+    "volatility_tier": "fundamental",
+    "evidence_count": 0,
+    "inferred": true,
+    "days_since_newest_evidence": 0,
+    "propagated": {
+      "from_skill_id": "algorithms",
+      "edge_type": "RELATED_TO",
+      "gamma": 0.4
+    }
+  },
+  {
+    "skill_id": "cpp",
+    "score": 0.556,
+    "interval": [
+      0.556,
+      0.708
+    ],
+    "mean": 0.635,
+    "volatility_tier": "fundamental",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 203,
+    "propagated": null
+  },
+  {
+    "skill_id": "go",
+    "score": 0.536,
+    "interval": [
+      0.536,
+      0.7
+    ],
+    "mean": 0.622,
+    "volatility_tier": "ecosystem",
+    "evidence_count": 2,
+    "inferred": false,
+    "days_since_newest_evidence": 81,
+    "propagated": null
+  },
+  {
+    "skill_id": "python",
+    "score": 0.476,
+    "interval": [
+      0.476,
+      0.659
+    ],
+    "mean": 0.57,
+    "volatility_tier": "ecosystem",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 49,
+    "propagated": null
+  },
+  {
+    "skill_id": "kubernetes",
+    "score": 0.474,
+    "interval": [
+      0.474,
+      0.665
+    ],
+    "mean": 0.572,
+    "volatility_tier": "framework",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 49,
+    "propagated": null
+  },
+  {
+    "skill_id": "docker",
+    "score": 0.474,
+    "interval": [
+      0.474,
+      0.665
+    ],
+    "mean": 0.572,
+    "volatility_tier": "framework",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 49,
+    "propagated": null
+  },
+  {
+    "skill_id": "c",
+    "score": 0.461,
+    "interval": [
+      0.461,
+      0.692
+    ],
+    "mean": 0.581,
+    "volatility_tier": "fundamental",
+    "evidence_count": 0,
+    "inferred": true,
+    "days_since_newest_evidence": 203,
+    "propagated": {
+      "from_skill_id": "cpp",
+      "edge_type": "RELATED_TO",
+      "gamma": 0.4
+    }
+  },
+  {
+    "skill_id": "typescript",
+    "score": 0.441,
+    "interval": [
+      0.441,
+      0.652
+    ],
+    "mean": 0.549,
+    "volatility_tier": "ecosystem",
+    "evidence_count": 2,
+    "inferred": false,
+    "days_since_newest_evidence": 279,
+    "propagated": null
+  },
+  {
+    "skill_id": "javascript",
+    "score": 0.405,
+    "interval": [
+      0.405,
+      0.592
+    ],
+    "mean": 0.498,
+    "volatility_tier": "ecosystem",
+    "evidence_count": 0,
+    "inferred": true,
+    "days_since_newest_evidence": 279,
+    "propagated": {
+      "from_skill_id": "typescript",
+      "edge_type": "PREREQUISITE_OF",
+      "gamma": 0.55
+    }
+  },
+  {
+    "skill_id": "react",
+    "score": 0.394,
+    "interval": [
+      0.394,
+      0.61
+    ],
+    "mean": 0.502,
+    "volatility_tier": "framework",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 0,
+    "propagated": null
+  },
+  {
+    "skill_id": "postgresql",
+    "score": 0.388,
+    "interval": [
+      0.388,
+      0.62
+    ],
+    "mean": 0.504,
+    "volatility_tier": "framework",
+    "evidence_count": 3,
+    "inferred": false,
+    "days_since_newest_evidence": 168,
+    "propagated": null
+  },
+  {
+    "skill_id": "deployment",
+    "score": 0.368,
+    "interval": [
+      0.368,
+      0.65
+    ],
+    "mean": 0.51,
+    "volatility_tier": "framework",
+    "evidence_count": 1,
+    "inferred": false,
+    "days_since_newest_evidence": 0,
+    "propagated": null
+  },
+  {
+    "skill_id": "sql",
+    "score": 0.33,
+    "interval": [
+      0.33,
+      0.59
+    ],
+    "mean": 0.457,
+    "volatility_tier": "ecosystem",
+    "evidence_count": 0,
+    "inferred": true,
+    "days_since_newest_evidence": 168,
+    "propagated": {
+      "from_skill_id": "postgresql",
+      "edge_type": "REQUIRES",
+      "gamma": 0.65
+    }
+  },
+  {
+    "skill_id": "numpy",
+    "score": 0.31,
+    "interval": [
+      0.31,
+      0.613
+    ],
+    "mean": 0.458,
+    "volatility_tier": "framework",
+    "evidence_count": 1,
+    "inferred": false,
+    "days_since_newest_evidence": 168,
+    "propagated": null
+  },
+  {
+    "skill_id": "pandas",
+    "score": 0.31,
+    "interval": [
+      0.31,
+      0.613
+    ],
+    "mean": 0.458,
+    "volatility_tier": "framework",
+    "evidence_count": 1,
+    "inferred": false,
+    "days_since_newest_evidence": 168,
+    "propagated": null
+  },
+  {
+    "skill_id": "aws",
+    "score": 0.219,
+    "interval": [
+      0.219,
+      0.554
+    ],
+    "mean": 0.371,
+    "volatility_tier": "framework",
+    "evidence_count": 1,
+    "inferred": false,
+    "days_since_newest_evidence": 526,
+    "propagated": null
+  },
+  {
+    "skill_id": "rust",
+    "score": 0.13,
+    "interval": [
+      0.13,
+      0.487
+    ],
+    "mean": 0.273,
+    "volatility_tier": "ecosystem",
+    "evidence_count": 1,
+    "inferred": false,
+    "days_since_newest_evidence": 49,
+    "propagated": null
+  }
+]

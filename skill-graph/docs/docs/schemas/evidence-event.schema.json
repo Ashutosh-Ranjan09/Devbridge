@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devbridge.dev/schemas/evidence-event/1.0.0",
+  "title": "EvidenceEventBatch",
+  "description": "The projection M5 emits onto the evidence bus for the Verified Skill Graph (M6). M6 does NOT consume discrepancies - it has no interest in fraud. It consumes corroborated capability signals, each carrying a reliability that determines how far it moves the latent-ability estimate. Emission is fire-and-forget: if the bus is down, verification still succeeds. The standalone product must not acquire a hard dependency on platform infrastructure.",
+  "type": "object",
+  "required": ["schema_version","batch_id","verification_id","subject_ref","emitted_at","events"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "batch_id": { "type": "string" },
+    "verification_id": { "type": "string", "description": "Back-reference to the VerificationReport every event derives from." },
+    "subject_ref": { "type": "string" },
+    "emitted_at": { "type": "string", "format": "date-time" },
+    "consent_scope": {
+      "type": "array", "items": { "type": "string" }, "default": [],
+      "description": "Purposes this data may be used for. M6 must refuse events whose scope does not cover skill-graph inclusion."
+    },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/EvidenceEvent" } },
+    "not_emitted": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Suppressed" },
+      "default": [],
+      "description": "What M5 deliberately withheld and why. Makes the filtering auditable rather than invisible."
+    }
+  },
+
+  "$defs": {
+    "Confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+
+    "SkillRef": {
+      "type": "object",
+      "required": ["skill_id","relevance"],
+      "additionalProperties": false,
+      "properties": {
+        "skill_id": { "type": "string", "description": "Canonical ontology id, ESCO-seeded." },
+        "relevance": { "$ref": "#/$defs/Confidence", "description": "How much of this observation bears on this particular skill." }
+      }
+    },
+
+    "ReliabilityFactor": {
+      "type": "object",
+      "description": "Every multiplier applied to the base reliability, named. Makes a capped value auditable instead of magic.",
+      "required": ["factor","value","reason"],
+      "additionalProperties": false,
+      "properties": {
+        "factor": { "type": "string", "examples": ["ownership_unverified","scraped_source","stale_evidence"] },
+        "value": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reason": { "type": "string" }
+      }
+    },
+
+    "EvidenceEvent": {
+      "type": "object",
+      "required": ["event_id","kind","occurred_at","skill_refs","strength","reliability","direction","source"],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "type": "string" },
+        "kind": {
+          "enum": ["cv_claim","claim_corroborated","claim_contradicted","repo_artifact","platform_rating","artifact_live","credential_verified"],
+          "description": "cv_claim is self-reported and weak (reliability ~0.20). platform_rating comes from an authoritative API and is the strongest (~0.90)."
+        },
+        "occurred_at": {
+          "type": "string", "format": "date-time",
+          "description": "When the underlying activity happened, NOT when it was observed. This is what the decay kernel reads: sigma^2(t) = sigma^2(tau) + lambda_s * delta_t."
+        },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "skill_refs": { "type": "array", "items": { "$ref": "#/$defs/SkillRef" }, "minItems": 1 },
+        "strength": { "$ref": "#/$defs/Confidence", "description": "How much signal this observation carries about ability." },
+        "reliability": { "$ref": "#/$defs/Confidence", "description": "Trustworthiness of the source, after all factors. Drives observation variance in M6's Bayesian update; corresponds to rho_k." },
+        "reliability_base": { "$ref": "#/$defs/Confidence" },
+        "reliability_factors": { "type": "array", "items": { "$ref": "#/$defs/ReliabilityFactor" }, "default": [] },
+        "direction": {
+          "enum": ["positive","negative"],
+          "description": "negative lowers the estimate. Asymmetry rule: events from claimed_unverified identities may be negative at full reliability but are capped when positive."
+        },
+        "source": {
+          "type": "object",
+          "required": ["module","module_version","origin"],
+          "additionalProperties": false,
+          "properties": {
+            "module": { "const": "m5-cv-verification" },
+            "module_version": { "type": "string" },
+            "origin": { "type": "string", "examples": ["codeforces_api","github_api","cv_document","issuer_api","http_probe"] },
+            "verification_id": { "type": "string" },
+            "claim_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+            "evidence_ref": { "type": ["string","null"] }
+          }
+        },
+        "payload": { "type": "object", "additionalProperties": true, "default": {},
+                     "description": "Kind-specific detail, carried for explainability. M6 stores it on the evidence node so any score decomposes on demand." }
+      }
+    },
+
+    "Suppressed": {
+      "type": "object",
+      "required": ["what","reason"],
+      "additionalProperties": false,
+      "properties": {
+        "what": { "type": "string" },
+        "reason": {
+          "enum": ["not_a_capability_signal","non_scoring_rule","no_skill_mapping","institution_disclaimed","consent_scope_excluded"],
+          "description": "Employment/education discrepancies are not capability signals. D11/D12 are non-scoring by construction. A dead deployment link says nothing about skill."
+        }
+      }
+    }
+  }
+}

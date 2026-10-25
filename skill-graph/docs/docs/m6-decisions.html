@@ -1,0 +1,331 @@
+<title>M6 Decision Records</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --fix:#0F6E63; --fix-soft:#E2F0EE; --fix-line:#8FC4BC;
+  --open:#6244C5; --open-soft:#ECE7FA; --open-line:#B3A2EE;
+  --warn:#8A5A12; --warn-soft:#F6EEDF; --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --fix:#43C3B1; --fix-soft:#12312E; --fix-line:#2A6B62;
+  --open:#A48FF5; --open-soft:#221C3C; --open-line:#4B3E82;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --fix:#43C3B1; --fix-soft:#12312E; --fix-line:#2A6B62;
+  --open:#A48FF5; --open-soft:#221C3C; --open-line:#4B3E82;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.5rem); line-height:1.04; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:34px 0 40px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.55rem; letter-spacing:-.021em; line-height:1.2; margin:0 0 6px; text-wrap:balance; display:flex; gap:13px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.8rem; font-weight:500; color:var(--open); flex:none}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.06rem; letter-spacing:-.01em; margin:28px 0 7px}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:24px 0 8px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.04rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.3px; line-height:1.62; margin:16px 0 20px; color:var(--ink-2)}
+pre b{color:var(--fix); font-weight:500} pre i{color:var(--muted); font-style:normal}
+.dec{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 16px; padding:10px 14px; background:var(--fix-soft); border-left:3px solid var(--fix); border-radius:0 5px 5px 0; max-width:var(--measure)}
+.dec .lab{font-family:var(--f-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--fix); font-weight:500}
+.dec .val{font-family:var(--f-display); font-size:14.5px; font-weight:600; color:var(--ink); line-height:1.4}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.2px; line-height:1.47}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:10px 13px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:10px 13px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:11.6px; white-space:nowrap}
+.num-c{font-variant-numeric:tabular-nums; text-align:right; font-family:var(--f-mono); font-size:11.8px}
+.ok{color:var(--fix)} .bad{color:var(--crit)}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.f{border-left-color:var(--fix)} .note.o{border-left-color:var(--open)}
+.note.w{border-left-color:var(--warn)} .note.c{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.f h5{color:var(--fix)} .note.o h5{color:var(--open)} .note.w h5{color:var(--warn)} .note.c h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+figure{margin:22px 0 24px; background:var(--surface); border:1px solid var(--rule); border-radius:7px; padding:20px 20px 14px; box-shadow:var(--shadow)}
+.figscroll{overflow-x:auto}
+figure svg{display:block; width:100%; min-width:600px; height:auto; color:var(--ink)}
+figcaption{margin-top:14px; padding-top:11px; border-top:1px solid var(--rule); font-family:var(--f-display); font-size:12.7px; line-height:1.55; color:var(--muted)}
+figcaption b{color:var(--ink-2); font-weight:600}
+.files{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:13px; margin:20px 0}
+.file{border:1px solid var(--rule); border-radius:6px; background:var(--surface); padding:14px 16px}
+.file .fn{font-family:var(--f-mono); font-size:12px; color:var(--fix); font-weight:500; display:block; margin-bottom:5px; word-break:break-all}
+.file p{font-family:var(--f-display); font-size:12.7px; line-height:1.45; color:var(--muted); margin:0; max-width:none}
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+:focus-visible{outline:2px solid var(--fix); outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M6 — Decision Records O1–O7</p>
+  <h1>M6 Decision Records</h1>
+  <p class="deck">The seven open modelling questions, each resolved to a concrete value with its reasoning and the alternative that was rejected. Every constant now lives in <code>contracts/m6-parameters.yaml</code>, and a dependency-free reference implementation reproduces the worked example's skill ordering exactly.</p>
+  <div class="meta">
+    <span><b>Status</b> settled — build against these</span>
+    <span><b>Contracts</b> contracts/</span>
+    <span><b>Rank correlation</b> 1.000</span>
+    <span><b>Trained models</b> none</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">O1</span>The observation model</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">σ²<sub>obs</sub> = S₀ / (reliability × relevance × strength), with S₀ = 0.10. Observed values come from percentiles against a reference distribution where one exists, and from documented ordinal bands where none does.</span></div>
+  <p class="lede">Two things were missing: how an event becomes a number the filter can absorb, and how confident the filter should be in it.</p>
+
+  <h4>Observation variance</h4>
+  <p>Everything in the denominator arrives on the event itself, so <code>S₀</code> is the only free constant — which keeps the sweep small, as the plan requires. High reliability, high relevance and high strength together mean low variance and therefore a large update.</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Event</th><th class="num-c">ρ</th><th class="num-c">rel</th><th class="num-c">str</th><th class="num-c">σ²ᴏʙs</th><th>Weight against a fresh prior</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">platform_rating / algorithms</td><td class="num-c">0.90</td><td class="num-c">0.95</td><td class="num-c">0.80</td><td class="num-c">0.15</td><td>0.92 — dominates immediately, as an authoritative API should</td></tr>
+        <tr><td class="mono">claim_corroborated / typescript</td><td class="num-c">0.48</td><td class="num-c">1.00</td><td class="num-c">0.70</td><td class="num-c">0.30</td><td>0.85</td></tr>
+        <tr><td class="mono">repo_artifact / typescript</td><td class="num-c">0.42</td><td class="num-c">0.90</td><td class="num-c">0.60</td><td class="num-c">0.44</td><td>0.79</td></tr>
+        <tr><td class="mono">artifact_live / nextjs</td><td class="num-c">0.51</td><td class="num-c">0.60</td><td class="num-c">0.40</td><td class="num-c">0.82</td><td>0.67</td></tr>
+        <tr><td class="mono">cv_claim / numpy</td><td class="num-c">0.20</td><td class="num-c">1.00</td><td class="num-c">0.30</td><td class="num-c">1.67</td><td>0.50 — a bare claim moves the estimate least, by construction</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Observed values</h4>
+  <p>The no-trained-models rule points straight at percentiles against an explicit reference distribution — the same instrument the authorship work already uses. Where no trustworthy reference distribution exists, ordinal bands with stated thresholds are the honest substitute; inventing a continuum would be false precision.</p>
+  <p>The one real modelling choice here is the <strong>reference population for platform ratings</strong>. Against the rated Codeforces cohort, a 1495 Specialist sits near the 60th percentile. But the population that matters for "algorithmic ability" is developers generally, not the self-selected few thousand who compete — and being rated at all already clears the general-population floor. So <code>observed = 0.50 + 0.40 × ECDF_rated(rating)</code>, putting 1495 at 0.74. The ECDF is built once from the public user list and stored as a lookup table: a for-loop, not a training run.</p>
+  <div class="note w">
+    <h5>Rejected: letting the model read the raw rating</h5>
+    <p>Feeding 1495 directly, or min-max scaling it, makes the score depend on the numeric conventions of whichever platform reported it — a LeetCode contest rating and a Codeforces rating are not on the same scale and never will be. Percentile against a named reference population is the only mapping that survives adding a second platform.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">O2</span>Bounded scale versus unbounded Gaussian</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">Run the filter in logit space. Display through the sigmoid. Report <code>sigma</code> as the display-space band half-width and <code>sigma_logit</code> as the state.</span></div>
+  <p class="lede">Ability displays in [0,1]; a Kalman update on a bounded quantity can walk outside it. Filtering on <code>x = logit(θ)</code> makes the state genuinely unbounded, so the update is exact rather than approximately-valid-then-clipped.</p>
+  <p>The lower confidence bound survives the transform intact, because the sigmoid is monotone: <code>score = sigmoid(μ<sub>x</sub> − z·σ<sub>x</sub>)</code> is a real quantile, not an approximation of one.</p>
+
+  <div class="note f">
+    <h5>This resolves the arithmetic that did not reconcile</h5>
+    <p>The M6 plan flagged that the worked <code>/explain</code> response reports <code>sigma 0.12</code> alongside <code>lambda 0.00021</code> over <code>587</code> days, when the decay term alone adds 0.123 to the variance. In logit space the numbers agree. Take σ<sub>x</sub>(τ) ≈ 0.40 before the silence; decay carries it to √(0.16 + 0.123) = 0.53; at θ = 0.68 the display band is sigmoid(0.7538) − sigmoid(0.7538 − 0.53) = <strong>0.68 − 0.555 = 0.125</strong>, against the published 0.12 and 0.56. The published figures were display-space all along. That the reconciliation falls out of the logit choice rather than being fitted to it is the strongest evidence available that the choice is right.</p>
+  </div>
+
+  <div class="note w">
+    <h5>Rejected: clip to [0,1]</h5>
+    <p>Clipping biases every estimate near the ends toward the middle and silently destroys the variance, which is exactly the quantity the whole design rests on. It would also make the decay story false at the top of the range, where a wide band is precisely what you want to see.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">O3</span>Multi-skill events and relevance</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">Relevance enters the observation variance, never the observed value. One event yields one observed value shared across its skills, with a different variance per skill.</span></div>
+  <p class="lede">Relevance is epistemic, and the distinction matters.</p>
+  <p>A repository with <code>typescript:0.9, mongodb:0.6</code> is not saying "this demonstrates less MongoDB ability than TypeScript ability." It is saying <em>we are less sure this observation is about MongoDB at all</em>. That is uncertainty about what we observed, which belongs in the variance — scaling the observed value instead would encode the wrong claim, and would drag every incidental skill toward zero rather than simply leaving it uninformed.</p>
+  <p>Because relevance already sits in the denominator from O1, this needs no new mechanism. A relevance-0.6 skill receives an update with 1.5× the variance of a relevance-0.9 skill from the same event, and moves correspondingly less.</p>
+</section>
+
+<section>
+  <h2><span class="num">O4</span>Out-of-order arrival</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">Recompute from the log, ordered by <code>(occurred_at, event_id)</code>. Stored state is a derived cache that may be deleted at any time without loss.</span></div>
+  <p class="lede">A 2024 repository can be observed in 2026, and sequential Kalman updates are order-dependent. Rather than patch the ordering problem, remove it.</p>
+  <p>This is the architectural principle the plan already commits to — <em>"scores are derived and recomputable from the event log at any timestamp"</em> — taken literally. Ingest appends the event and marks the affected <code>(developer, skill)</code> pairs dirty; a read folds the sorted log. Ties break on <code>event_id</code> so the fold is deterministic and two machines agree.</p>
+  <p>The cost is O(n) per skill per read, where n is tens of events at this scale — microseconds. Add a snapshot every hundred events only if profiling says so, and never before.</p>
+  <div class="note f">
+    <h5>What this buys, and why it is the highest-leverage decision here</h5>
+    <p>Ablation becomes a filter over the log rather than a re-collection. The parameter sweep becomes a loop over parameter sets against a fixed log. <code>as_of</code> queries become free. All three of the validation experiments in the M6 plan cost days instead of weeks because of this one choice.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">O5</span>Propagation timing and depth</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">Read time. One hop. Sourced only from direct-evidence states. Damping is applied as variance inflation, so propagation reuses the Kalman update rather than adding a second mechanism.</span></div>
+  <p class="lede">A neighbour's state enters as a pseudo-observation with variance <code>σ²(neighbour) / γ</code>. A weaker edge means a noisier observation, which is what damping actually means.</p>
+  <p>Write-time propagation would turn the graph into a cache needing invalidation on every arrival, and it interacts badly with O4 — you would be recomputing from the log <em>and</em> maintaining a derived overlay. Read time keeps one source of truth.</p>
+  <p><strong>Sourcing only from direct-evidence states</strong> is what makes this safe. If propagated states could themselves propagate, the computation would need iteration to a fixed point and could feed back around a cycle. Restricting sources to states with real evidence behind them makes propagation a single deterministic pass with no cycles to reason about.</p>
+  <div class="note w">
+    <h5>The cost, stated plainly</h5>
+    <p>The worked example shows a two-hop chain: <code>nextjs → react → javascript</code>. Under this decision <code>react</code> has no direct evidence, so it contributes nothing onward to <code>javascript</code>, which is informed by <code>typescript</code> alone. The reference implementation still places <code>javascript</code> below <code>typescript</code> with a wider band, which is the behaviour that matters. Evidence travelling arbitrarily far through an ontology is a property to refuse, not to preserve.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">O6</span>The unset constants</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">θ₀ = 0.25 · σ₀ = 1.30 · S₀ = 0.10 · z = 1.0 · λ in three tiers · h<sub>s</sub> = 0.35 / λ<sub>s</sub></span></div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Constant</th><th class="num-c">Value</th><th class="mono">Sweep</th><th>Reasoning</th></tr></thead>
+      <tbody>
+        <tr><td>θ₀ prior ability</td><td class="num-c">0.25</td><td class="mono">0.15 – 0.40</td><td>Below median, deliberately. A developer with no evidence is not average, they are unknown — and the system must not reward silence.</td></tr>
+        <tr><td>σ₀ prior spread</td><td class="num-c">1.30</td><td class="mono">0.9 – 2.0</td><td>Logit-space. Spans roughly 0.08–0.55 in display terms: wide enough that a single weak event cannot manufacture a score.</td></tr>
+        <tr><td>S₀ observation scale</td><td class="num-c">0.10</td><td class="mono">0.05 – 0.30</td><td>The only free constant in O1. Calibrated so the worked example's ordering and rough levels reproduce.</td></tr>
+        <tr><td>z display bound</td><td class="num-c">1.0</td><td class="mono">0.5 – 2.0</td><td>Not chosen — <em>recovered</em>. The published explain response has mean 0.68, sigma 0.12, score 0.56, and 0.68 − 0.56 = 0.12 exactly.</td></tr>
+        <tr><td>λ fundamental</td><td class="num-c">1.0e-4</td><td class="mono">3e-5 – 3e-4</td><td>Algorithms, C, C++, data structures, mathematics. Slow to go stale. The published 2.1e-4 for cpp sits inside this range.</td></tr>
+        <tr><td>λ ecosystem</td><td class="num-c">3.0e-4</td><td class="mono">1e-4 – 8e-4</td><td>Python, JavaScript, TypeScript, SQL, Git.</td></tr>
+        <tr><td>λ framework</td><td class="num-c">7.5e-4</td><td class="mono">3e-4 – 2e-3</td><td>React, Next.js, NumPy, Docker. Fastest release cadence, fastest staleness.</td></tr>
+        <tr><td>k, where h<sub>s</sub> = k/λ<sub>s</sub></td><td class="num-c">0.35</td><td class="mono">0.15 – 0.70</td><td>Ties mean-reversion to volatility instead of setting it independently — one swept constant rather than three. Yields half-lives of 9.6 y, 3.2 y and 1.3 y.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Three volatility tiers rather than a per-skill continuum, exactly as the platform plan specifies, so the sweep stays exhaustive rather than sampled.</p>
+</section>
+
+<section>
+  <h2><span class="num">O7</span>Edge types and γ</h2>
+  <div class="dec"><span class="lab">Decided</span><span class="val">Three edge types, one γ per type: PREREQUISITE_OF 0.55 · REQUIRES 0.65 · RELATED_TO 0.40. Never per edge.</span></div>
+  <p class="lede">The two source documents disagreed: the platform plan specifies a single global constant per edge type with two types, while the worked example shows four edges carrying four different γ values and a third type, <code>REQUIRES</code> — including two <code>REQUIRES</code> edges at 0.70 and 0.60.</p>
+  <p>Resolved toward the platform plan on the parameter question and toward the worked example on the vocabulary. <code>REQUIRES</code> earns its place — "Next.js requires React" is a genuinely different relation from "TypeScript is a prerequisite of JavaScript" — so the ontology carries three types. But γ attaches to the type, at 0.65 for <code>REQUIRES</code>, splitting the difference between the two values the example showed.</p>
+  <p>Per-edge γ is an unbounded parameter space. It cannot be swept, it cannot be defended in a viva, and every new edge would silently add a free parameter nobody chose. Three constants can be swept exhaustively.</p>
+  <div class="note o">
+    <h5>Settle this before seeding the ontology</h5>
+    <p>Edges are written once. Changing the type vocabulary later means re-seeding, and re-seeding invalidates every stored state.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">O8</span>Where new skills come from</h2>
+  <div class="dec"><span class="lab">Already decided in the source documents</span><span class="val">Offline batch, human approval queue, never in the request path. An event naming an unknown <code>skill_id</code> is quarantined, never dropped.</span></div>
+  <p>Listed as open in the plan, but the platform plan's call-site register already settles it as L5 — the only place a model comes near M6, and it is optional. Recorded here so nobody re-opens it.</p>
+</section>
+
+<section>
+  <h2><span class="num">✓</span>What the resolved model produces</h2>
+  <p class="lede">The reference implementation folds the eight events in <code>examples/evidence-events.json</code> and reproduces the worked example's ordering exactly.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Skill</th><th class="num-c">mean</th><th class="num-c">score</th><th class="num-c">σ<sub>logit</sub></th><th class="num-c">target</th><th class="num-c">Δ</th><th>Reads as</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">algorithms</td><td class="num-c">0.639</td><td class="num-c">0.533</td><td class="num-c">0.440</td><td class="num-c">0.61</td><td class="num-c">−0.077</td><td>One authoritative API call, tight band</td></tr>
+        <tr><td class="mono">cpp</td><td class="num-c">0.625</td><td class="num-c">0.514</td><td class="num-c">0.455</td><td class="num-c">0.56</td><td class="num-c">−0.046</td><td>Strong with <em>no</em> repository evidence at all</td></tr>
+        <tr><td class="mono">typescript</td><td class="num-c">0.504</td><td class="num-c">0.381</td><td class="num-c">0.502</td><td class="num-c">0.48</td><td class="num-c">−0.099</td><td>Strong with <em>no</em> platform evidence at all</td></tr>
+        <tr><td class="mono">nextjs</td><td class="num-c">0.451</td><td class="num-c">0.316</td><td class="num-c">0.577</td><td class="num-c">0.45</td><td class="num-c">−0.134</td><td>Repos plus a live deployment</td></tr>
+        <tr><td class="mono">javascript</td><td class="num-c">0.445</td><td class="num-c">0.305</td><td class="num-c">0.600</td><td class="num-c">0.31</td><td class="num-c">−0.005</td><td>Propagated only — damped, wider band</td></tr>
+        <tr><td class="mono">python</td><td class="num-c">0.338</td><td class="num-c">0.187</td><td class="num-c">0.799</td><td class="num-c">0.29</td><td class="num-c">−0.103</td><td>26 months stale — the band did this, not the mean</td></tr>
+        <tr><td class="mono">numpy</td><td class="num-c">0.344</td><td class="num-c">0.173</td><td class="num-c">0.916</td><td class="num-c">0.12</td><td class="num-c">+0.053</td><td>A bare claim, nothing corroborating</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Spearman rank correlation against the worked example: 1.000. Mean absolute error: 0.074.</strong> The ordering is exact and the levels sit within about seven points of an illustration that was never produced by a running implementation.</p>
+
+  <div class="note w">
+    <h5>Calibration stopped here on purpose</h5>
+    <p>Only S₀, σ₀ and θ₀ were adjusted — the three constants with no independent justification. The observed-value mappings were left where their own reasoning put them. Pushing the error lower would mean tuning to a single fabricated example, which is the failure mode the plan warned about: it would produce constants that look validated and are not. The ordering is the property that must hold, and it does.</p>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 860 300" role="img" aria-label="Bar chart of the seven skills. C++ scores highly with no repository evidence, driven only by a Codeforces rating; TypeScript scores comparably with no platform evidence, driven only by repositories. Neither source covers both.">
+      <defs>
+        <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker>
+      </defs>
+      <line x1="120" y1="30" x2="120" y2="232" stroke="var(--rule-2)"/>
+      <line x1="120" y1="232" x2="820" y2="232" stroke="var(--rule-2)"/>
+      <g font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)">
+        <text x="114" y="235" text-anchor="end">0</text>
+        <text x="114" y="136" text-anchor="end">0.35</text>
+        <text x="114" y="37" text-anchor="end">0.70</text>
+      </g>
+      <line x1="120" y1="133" x2="820" y2="133" stroke="var(--rule)" stroke-dasharray="2 5"/>
+
+      <g font-family="IBM Plex Mono,monospace" font-size="10">
+        <rect x="140" y="80" width="62" height="152" rx="2" fill="var(--fix)" opacity="0.75"/>
+        <text x="171" y="248" text-anchor="middle" fill="var(--muted)">algo</text>
+        <text x="171" y="73" text-anchor="middle" fill="currentColor">0.533</text>
+
+        <rect x="232" y="85" width="62" height="147" rx="2" fill="var(--fix)"/>
+        <text x="263" y="248" text-anchor="middle" fill="currentColor">cpp</text>
+        <text x="263" y="78" text-anchor="middle" fill="currentColor">0.514</text>
+
+        <rect x="324" y="123" width="62" height="109" rx="2" fill="var(--open)"/>
+        <text x="355" y="248" text-anchor="middle" fill="currentColor">ts</text>
+        <text x="355" y="116" text-anchor="middle" fill="currentColor">0.381</text>
+
+        <rect x="416" y="141" width="62" height="91" rx="2" fill="var(--open)" opacity="0.75"/>
+        <text x="447" y="248" text-anchor="middle" fill="var(--muted)">nextjs</text>
+        <text x="447" y="134" text-anchor="middle" fill="currentColor">0.316</text>
+
+        <rect x="508" y="145" width="62" height="87" rx="2" fill="none" stroke="var(--open)" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="539" y="248" text-anchor="middle" fill="var(--muted)">js</text>
+        <text x="539" y="138" text-anchor="middle" fill="currentColor">0.305</text>
+
+        <rect x="600" y="179" width="62" height="53" rx="2" fill="var(--muted)" opacity="0.55"/>
+        <text x="631" y="248" text-anchor="middle" fill="var(--muted)">python</text>
+        <text x="631" y="172" text-anchor="middle" fill="currentColor">0.187</text>
+
+        <rect x="692" y="183" width="62" height="49" rx="2" fill="var(--muted)" opacity="0.35"/>
+        <text x="723" y="248" text-anchor="middle" fill="var(--muted)">numpy</text>
+        <text x="723" y="176" text-anchor="middle" fill="currentColor">0.173</text>
+      </g>
+
+      <text x="263" y="272" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--fix)">platform evidence only — no repos</text>
+      <text x="401" y="290" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--open)">repository evidence only — no platform</text>
+      <path d="M263 262 L263 240" stroke="var(--fix)" stroke-width="1" fill="none" marker-end="url(#m1)"/>
+      <path d="M401 280 L370 240" stroke="var(--open)" stroke-width="1" fill="none" marker-end="url(#m1)"/>
+      <text x="539" y="272" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">propagated</text>
+      <text x="677" y="272" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">stale · unbacked</text>
+    </svg>
+    </div>
+    <figcaption><b>The multi-source thesis, produced rather than asserted.</b> C++ and TypeScript land within 0.13 of each other from entirely disjoint evidence — one from a single Codeforces call with no repository behind it, the other from 335 KB of shipped code with no contest history. A repository-only system scores this candidate's strongest skill near zero; a contest-only system misses the other one completely. This is the ablation result the evaluation plan needs, visible on one candidate.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="num">→</span>What is now in the repository</h2>
+  <div class="files">
+    <div class="file"><span class="fn">contracts/m6-parameters.yaml</span><p>Every constant with its value, sweep range and rationale. The engine reads <code>value</code>; the sweep reads <code>sweep</code>, so they cannot drift apart.</p></div>
+    <div class="file"><span class="fn">contracts/projection-rules.yaml</span><p>The projection module: emission rules per event kind, relevance formulas, named reliability factors, the six suppressions, and six invariants.</p></div>
+    <div class="file"><span class="fn">contracts/schemas/<br>skill-state.schema.json</span><p>The persisted (μ, σ²) state, carrying <code>parameter_version</code> so a constant change is known to invalidate it.</p></div>
+    <div class="file"><span class="fn">contracts/reference/<br>m6_model.py</span><p>Executable specification — decay, update, fold, propagate, explain. No dependencies. The tie-breaker when prose and code disagree.</p></div>
+  </div>
+
+  <h3>Start here</h3>
+  <ol>
+    <li><strong>Generate the Pydantic models</strong> from <code>evidence-event.schema.json</code> and <code>skill-state.schema.json</code>, and load <code>examples/evidence-events.json</code> as fixture one.</li>
+    <li><strong>Port <code>m6_model.py</code> into the engine with tests that pin the seven numbers above.</strong> They become the regression net for everything after — a parameter change that moves the ordering is then a failing test, not a discovery in week 12.</li>
+    <li><strong>Build the synthetic evidence generator.</strong> Known abilities, configurable source reliabilities, irregular and out-of-order arrival. Parameter recovery is the first experiment and the generator is also the load fixture.</li>
+    <li><strong>Then 6.1 ontology-service</strong>, seeded with every skill named in the worked example so fixture one binds end to end.</li>
+  </ol>
+
+  <div class="note f">
+    <h5>The projection module can start in parallel</h5>
+    <p><code>projection-rules.yaml</code> is complete enough to implement against, and its output validates against a schema that already exists. It reads three M5 artefacts, all of which have committed examples in <code>docs/docs/examples/</code>. Nothing about it waits on M5 running.</p>
+  </div>
+</section>
+
+<footer>
+  DevBridge M6 — decision records O1–O8, settled. Constants: <code>contracts/m6-parameters.yaml</code>. Reference implementation: <code>contracts/reference/m6_model.py</code>. Open questions raised in <code>m6-skill-graph-plan.html</code> §03; this document closes them. Values are documented priors to be swept, never fitted.
+</footer>
+
+</div>

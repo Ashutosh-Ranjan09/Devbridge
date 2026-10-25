@@ -1,0 +1,494 @@
+<title>M6 Worked Trace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --fix:#0F6E63; --fix-soft:#E2F0EE; --open:#6244C5; --open-soft:#ECE7FA;
+  --warn:#8A5A12; --warn-soft:#F6EEDF; --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --fix:#43C3B1; --fix-soft:#12312E; --open:#A48FF5; --open-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --fix:#43C3B1; --fix-soft:#12312E; --open:#A48FF5; --open-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.5rem); line-height:1.04; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:34px 0 40px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.55rem; letter-spacing:-.021em; line-height:1.2; margin:0 0 6px; text-wrap:balance; display:flex; gap:13px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.8rem; font-weight:500; color:var(--fix); flex:none}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.06rem; letter-spacing:-.01em; margin:28px 0 7px}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:24px 0 8px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.04rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.2px; line-height:1.62; margin:16px 0 20px; color:var(--ink-2)}
+pre b{color:var(--fix); font-weight:500} pre i{color:var(--muted); font-style:normal} pre u{color:var(--open); text-decoration:none}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13px; line-height:1.45}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:9px 12px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:11.5px; white-space:nowrap}
+.n{font-variant-numeric:tabular-nums; text-align:right; font-family:var(--f-mono); font-size:11.5px; white-space:nowrap}
+tr.step td{color:var(--muted); font-style:italic}
+tr.step td:first-child{color:var(--muted); font-weight:400}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.f{border-left-color:var(--fix)} .note.o{border-left-color:var(--open)}
+.note.w{border-left-color:var(--warn)} .note.c{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.f h5{color:var(--fix)} .note.o h5{color:var(--open)} .note.w h5{color:var(--warn)} .note.c h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+figure{margin:22px 0 24px; background:var(--surface); border:1px solid var(--rule); border-radius:7px; padding:20px 20px 14px; box-shadow:var(--shadow)}
+.figscroll{overflow-x:auto}
+figure svg{display:block; width:100%; min-width:640px; height:auto; color:var(--ink)}
+figcaption{margin-top:14px; padding-top:11px; border-top:1px solid var(--rule); font-family:var(--f-display); font-size:12.7px; line-height:1.55; color:var(--muted)}
+figcaption b{color:var(--ink-2); font-weight:600}
+.stage{display:flex; align-items:center; gap:11px; margin:0 0 14px; font-family:var(--f-mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted)}
+.stage span{background:var(--fix-soft); color:var(--fix); padding:3px 9px; border-radius:3px; font-weight:500}
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+:focus-visible{outline:2px solid var(--fix); outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M6 — End-to-End Trace</p>
+  <h1>M6 Worked Trace</h1>
+  <p class="deck">One committed M5 report followed through every M6 submodule, with the arithmetic shown at each step: eleven claims become eight evidence events, eight events become eleven skill states, and those states are then aged five years to show exactly how the graph decays and what one fresh commit restores.</p>
+  <div class="meta">
+    <span><b>Input</b> examples/report-full.json</span>
+    <span><b>Reference date</b> 2026-08-24</span>
+    <span><b>Events</b> 8 emitted · 4 suppressed</span>
+    <span><b>Skills</b> 11</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>What M5 handed over</h2>
+  <p class="lede">The verification report for candidate <code>subj_7a3f9e21</code>: eleven claims, an evidence bundle with one Codeforces account and three repositories, and two recorded gaps.</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th class="mono">claim</th><th>Kind</th><th>Content</th><th>Verification outcome</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">c22</td><td>achievement</td><td>Codeforces max_rating 1495 (Specialist)</td><td>P1 <b>verified</b> — API returns 1495</td></tr>
+        <tr><td class="mono">c23</td><td>achievement</td><td>Rank 1106, Round 998 (Div. 3)</td><td>P2 <b>verified</b> — exact match</td></tr>
+        <tr><td class="mono">c24</td><td>achievement</td><td>500+ problems solved</td><td>P3 <b>not evaluated</b> — spans three platforms, no LeetCode handle</td></tr>
+        <tr><td class="mono">c07</td><td>project</td><td>ATMA — react, nextjs, mongodb, jwt · Mar–Apr 2025</td><td>G4–G7 <b>verified</b> — 142 commits, 3.8 MB, not a fork</td></tr>
+        <tr><td class="mono">c18</td><td>skill</td><td>Proficient — C++</td><td>no C++ repository exists</td></tr>
+        <tr><td class="mono">c19</td><td>skill</td><td>Familiar — TypeScript</td><td>corroborated by 335 kB shipped</td></tr>
+        <tr><td class="mono">c14 c15</td><td>profile</td><td>github <code>r-sharma-dev</code> · codeforces <code>RS118</code></td><td>G3 <b>ownership unproven</b> — derived from repo URL</td></tr>
+        <tr><td class="mono">c01 c02</td><td>education / identifier</td><td>IIT Kharagpur B.Tech CSE 2022–2026 · roll 22CS10118</td><td>D9, C2, C3 verified</td></tr>
+        <tr><td class="mono">c29</td><td>declaration_marker</td><td>CDC could not verify coursework</td><td><code>effect: inherit_unverified</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Three repositories are in the bundle but only one — ATMA — has a matching project claim. The other two still carry evidence, and the projection must handle that: a repository does not need a claim to demonstrate a language.</p>
+</section>
+
+<section>
+  <div class="stage"><span>stage 1</span> event projection · ClaimGraph + EvidenceBundle + FindingsReport → EvidenceEventBatch</div>
+  <h2><span class="num">02</span>Eleven claims become eight events</h2>
+  <p class="lede">Each row applies one rule from <code>contracts/projection-rules.yaml</code>. Nothing here is a judgement about fraud; every value answers "what capability does this observation bear on, and how much should we trust it".</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th class="mono">id</th><th>Kind</th><th class="mono">occurred_at</th><th class="n">str</th><th class="n">ρ base</th><th class="n">cap</th><th class="n">ρ</th><th class="n">obs</th><th>skill_refs (relevance)</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">ev_004</td><td>repo_artifact</td><td class="mono">2024-06-28</td><td class="n">0.50</td><td class="n">0.70</td><td class="n">×0.6</td><td class="n">0.42</td><td class="n">0.50</td><td class="mono">python 0.95</td></tr>
+        <tr><td class="mono">ev_001</td><td>platform_rating</td><td class="mono">2025-01-14</td><td class="n">0.80</td><td class="n">0.90</td><td class="n">—</td><td class="n">0.90</td><td class="n">0.74</td><td class="mono">algorithms 0.95 · problem_solving 0.90 · cpp 0.70</td></tr>
+        <tr><td class="mono">ev_002</td><td>repo_artifact</td><td class="mono">2025-04-27</td><td class="n">0.60</td><td class="n">0.70</td><td class="n">×0.6</td><td class="n">0.42</td><td class="n">0.66</td><td class="mono">typescript 0.88 · javascript 0.58 · nextjs 0.80 · react 0.80 · mongodb 0.60</td></tr>
+        <tr><td class="mono">ev_003</td><td>repo_artifact</td><td class="mono">2025-06-19</td><td class="n">0.55</td><td class="n">0.70</td><td class="n">×0.6</td><td class="n">0.42</td><td class="n">0.62</td><td class="mono">typescript 0.95 · nextjs 0.80 · react 0.80</td></tr>
+        <tr><td class="mono">ev_005</td><td>claim_corroborated</td><td class="mono">2025-06-19</td><td class="n">0.70</td><td class="n">0.80</td><td class="n">×0.6</td><td class="n">0.48</td><td class="n">0.68</td><td class="mono">typescript 1.00</td></tr>
+        <tr><td class="mono">ev_006</td><td>artifact_live</td><td class="mono">2026-08-24</td><td class="n">0.40</td><td class="n">0.85</td><td class="n">×0.6</td><td class="n">0.51</td><td class="n">0.58</td><td class="mono">nextjs 0.60 · deployment 0.70</td></tr>
+        <tr><td class="mono">ev_007</td><td>cv_claim</td><td class="mono">2026-08-24</td><td class="n">0.30</td><td class="n">0.20</td><td class="n">—</td><td class="n">0.20</td><td class="n">0.60</td><td class="mono">cpp 1.00</td></tr>
+        <tr><td class="mono">ev_008</td><td>cv_claim</td><td class="mono">2026-08-24</td><td class="n">0.30</td><td class="n">0.20</td><td class="n">—</td><td class="n">0.20</td><td class="n">0.45</td><td class="mono">problem_solving 1.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Where each number came from</h4>
+  <pre><b>ev_001</b>  platform_rating — observed value
+       max_rating 1495 → ECDF_rated(1495) ≈ 0.60 against the CF user list
+       observed = 0.50 + 0.40 × 0.60 = <b>0.74</b>
+       <i>no ownership cap: the handle resolved and the API is the authority on its own ratings</i>
+
+<b>ev_002</b>  repo_artifact — ATMA-Final
+       142 commits, 3820 kB, not a fork, not README-only → band <b>large</b> (index 3)
+       strength = 0.45 + 0.05 × 3 = <b>0.60</b>          observed = <b>0.66</b>
+       languages 243 920 B total → TypeScript 75.6 %, JavaScript 16.9 %, CSS 7.5 %
+       relevance = clamp(0.5 + 0.5 × share, 0.5, 0.95)
+         typescript 0.5 + 0.378 = <b>0.88</b>    javascript 0.5 + 0.084 = <b>0.58</b>
+         CSS at 7.5 % is below the 10 % floor — <u>not emitted</u>
+       frameworks [next, react, mongoose] → nextjs 0.80, react 0.80, mongodb 0.60
+       reliability = 0.70 × 0.6 = <b>0.42</b>   <i>ownership_unverified, positive direction only</i>
+
+<b>ev_005</b>  claim_corroborated — c19 "Familiar — TypeScript"
+       observed reflects the CORROBORATING EVIDENCE (0.68), not the claimed band.
+       The band told us what was asserted; the 335 kB told us about ability.
+
+<b>ev_007</b>  cv_claim — c18 "Proficient — C++"
+       proficiency band proficient → observed <b>0.60</b>, reliability <b>0.20</b>
+       <i>Low reliability, not a low observed value, is what stops a bare claim moving a score.</i></pre>
+
+  <h4>Recorded in not_emitted[]</h4>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Suppressed</th><th class="mono">reason</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>W1 — <code>cf-connect-rs.vercel.app</code> returns 404</td><td class="mono">not_a_capability_signal</td><td>A dead link says nothing about skill. It stays a verification finding.</td></tr>
+        <tr><td>Roll number, institution registry, supervisor directory</td><td class="mono">no_skill_mapping</td><td>All verified, none of it maps to a competency.</td></tr>
+        <tr><td>CGPA 9.34 and coursework</td><td class="mono">institution_disclaimed</td><td>Claim c29 carries <code>effect: inherit_unverified</code>; the institution declined to vouch.</td></tr>
+        <tr><td>G3 — ownership unproven</td><td class="mono">non_scoring_rule</td><td>Expressed as the ×0.6 reliability factor instead, so it shapes every GitHub event rather than becoming one.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="stage"><span>stage 2</span> 6.1 ontology-service · 6.2 evidence-ingestor</div>
+  <h2><span class="num">03</span>Binding and admission</h2>
+  <p class="lede">The ontology resolves every <code>skill_id</code> and supplies the volatility tier and the edges. The ingestor validates, authorises, and persists — and does no modelling at all.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Check</th><th>Result on this batch</th></tr></thead>
+      <tbody>
+        <tr><td>Schema validation</td><td>8 / 8 events validate against <code>evidence-event.schema.json</code></td></tr>
+        <tr><td>Consent scope</td><td><code>["skill_graph_inclusion", "recruiter_visibility"]</code> — covers inclusion, all 8 admitted</td></tr>
+        <tr><td>Idempotency</td><td>8 distinct <code>event_id</code>s; a replay of the batch is a no-op</td></tr>
+        <tr><td>Skill binding</td><td>11 distinct ids, all resolve. <code>mongoose</code> → <code>mongodb</code> via the alias table; none quarantined</td></tr>
+        <tr><td>Tier assignment</td><td>fundamental: algorithms, problem_solving, cpp, c · ecosystem: typescript, javascript, python · framework: nextjs, react, mongodb, deployment</td></tr>
+        <tr><td>Edges in play</td><td><code>typescript →PREREQUISITE_OF→ javascript</code> (γ 0.55) · <code>nextjs →REQUIRES→ react</code> (γ 0.65) · <code>react →REQUIRES→ javascript</code> (γ 0.65) · <code>cpp →RELATED_TO→ c</code> (γ 0.40)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="stage"><span>stage 3</span> 6.3 scoring-engine · fold the log in occurred_at order</div>
+  <h2><span class="num">04</span>The arithmetic, four skills</h2>
+  <p class="lede">Every state starts at the prior θ₀ = 0.25, σ₀ = 1.30 in logit space. Each event contributes an observation with variance σ²ᴏʙs = 0.10 / (ρ × relevance × strength); between events the variance grows and μ drifts back toward the prior.</p>
+
+  <h3>algorithms — one authoritative event, then twenty months of silence</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Step</th><th class="n">Δ days</th><th class="n">σ²ᴏʙs</th><th class="n">K</th><th class="n">μx</th><th class="n">σx</th><th class="n">mean</th><th class="n">score</th></tr></thead>
+      <tbody>
+        <tr class="step"><td>prior θ₀ = 0.25</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">−1.099</td><td class="n">1.300</td><td class="n">0.250</td><td class="n">0.083</td></tr>
+        <tr><td>platform_rating obs 0.74</td><td class="n">—</td><td class="n">0.146</td><td class="n">0.920</td><td class="n">0.875</td><td class="n">0.367</td><td class="n">0.706</td><td class="n">0.624</td></tr>
+        <tr class="step"><td>decay to 2026-08-24</td><td class="n">587</td><td class="n">—</td><td class="n">—</td><td class="n">0.570</td><td class="n">0.440</td><td class="n">0.639</td><td class="n">0.533</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>σ²ᴏʙs = 0.10 / (0.90 × 0.95 × 0.80) = 0.146, against a prior variance of 1.69 — so K = 0.920 and one API call all but replaces the prior. That is the correct behaviour for an authoritative source.</p>
+
+  <h3>typescript — three events accumulating</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Step</th><th class="n">Δ days</th><th class="n">σ²ᴏʙs</th><th class="n">K</th><th class="n">μx</th><th class="n">σx</th><th class="n">mean</th><th class="n">score</th></tr></thead>
+      <tbody>
+        <tr class="step"><td>prior</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">−1.099</td><td class="n">1.300</td><td class="n">0.250</td><td class="n">0.083</td></tr>
+        <tr><td>repo_artifact ATMA obs 0.66</td><td class="n">—</td><td class="n">0.451</td><td class="n">0.789</td><td class="n">0.292</td><td class="n">0.597</td><td class="n">0.573</td><td class="n">0.424</td></tr>
+        <tr class="step"><td>decay</td><td class="n">53</td><td class="n">—</td><td class="n">—</td><td class="n">0.230</td><td class="n">0.610</td><td class="n">0.557</td><td class="n">0.406</td></tr>
+        <tr><td>repo_artifact cf-connect obs 0.62</td><td class="n">—</td><td class="n">0.456</td><td class="n">0.449</td><td class="n">0.347</td><td class="n">0.453</td><td class="n">0.586</td><td class="n">0.474</td></tr>
+        <tr><td>claim_corroborated obs 0.68</td><td class="n">—</td><td class="n">0.298</td><td class="n">0.408</td><td class="n">0.513</td><td class="n">0.348</td><td class="n">0.625</td><td class="n">0.541</td></tr>
+        <tr class="step"><td>decay to 2026-08-24</td><td class="n">431</td><td class="n">—</td><td class="n">—</td><td class="n">0.015</td><td class="n">0.501</td><td class="n">0.504</td><td class="n">0.381</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>K falls with each event — 0.789, then 0.449, then 0.408 — because the state is already informed. The third event still moves the mean, but it moves the <em>band</em> more, which is the point: repeated independent evidence buys certainty rather than magnitude.</p>
+
+  <h3>python — one event, 787 days ago</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Step</th><th class="n">Δ days</th><th class="n">σ²ᴏʙs</th><th class="n">K</th><th class="n">μx</th><th class="n">σx</th><th class="n">mean</th><th class="n">score</th></tr></thead>
+      <tbody>
+        <tr class="step"><td>prior</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">−1.099</td><td class="n">1.300</td><td class="n">0.250</td><td class="n">0.083</td></tr>
+        <tr><td>repo_artifact obs 0.50</td><td class="n">—</td><td class="n">0.501</td><td class="n">0.771</td><td class="n">−0.251</td><td class="n">0.622</td><td class="n">0.438</td><td class="n">0.295</td></tr>
+        <tr class="step"><td>decay to 2026-08-24</td><td class="n">787</td><td class="n">—</td><td class="n">—</td><td class="n">−0.667</td><td class="n">0.789</td><td class="n">0.339</td><td class="n">0.189</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The score falls from 0.295 to 0.189 across those 787 days. Notice how it falls: the mean drops 0.099 while σx widens from 0.622 to 0.789. Most of the loss is uncertainty, not a downgraded estimate — the model is saying <em>we know less</em>, not <em>they got worse</em>.</p>
+
+  <h3>cpp — strong evidence, then a weak claim that barely registers</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Step</th><th class="n">Δ days</th><th class="n">σ²ᴏʙs</th><th class="n">K</th><th class="n">μx</th><th class="n">σx</th><th class="n">mean</th><th class="n">score</th></tr></thead>
+      <tbody>
+        <tr><td>platform_rating obs 0.74 (rel 0.70)</td><td class="n">—</td><td class="n">0.198</td><td class="n">0.895</td><td class="n">0.821</td><td class="n">0.421</td><td class="n">0.694</td><td class="n">0.599</td></tr>
+        <tr class="step"><td>decay</td><td class="n">587</td><td class="n">—</td><td class="n">—</td><td class="n">0.524</td><td class="n">0.486</td><td class="n">0.628</td><td class="n">0.510</td></tr>
+        <tr><td>cv_claim obs 0.60 "proficient"</td><td class="n">—</td><td class="n">1.667</td><td class="n">0.124</td><td class="n">0.510</td><td class="n">0.455</td><td class="n">0.625</td><td class="n">0.514</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note f">
+    <h5>The self-report does almost nothing, and that is the design working</h5>
+    <p>The C++ claim arrives with σ²ᴏʙs = 1.667 — eleven times the variance of the Codeforces event — so K = 0.124 and it shifts the score by <strong>+0.004</strong>. A candidate cannot talk their way up a skill they have evidence for, and cannot talk their way up one they have no evidence for either: <code>numpy</code>, which has only a bare claim, lands at 0.173 against a floor of 0.083.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Propagation, at read time</h2>
+  <p class="lede">Each neighbour enters as one more observation, with its variance inflated by 1/γ. Only states with direct evidence may act as a source, so this is a single pass with no cycles.</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Edge</th><th class="n">γ</th><th class="n">σ²ᴏʙs</th><th class="n">K</th><th>Target score</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">typescript →PREREQUISITE_OF→ javascript</td><td class="n">0.55</td><td class="n">0.456</td><td class="n">0.581</td><td class="n">0.256 → 0.350</td></tr>
+        <tr><td class="mono">react →REQUIRES→ javascript</td><td class="n">0.65</td><td class="n">0.863</td><td class="n">0.235</td><td class="n">0.350 → 0.341</td></tr>
+        <tr><td class="mono">nextjs →REQUIRES→ react</td><td class="n">0.65</td><td class="n">0.512</td><td class="n">0.523</td><td class="n">0.214 → 0.293</td></tr>
+        <tr><td class="mono">cpp →RELATED_TO→ c</td><td class="n">0.40</td><td class="n">0.517</td><td class="n">0.766</td><td class="n">0.083 → 0.378</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>JavaScript is the interesting one. It has weak direct evidence (16.9 % of one repository, relevance 0.58, score 0.256), then receives TypeScript at K = 0.581 and React at K = 0.235 — the second contributing little precisely because the first already tightened the band. Note the React edge <em>lowers</em> the score marginally, which is correct: React is a weaker state than TypeScript, so it pulls the mean down while still narrowing the variance.</p>
+
+  <div class="note w">
+    <h5>What the trace surfaced: propagation into an empty node is too generous</h5>
+    <p><code>c</code> has no direct evidence at all, yet lands at <strong>0.378</strong> — fifth overall, above JavaScript, Next.js and Python, all of which have real evidence. The cause is structural rather than a bug: a skill with no evidence carries the prior variance of 1.69, so even a heavily damped neighbour produces K = 0.766. Bayesian updating is behaving correctly; the presentation is not.</p>
+    <p>Two responses, both cheap. The <code>SkillState</code> schema already carries a <code>propagated</code> block — populate it, and have the query API list inferred skills separately rather than ranked among measured ones. Then let the sweep decide whether <code>RELATED_TO</code> at 0.40 is too generous; the wide band on <code>c</code> (σx 0.629, the widest of any scored skill) suggests it is. <strong>Do not fix this by clamping the score</strong> — that would hide the uncertainty rather than report it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="stage"><span>stage 4</span> 6.4 query-api</div>
+  <h2><span class="num">06</span>The graph at 2026-08-24</h2>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 430" role="img" aria-label="The skill graph. A competitive-programming cluster on the left carries the highest scores from one Codeforces call; a web cluster on the right carries mid scores from three repositories; Python sits low and stale; the skill c has no direct evidence and is inferred across a RELATED_TO edge.">
+      <defs>
+        <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker>
+      </defs>
+      <text x="30" y="26" font-family="IBM Plex Mono,monospace" font-size="10" letter-spacing="1.3" fill="var(--fix)">FROM ONE CODEFORCES CALL</text>
+      <text x="500" y="26" font-family="IBM Plex Mono,monospace" font-size="10" letter-spacing="1.3" fill="var(--open)">FROM THREE REPOSITORIES</text>
+
+      <g font-family="IBM Plex Sans,sans-serif">
+        <!-- left cluster -->
+        <rect x="30" y="40" width="150" height="46" rx="5" fill="var(--fix-soft)" stroke="var(--fix)" stroke-width="1.5"/>
+        <text x="42" y="59" font-size="12" font-weight="600" fill="currentColor">algorithms</text>
+        <text x="168" y="59" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--fix)">0.533</text>
+        <rect x="42" y="68" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="42" y="68" width="88" height="5" rx="2.5" fill="var(--fix)"/>
+
+        <rect x="30" y="100" width="150" height="46" rx="5" fill="var(--fix-soft)" stroke="var(--fix)" stroke-width="1.5"/>
+        <text x="42" y="119" font-size="12" font-weight="600" fill="currentColor">problem_solving</text>
+        <text x="168" y="119" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--fix)">0.515</text>
+        <rect x="42" y="128" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="42" y="128" width="85" height="5" rx="2.5" fill="var(--fix)"/>
+
+        <rect x="30" y="160" width="150" height="46" rx="5" fill="var(--fix-soft)" stroke="var(--fix)" stroke-width="1.5"/>
+        <text x="42" y="179" font-size="12" font-weight="600" fill="currentColor">cpp</text>
+        <text x="168" y="179" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--fix)">0.514</text>
+        <rect x="42" y="188" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="42" y="188" width="85" height="5" rx="2.5" fill="var(--fix)"/>
+
+        <rect x="30" y="240" width="150" height="46" rx="5" fill="none" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="5 3"/>
+        <text x="42" y="259" font-size="12" font-weight="600" fill="var(--muted)">c</text>
+        <text x="168" y="259" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--muted)">0.378</text>
+        <text x="42" y="277" font-size="9.5" fill="var(--muted)">inferred · no direct evidence</text>
+
+        <!-- right cluster -->
+        <rect x="500" y="40" width="150" height="46" rx="5" fill="var(--open-soft)" stroke="var(--open)" stroke-width="1.5"/>
+        <text x="512" y="59" font-size="12" font-weight="600" fill="currentColor">typescript</text>
+        <text x="638" y="59" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--open)">0.381</text>
+        <rect x="512" y="68" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="512" y="68" width="63" height="5" rx="2.5" fill="var(--open)"/>
+
+        <rect x="710" y="40" width="150" height="46" rx="5" fill="var(--open-soft)" stroke="var(--open)" stroke-width="1.5"/>
+        <text x="722" y="59" font-size="12" font-weight="600" fill="currentColor">nextjs</text>
+        <text x="848" y="59" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--open)">0.316</text>
+        <rect x="722" y="68" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="722" y="68" width="52" height="5" rx="2.5" fill="var(--open)"/>
+
+        <rect x="605" y="140" width="150" height="46" rx="5" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.3"/>
+        <text x="617" y="159" font-size="12" font-weight="600" fill="currentColor">react</text>
+        <text x="743" y="159" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="currentColor">0.293</text>
+        <rect x="617" y="168" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="617" y="168" width="43" height="5" rx="2.5" fill="var(--open)"/>
+
+        <rect x="500" y="240" width="150" height="46" rx="5" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.3"/>
+        <text x="512" y="259" font-size="12" font-weight="600" fill="currentColor">javascript</text>
+        <text x="638" y="259" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="currentColor">0.341</text>
+        <rect x="512" y="268" width="106" height="5" rx="2.5" fill="var(--rule-2)"/><rect x="512" y="268" width="49" height="5" rx="2.5" fill="var(--open)"/>
+
+        <rect x="710" y="216" width="150" height="40" rx="5" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.3"/>
+        <text x="722" y="241" font-size="11.5" fill="currentColor">deployment</text>
+        <text x="848" y="241" font-size="12" font-weight="600" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--muted)">0.311</text>
+
+        <rect x="710" y="266" width="150" height="40" rx="5" fill="var(--surface-2)" stroke="var(--rule-2)" stroke-width="1.3"/>
+        <text x="722" y="291" font-size="11.5" fill="currentColor">mongodb</text>
+        <text x="848" y="291" font-size="12" font-weight="600" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--muted)">0.173</text>
+
+        <rect x="270" y="330" width="180" height="46" rx="5" fill="var(--surface-2)" stroke="var(--warn)" stroke-width="1.3"/>
+        <text x="282" y="349" font-size="12" font-weight="600" fill="currentColor">python</text>
+        <text x="438" y="349" font-size="12.5" font-weight="700" text-anchor="end" font-family="IBM Plex Mono,monospace" fill="var(--warn)">0.189</text>
+        <text x="282" y="366" font-size="9.5" fill="var(--warn)">newest evidence 787 days old</text>
+      </g>
+
+      <g stroke="var(--muted)" stroke-width="1.3" fill="none" marker-end="url(#pa)">
+        <path d="M105 210 L105 236"/>
+        <path d="M575 90 L575 236"/>
+        <path d="M760 90 L740 136"/>
+        <path d="M640 188 L600 236"/>
+      </g>
+      <g font-family="IBM Plex Mono,monospace" font-size="9" fill="var(--muted)">
+        <text x="112" y="227">RELATED_TO γ0.40</text>
+        <text x="582" y="168">PREREQUISITE_OF γ0.55</text>
+        <text x="770" y="118">REQUIRES γ0.65</text>
+        <text x="600" y="216" text-anchor="end">REQUIRES γ0.65</text>
+      </g>
+
+      <text x="30" y="408" font-family="IBM Plex Sans,sans-serif" font-size="11" fill="var(--muted)">Bar shows score; the gap to its end is the uncertainty band up to the mean. Dashed node has no direct evidence.</text>
+    </svg>
+    </div>
+    <figcaption><b>The skill graph on the reference date.</b> A single Codeforces call produces the three highest-scoring nodes; three repositories produce a broader, lower, wider-banded cluster. Neither source reaches the other's skills — this is the multi-source thesis on one candidate. Python sits low not because the evidence was weak but because it is 787 days old.</figcaption>
+  </figure>
+
+  <h3>GET /v1/developers/subj_7a3f9e21/skills/typescript/explain</h3>
+  <pre>{ "skill": "typescript", "score": <b>0.381</b>, "mean": 0.504,
+  "sigma": 0.123, <i>display-space half-width</i>
+  "sigma_logit": 0.501, <i>the state</i>
+  "contributions": [
+    { "event":"claim_corroborated", "weight": <b>0.408</b>, "occurred_at":"2025-06-19",
+      "reliability": 0.48, "detail":"'familiar typescript' backed by 335 kB shipped" },
+    { "event":"repo_artifact", "weight": <b>0.266</b>, "occurred_at":"2025-06-19",
+      "reliability": 0.42, "detail":"cf-connect · 97 commits · 151 kB TypeScript" },
+    { "event":"repo_artifact", "weight": <b>0.257</b>, "occurred_at":"2025-04-27",
+      "reliability": 0.42, "detail":"ATMA-Final · 142 commits · 184 kB TypeScript" },
+    { "event":"prior", "weight": 0.069, "detail":"theta_0 = 0.25" } ],
+  "caps": [ { "factor":"ownership_unverified", "value": 0.6,
+              "reason":"handle derived from repo URL; no OAuth or challenge" } ],
+  "decay": { "days_since_newest_evidence": 431, "lambda": 3.0e-4, "tier":"ecosystem" },
+  "abstentions": [ "no competitive-programming signal — TypeScript is not a contest language" ] }</pre>
+  <p>The weights are exact, not illustrative: for a Kalman chain, event <em>i</em>'s influence on the final mean is K<sub>i</sub> × Π<sub>j&gt;i</sub>(1 − K<sub>j</sub>), and the four here sum to 1.000. That is what makes ablation meaningful — remove the corroboration event and you know in advance that 40.8 % of the estimate goes with it.</p>
+</section>
+
+<section>
+  <h2><span class="num">07</span>The graph, aged five years</h2>
+  <p class="lede">No new evidence arrives. Every score below is the same eight events, folded and then decayed to a later date.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Skill</th><th>Tier</th><th class="n">now</th><th class="n">+6 m</th><th class="n">+12 m</th><th class="n">+24 m</th><th class="n">+36 m</th><th class="n">+60 m</th><th class="n">relative</th></tr></thead>
+      <tbody>
+        <tr><td>algorithms</td><td>fundamental</td><td class="n">0.533</td><td class="n">0.506</td><td class="n">0.481</td><td class="n">0.435</td><td class="n">0.394</td><td class="n">0.327</td><td class="n">−38.6 %</td></tr>
+        <tr><td>problem_solving</td><td>fundamental</td><td class="n">0.515</td><td class="n">0.489</td><td class="n">0.465</td><td class="n">0.421</td><td class="n">0.382</td><td class="n">0.318</td><td class="n">−38.2 %</td></tr>
+        <tr><td>cpp</td><td>fundamental</td><td class="n">0.514</td><td class="n">0.488</td><td class="n">0.464</td><td class="n">0.420</td><td class="n">0.381</td><td class="n">0.317</td><td class="n">−38.3 %</td></tr>
+        <tr><td>typescript</td><td>ecosystem</td><td class="n">0.381</td><td class="n">0.332</td><td class="n">0.292</td><td class="n">0.233</td><td class="n">0.194</td><td class="n">0.147</td><td class="n">−61.4 %</td></tr>
+        <tr><td>c <span style="color:var(--muted)">(inferred)</span></td><td>fundamental</td><td class="n">0.378</td><td class="n">0.353</td><td class="n">0.331</td><td class="n">0.293</td><td class="n">0.263</td><td class="n">0.218</td><td class="n">−42.5 %</td></tr>
+        <tr><td>javascript</td><td>ecosystem</td><td class="n">0.341</td><td class="n">0.299</td><td class="n">0.268</td><td class="n">0.224</td><td class="n">0.194</td><td class="n">0.159</td><td class="n">−53.3 %</td></tr>
+        <tr><td>nextjs</td><td>framework</td><td class="n">0.316</td><td class="n">0.236</td><td class="n">0.188</td><td class="n">0.136</td><td class="n">0.110</td><td class="n">0.084</td><td class="n">−73.3 %</td></tr>
+        <tr><td>deployment</td><td>framework</td><td class="n">0.311</td><td class="n">0.229</td><td class="n">0.180</td><td class="n">0.129</td><td class="n">0.104</td><td class="n">0.080</td><td class="n">−74.3 %</td></tr>
+        <tr><td>react</td><td>framework</td><td class="n">0.293</td><td class="n">0.230</td><td class="n">0.192</td><td class="n">0.150</td><td class="n">0.129</td><td class="n">0.105</td><td class="n">−64.0 %</td></tr>
+        <tr><td>python</td><td>ecosystem</td><td class="n">0.189</td><td class="n">0.175</td><td class="n">0.163</td><td class="n">0.144</td><td class="n">0.130</td><td class="n">0.110</td><td class="n">−41.8 %</td></tr>
+        <tr><td>mongodb</td><td>framework</td><td class="n">0.173</td><td class="n">0.144</td><td class="n">0.125</td><td class="n">0.101</td><td class="n">0.088</td><td class="n">0.071</td><td class="n">−59.1 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The tier structure is doing exactly what it was set up to do. Fundamentals lose about 38 % of their score over five years; ecosystem languages 42–61 %; frameworks 59–74 %. Next.js falls furthest because a front-end framework untouched for five years genuinely is the weakest claim on this list.</p>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 400" role="img" aria-label="Score against time for five skills over sixty months. Fundamentals decline gently, ecosystem languages faster, frameworks fastest. A marked point shows one fresh TypeScript commit at month 24 restoring the score to its original level.">
+      <defs>
+        <marker id="ra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--crit)"/></marker>
+      </defs>
+      <line x1="70" y1="40" x2="70" y2="320" stroke="var(--rule-2)"/>
+      <line x1="70" y1="320" x2="820" y2="320" stroke="var(--rule-2)"/>
+      <g font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)" text-anchor="end">
+        <text x="63" y="44">0.60</text><text x="63" y="137">0.40</text><text x="63" y="230">0.20</text><text x="63" y="323">0</text>
+      </g>
+      <g stroke="var(--rule)" stroke-dasharray="2 5"><line x1="70" y1="137" x2="820" y2="137"/><line x1="70" y1="230" x2="820" y2="230"/></g>
+      <g font-family="IBM Plex Mono,monospace" font-size="9.5" fill="var(--muted)" text-anchor="middle">
+        <text x="70" y="338">now</text><text x="216" y="338">+12 m</text><text x="362" y="338">+24 m</text><text x="508" y="338">+36 m</text><text x="800" y="338">+60 m</text>
+      </g>
+
+      <polyline points="70,71 143,84 216,96 362,117 508,136 800,167" fill="none" stroke="var(--fix)" stroke-width="2.2"/>
+      <polyline points="70,80 143,92 216,104 362,124 508,142 800,172" fill="none" stroke="var(--fix)" stroke-width="1.5" opacity="0.55"/>
+      <polyline points="70,142 143,165 216,184 362,211 508,230 800,251" fill="none" stroke="var(--open)" stroke-width="2.2"/>
+      <polyline points="70,172 143,210 216,232 362,257 508,269 800,281" fill="none" stroke="var(--warn)" stroke-width="2.2"/>
+      <polyline points="70,232 143,238 216,244 362,253 508,259 800,269" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="5 3"/>
+
+      <g font-family="IBM Plex Sans,sans-serif" font-size="10.5">
+        <text x="826" y="170" fill="var(--fix)">algorithms</text>
+        <text x="826" y="184" fill="var(--fix)" opacity="0.7">cpp</text>
+        <text x="826" y="254" fill="var(--open)">typescript</text>
+        <text x="826" y="284" fill="var(--warn)">nextjs</text>
+        <text x="826" y="272" fill="var(--muted)">python</text>
+      </g>
+
+      <circle cx="362" cy="211" r="4" fill="var(--crit)"/>
+      <circle cx="362" cy="142" r="4" fill="var(--crit)"/>
+      <path d="M362 207 L362 148" stroke="var(--crit)" stroke-width="2" fill="none" marker-end="url(#ra)"/>
+      <text x="374" y="176" font-family="IBM Plex Sans,sans-serif" font-size="10.5" font-weight="600" fill="var(--crit)">one commit: 0.233 → 0.382</text>
+      <text x="374" y="192" font-family="IBM Plex Sans,sans-serif" font-size="10" fill="var(--muted)">two years of decay undone in a single event</text>
+
+      <text x="90" y="60" font-family="IBM Plex Sans,sans-serif" font-size="10.5" fill="var(--muted)">fundamentals decay slowest · frameworks fastest — the tier sets the slope</text>
+    </svg>
+    </div>
+    <figcaption><b>Five years of silence, and one commit.</b> The three tiers separate visibly: λ = 1.0e-4 for fundamentals, 3.0e-4 for ecosystem languages, 7.5e-4 for frameworks. The red marker at +24 months is the recovery below — because the loss was variance rather than a lowered estimate, a single fresh event returns the score to where it started.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="num">08</span>One commit, two years later</h2>
+  <p class="lede">A single <code>repo_artifact</code> event for TypeScript on 2028-08-24 — 97 commits, ordinary substance, the same ×0.6 unverified-ownership cap. Nothing exceptional.</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>State</th><th class="n">μx</th><th class="n">σx</th><th class="n">mean</th><th class="n">score</th></tr></thead>
+      <tbody>
+        <tr><td>2026-08-24 — fresh</td><td class="n">0.015</td><td class="n">0.501</td><td class="n">0.504</td><td class="n">0.381</td></tr>
+        <tr><td>2028-08-24 — after two years of silence</td><td class="n">−0.503</td><td class="n">0.685</td><td class="n">0.377</td><td class="n">0.233</td></tr>
+        <tr><td>2028-08-24 — one commit later</td><td class="n">0.001</td><td class="n">0.481</td><td class="n">0.500</td><td class="n">0.382</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note f">
+    <h5>Nothing is re-earned</h5>
+    <p>Two years of silence cost 0.147. One commit returned 0.149, landing at 0.382 against an original 0.381. This is the whole argument for modelling decay as growing variance: a "subtract points over time" scheme would have left this candidate slowly climbing back up a ladder they had already climbed. Here the band simply closes — σx 0.685 → 0.481 — and the estimate was never in doubt, only our confidence in it.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">09</span>Reproducing this</h2>
+  <p>Every number in this document comes from <code>contracts/reference/m6_model.py</code> with the constants in <code>contracts/m6-parameters.yaml</code>, run over <code>docs/docs/examples/report-full.json</code>. Nothing was hand-computed and nothing was tuned to make this trace look good.</p>
+  <p>Three things to lift straight into the implementation:</p>
+  <ol>
+    <li><strong>The eight-event batch is fixture two.</strong> Fixture one is the committed <code>evidence-events.json</code>; this one is derived from a full report and exercises the projection as well as the model.</li>
+    <li><strong>The step tables in §04 are unit tests.</strong> Pin K, μx and σx at each step, not just the final score — a wrong observation variance still produces a plausible-looking final number, and only the intermediate values catch it.</li>
+    <li><strong>The <code>c</code> behaviour in §05 is the first sweep target.</strong> It is the one place this trace found the model doing something defensible in the arithmetic and wrong in the presentation.</li>
+  </ol>
+</section>
+
+<footer>
+  DevBridge M6 — worked trace. Input <code>docs/docs/examples/report-full.json</code>. Model <code>contracts/reference/m6_model.py</code>, constants <code>contracts/m6-parameters.yaml</code>, projection <code>contracts/projection-rules.yaml</code>. Decisions O1–O8 in <code>m6-decisions.html</code>. Reference date 2026-08-24.
+</footer>
+
+</div>

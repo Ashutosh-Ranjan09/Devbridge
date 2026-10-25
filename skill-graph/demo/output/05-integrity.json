@@ -1,0 +1,224 @@
+{
+  "subject_ref": "subj_c4f80a12",
+  "as_of": "2026-08-30",
+  "contract_version": "1.0.0",
+  "events_examined": 21,
+  "skills_examined": 17,
+  "clean": false,
+  "counts": {
+    "notice": 12,
+    "attention": 0
+  },
+  "truncated": 0,
+  "findings": [
+    {
+      "check_id": "BREADTH_FROM_ONE_ARTEFACT",
+      "severity": "notice",
+      "summary": "5 skills come from the single artefact ev_ce8f17dd7f94",
+      "detail": "These skills are not independently supported: one artefact produced all of them, so they move together and a problem with it affects every one.",
+      "innocent_explanation": "One substantial full-stack project legitimately demonstrates a wide stack.",
+      "skills": [
+        "jupyter_notebook",
+        "numpy",
+        "pandas",
+        "postgresql",
+        "python"
+      ],
+      "event_ids": [
+        "ev_ce8f17dd7f94"
+      ],
+      "metrics": {
+        "skill_count": 5,
+        "kind": "repo_artifact"
+      }
+    },
+    {
+      "check_id": "QUARANTINED_EVIDENCE",
+      "severity": "notice",
+      "summary": "2 event(s) held out of scoring over 2 unknown skill(s)",
+      "detail": "The evidence was accepted and stored, but names skills the ontology does not carry (haskell, jupyter_notebook), so it contributes nothing until those are added.",
+      "innocent_explanation": "The ontology is incomplete, which is our problem and not the candidate's. The events are stored and will count once the skills are added.",
+      "skills": [
+        "haskell",
+        "jupyter_notebook"
+      ],
+      "event_ids": [
+        "ev_ce8f17dd7f94",
+        "ev_fa55893055c8"
+      ],
+      "metrics": {
+        "held_events": 2
+      }
+    },
+    {
+      "check_id": "CLAIM_ONLY",
+      "severity": "notice",
+      "summary": "haskell rests only on self-reported claims",
+      "detail": "All 1 events for haskell are unverified CV claims. The low reliability already reflects that; the score is a floor, not a measurement.",
+      "innocent_explanation": "Plenty of real skill leaves no public artefact \u2014 internal work, private repositories, employer-owned code.",
+      "skills": [
+        "haskell"
+      ],
+      "event_ids": [
+        "ev_fa55893055c8"
+      ],
+      "metrics": {
+        "events": 1
+      }
+    },
+    {
+      "check_id": "CLAIM_ONLY",
+      "severity": "notice",
+      "summary": "rust rests only on self-reported claims",
+      "detail": "All 1 events for rust are unverified CV claims. The low reliability already reflects that; the score is a floor, not a measurement.",
+      "innocent_explanation": "Plenty of real skill leaves no public artefact \u2014 internal work, private repositories, employer-owned code.",
+      "skills": [
+        "rust"
+      ],
+      "event_ids": [
+        "ev_3d6bac79e0ea"
+      ],
+      "metrics": {
+        "events": 1
+      }
+    },
+    {
+      "check_id": "INFERRED_ONLY",
+      "severity": "notice",
+      "summary": "c has no direct evidence; it is inferred from cpp",
+      "detail": "The score for c comes from a RELATED_TO edge out of cpp, damped by gamma=0.4. Nothing in the evidence log mentions this skill at all.",
+      "innocent_explanation": "Propagation is a modelling choice, working as designed. The finding exists so the number is never mistaken for a measurement.",
+      "skills": [
+        "c"
+      ],
+      "event_ids": [],
+      "metrics": {
+        "from_skill": "cpp",
+        "edge_type": "RELATED_TO",
+        "gamma": 0.4
+      }
+    },
+    {
+      "check_id": "INFERRED_ONLY",
+      "severity": "notice",
+      "summary": "data_structures has no direct evidence; it is inferred from algorithms",
+      "detail": "The score for data_structures comes from a RELATED_TO edge out of algorithms, damped by gamma=0.4. Nothing in the evidence log mentions this skill at all.",
+      "innocent_explanation": "Propagation is a modelling choice, working as designed. The finding exists so the number is never mistaken for a measurement.",
+      "skills": [
+        "data_structures"
+      ],
+      "event_ids": [],
+      "metrics": {
+        "from_skill": "algorithms",
+        "edge_type": "RELATED_TO",
+        "gamma": 0.4
+      }
+    },
+    {
+      "check_id": "INFERRED_ONLY",
+      "severity": "notice",
+      "summary": "javascript has no direct evidence; it is inferred from typescript",
+      "detail": "The score for javascript comes from a PREREQUISITE_OF edge out of typescript, damped by gamma=0.55. Nothing in the evidence log mentions this skill at all.",
+      "innocent_explanation": "Propagation is a modelling choice, working as designed. The finding exists so the number is never mistaken for a measurement.",
+      "skills": [
+        "javascript"
+      ],
+      "event_ids": [],
+      "metrics": {
+        "from_skill": "typescript",
+        "edge_type": "PREREQUISITE_OF",
+        "gamma": 0.55
+      }
+    },
+    {
+      "check_id": "INFERRED_ONLY",
+      "severity": "notice",
+      "summary": "sql has no direct evidence; it is inferred from postgresql",
+      "detail": "The score for sql comes from a REQUIRES edge out of postgresql, damped by gamma=0.65. Nothing in the evidence log mentions this skill at all.",
+      "innocent_explanation": "Propagation is a modelling choice, working as designed. The finding exists so the number is never mistaken for a measurement.",
+      "skills": [
+        "sql"
+      ],
+      "event_ids": [],
+      "metrics": {
+        "from_skill": "postgresql",
+        "edge_type": "REQUIRES",
+        "gamma": 0.65
+      }
+    },
+    {
+      "check_id": "SINGLE_SOURCE",
+      "severity": "notice",
+      "summary": "go: all 2 events come from github_api",
+      "detail": "Nothing independent corroborates go. If github_api is wrong or incomplete, the whole score for this skill is wrong with it.",
+      "innocent_explanation": "Most developers keep their work in one place. This describes our evidence, not their ability.",
+      "skills": [
+        "go"
+      ],
+      "event_ids": [
+        "ev_163dd9721672",
+        "ev_aa678cd68a4e"
+      ],
+      "metrics": {
+        "origin": "github_api",
+        "events": 2
+      }
+    },
+    {
+      "check_id": "SINGLE_SOURCE",
+      "severity": "notice",
+      "summary": "postgresql: all 3 events come from github_api",
+      "detail": "Nothing independent corroborates postgresql. If github_api is wrong or incomplete, the whole score for this skill is wrong with it.",
+      "innocent_explanation": "Most developers keep their work in one place. This describes our evidence, not their ability.",
+      "skills": [
+        "postgresql"
+      ],
+      "event_ids": [
+        "ev_517e93a621ce",
+        "ev_b6c51a251d46",
+        "ev_ce8f17dd7f94"
+      ],
+      "metrics": {
+        "origin": "github_api",
+        "events": 3
+      }
+    },
+    {
+      "check_id": "SINGLE_SOURCE",
+      "severity": "notice",
+      "summary": "typescript: all 2 events come from github_api",
+      "detail": "Nothing independent corroborates typescript. If github_api is wrong or incomplete, the whole score for this skill is wrong with it.",
+      "innocent_explanation": "Most developers keep their work in one place. This describes our evidence, not their ability.",
+      "skills": [
+        "typescript"
+      ],
+      "event_ids": [
+        "ev_517e93a621ce",
+        "ev_5c17067cf052"
+      ],
+      "metrics": {
+        "origin": "github_api",
+        "events": 2
+      }
+    },
+    {
+      "check_id": "WHOLLY_STALE",
+      "severity": "notice",
+      "summary": "aws: newest evidence is 526 days old, past its 467-day half-life",
+      "detail": "Every event for aws predates its own half-life, so the number is now driven more by decay toward the prior than by anything observed.",
+      "innocent_explanation": "Ongoing work in private repositories is invisible here. Staleness is a statement about our evidence.",
+      "skills": [
+        "aws"
+      ],
+      "event_ids": [
+        "ev_005e5c176916"
+      ],
+      "metrics": {
+        "age_days": 526,
+        "half_life_days": 467,
+        "tier": "framework"
+      }
+    }
+  ],
+  "note": "These describe the evidence, not the person. No score below is changed by anything in this report."
+}

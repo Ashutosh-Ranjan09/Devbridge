@@ -1,0 +1,1099 @@
+{
+  "schema_version": "1.0.0",
+  "verification_id": "ver_01K2DEMO7QX4N",
+  "status": "completed",
+  "subject": {
+    "subject_ref": "subj_c4f80a12",
+    "tenant_id": "tnt_vit_placements",
+    "consent_ref": "consent_01K2DEMO_AK"
+  },
+  "document": {
+    "document_id": "doc_ak_2026",
+    "pages": 2,
+    "ingest_method": "pdf_text",
+    "sha256": "9f2c40b7d1e83a55c6094f7be2d81a3c5f70e94b6d2a18cf03e5b7419d6c82af",
+    "ocr_confidence": null,
+    "producer": "LaTeX with hyperref",
+    "created_at": "2026-07-12T18:22:07+05:30",
+    "modified_at": "2026-07-12T18:22:07+05:30"
+  },
+  "claim_graph": {
+    "graph_id": "cg_ak_01",
+    "source": {
+      "document_id": "doc_ak_2026",
+      "normalised_text": "A. KRISHNAN | 21BCS0472 | B.Tech COMPUTER SCIENCE AND ENGINEERING EDUCATION 2026 B.TECH Vellore Institute of Technology CGPA 8.91 / 10 ... [truncated in this example; the real field carries the full normalised document, and every char offset below indexes into it]"
+    },
+    "claims": [
+      {
+        "claim_id": "c01",
+        "kind": "identifier",
+        "provenance": {
+          "char_start": 120,
+          "char_end": 138,
+          "page": 1,
+          "verbatim": "Roll No. 21BCS0472",
+          "recovery": "exact"
+        },
+        "value": "21BCS0472"
+      },
+      {
+        "claim_id": "c02",
+        "kind": "education",
+        "provenance": {
+          "char_start": 150,
+          "char_end": 200,
+          "page": 1,
+          "verbatim": "B.Tech Computer Science and Engineering, 2022-2026",
+          "recovery": "exact"
+        },
+        "org": "Vellore Institute of Technology",
+        "degree": "B.Tech Computer Science and Engineering",
+        "interval": {
+          "start": {
+            "year": 2022,
+            "month": 8,
+            "day": null,
+            "precision": "month"
+          },
+          "end": {
+            "year": 2026,
+            "month": 5,
+            "day": null,
+            "precision": "month"
+          },
+          "ongoing": false
+        }
+      },
+      {
+        "claim_id": "c03",
+        "kind": "declaration_marker",
+        "provenance": {
+          "char_start": 210,
+          "char_end": 282,
+          "page": 1,
+          "verbatim": "CGPA and coursework as per institute records; not independently attested",
+          "recovery": "exact"
+        },
+        "scope": [
+          "cgpa",
+          "coursework"
+        ],
+        "asserted_by": "candidate",
+        "effect": "inherit_unverified"
+      },
+      {
+        "claim_id": "c04",
+        "kind": "employment",
+        "provenance": {
+          "char_start": 300,
+          "char_end": 362,
+          "page": 1,
+          "verbatim": "Software Engineering Intern, Zeta Systems, May 2025 - Jul 2025",
+          "recovery": "exact"
+        },
+        "org": "Zeta Systems",
+        "title": "Software Engineering Intern",
+        "employment_type": "internship",
+        "interval": {
+          "start": {
+            "year": 2025,
+            "month": 5,
+            "day": null,
+            "precision": "month"
+          },
+          "end": {
+            "year": 2025,
+            "month": 7,
+            "day": null,
+            "precision": "month"
+          },
+          "ongoing": false
+        }
+      },
+      {
+        "claim_id": "c05",
+        "kind": "employment",
+        "provenance": {
+          "char_start": 380,
+          "char_end": 439,
+          "page": 1,
+          "verbatim": "Research Assistant, Distributed Systems Lab, 2024 - present",
+          "recovery": "exact"
+        },
+        "org": "Distributed Systems Lab",
+        "title": "Research Assistant",
+        "interval": {
+          "start": {
+            "year": 2024,
+            "month": 1,
+            "day": null,
+            "precision": "month"
+          },
+          "end": null,
+          "ongoing": true
+        },
+        "supervisor": "Dr. A. Raghavan"
+      },
+      {
+        "claim_id": "c06",
+        "kind": "project",
+        "provenance": {
+          "char_start": 470,
+          "char_end": 522,
+          "page": 1,
+          "verbatim": "distributed-kv - a Raft-backed key-value store in Go",
+          "recovery": "exact"
+        },
+        "title": "distributed-kv",
+        "skill_refs": [
+          "go",
+          "docker",
+          "kubernetes"
+        ],
+        "artefacts": [
+          {
+            "type": "repo",
+            "platform": "github",
+            "url": "https://github.com/a-krishnan-dev/distributed-kv",
+            "owner": "a-krishnan-dev"
+          }
+        ]
+      },
+      {
+        "claim_id": "c07",
+        "kind": "project",
+        "provenance": {
+          "char_start": 540,
+          "char_end": 594,
+          "page": 1,
+          "verbatim": "ml-pipeline - feature store and training orchestration",
+          "recovery": "exact"
+        },
+        "title": "ml-pipeline",
+        "skill_refs": [
+          "python",
+          "numpy",
+          "pandas",
+          "postgresql"
+        ],
+        "artefacts": [
+          {
+            "type": "repo",
+            "platform": "github",
+            "url": "https://github.com/a-krishnan-dev/ml-pipeline",
+            "owner": "a-krishnan-dev"
+          }
+        ]
+      },
+      {
+        "claim_id": "c08",
+        "kind": "project",
+        "provenance": {
+          "char_start": 610,
+          "char_end": 660,
+          "page": 1,
+          "verbatim": "react-dashboard - realtime ops dashboard, deployed",
+          "recovery": "exact"
+        },
+        "title": "react-dashboard",
+        "skill_refs": [
+          "typescript",
+          "react",
+          "postgresql"
+        ],
+        "artefacts": [
+          {
+            "type": "repo",
+            "platform": "github",
+            "url": "https://github.com/a-krishnan-dev/react-dashboard",
+            "owner": "a-krishnan-dev"
+          },
+          {
+            "type": "deployment",
+            "url": "https://ops-dash-ak.vercel.app"
+          }
+        ]
+      },
+      {
+        "claim_id": "c09",
+        "kind": "project",
+        "provenance": {
+          "char_start": 690,
+          "char_end": 739,
+          "page": 1,
+          "verbatim": "mini-compiler - a C++ compiler for a toy language",
+          "recovery": "exact"
+        },
+        "title": "mini-compiler",
+        "skill_refs": [
+          "cpp",
+          "algorithms"
+        ],
+        "artefacts": [
+          {
+            "type": "repo",
+            "platform": "github",
+            "url": "https://github.com/a-krishnan-dev/mini-compiler",
+            "owner": "a-krishnan-dev"
+          }
+        ]
+      },
+      {
+        "claim_id": "c10",
+        "kind": "project",
+        "provenance": {
+          "char_start": 760,
+          "char_end": 812,
+          "page": 1,
+          "verbatim": "thesis-notebooks - experiments for the lab (private)",
+          "recovery": "exact"
+        },
+        "title": "thesis-notebooks",
+        "skill_refs": [
+          "python"
+        ],
+        "artefacts": [
+          {
+            "type": "repo",
+            "platform": "github",
+            "url": "https://github.com/a-krishnan-dev/thesis-notebooks",
+            "owner": "a-krishnan-dev"
+          }
+        ]
+      },
+      {
+        "claim_id": "c11",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 820,
+          "char_end": 822,
+          "page": 1,
+          "verbatim": "go",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "go"
+        ],
+        "proficiency": "proficient"
+      },
+      {
+        "claim_id": "c12",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 834,
+          "char_end": 840,
+          "page": 1,
+          "verbatim": "python",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "python"
+        ],
+        "proficiency": "expert"
+      },
+      {
+        "claim_id": "c13",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 848,
+          "char_end": 851,
+          "page": 1,
+          "verbatim": "cpp",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "cpp"
+        ],
+        "proficiency": "proficient"
+      },
+      {
+        "claim_id": "c14",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 862,
+          "char_end": 872,
+          "page": 1,
+          "verbatim": "typescript",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "typescript"
+        ],
+        "proficiency": "intermediate"
+      },
+      {
+        "claim_id": "c15",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 876,
+          "char_end": 881,
+          "page": 1,
+          "verbatim": "react",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "react"
+        ],
+        "proficiency": "intermediate"
+      },
+      {
+        "claim_id": "c16",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 890,
+          "char_end": 900,
+          "page": 1,
+          "verbatim": "postgresql",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "postgresql"
+        ],
+        "proficiency": "intermediate"
+      },
+      {
+        "claim_id": "c17",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 904,
+          "char_end": 910,
+          "page": 1,
+          "verbatim": "docker",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "docker"
+        ],
+        "proficiency": "familiar"
+      },
+      {
+        "claim_id": "c18",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 918,
+          "char_end": 928,
+          "page": 1,
+          "verbatim": "kubernetes",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "kubernetes"
+        ],
+        "proficiency": "familiar"
+      },
+      {
+        "claim_id": "c19",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 932,
+          "char_end": 936,
+          "page": 1,
+          "verbatim": "rust",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "rust"
+        ],
+        "proficiency": "familiar"
+      },
+      {
+        "claim_id": "c20",
+        "kind": "skill",
+        "provenance": {
+          "char_start": 946,
+          "char_end": 953,
+          "page": 1,
+          "verbatim": "haskell",
+          "recovery": "exact"
+        },
+        "skill_refs": [
+          "haskell"
+        ],
+        "proficiency": "familiar"
+      },
+      {
+        "claim_id": "c21",
+        "kind": "achievement",
+        "provenance": {
+          "char_start": 1000,
+          "char_end": 1035,
+          "page": 1,
+          "verbatim": "Codeforces max rating 1687 (Expert)",
+          "recovery": "exact"
+        },
+        "platform": "codeforces",
+        "metric": "max_rating",
+        "value": 1687,
+        "qualifier": "Expert",
+        "skill_refs": [
+          "algorithms",
+          "cpp",
+          "problem_solving"
+        ]
+      },
+      {
+        "claim_id": "c22",
+        "kind": "achievement",
+        "provenance": {
+          "char_start": 1060,
+          "char_end": 1086,
+          "page": 1,
+          "verbatim": "CodeChef 4-star, peak 1810",
+          "recovery": "exact"
+        },
+        "platform": "codechef",
+        "metric": "max_rating",
+        "value": 1810,
+        "qualifier": "4 star"
+      },
+      {
+        "claim_id": "c23",
+        "kind": "achievement",
+        "provenance": {
+          "char_start": 1110,
+          "char_end": 1157,
+          "page": 1,
+          "verbatim": "Global rank 412, Codeforces Round 1021 (Div. 2)",
+          "recovery": "exact"
+        },
+        "platform": "codeforces",
+        "metric": "contest_rank",
+        "value": 412,
+        "context": {
+          "contest": "Codeforces Round 1021",
+          "division": 2
+        }
+      },
+      {
+        "claim_id": "c24",
+        "kind": "achievement",
+        "provenance": {
+          "char_start": 1180,
+          "char_end": 1238,
+          "page": 1,
+          "verbatim": "Solved 900+ problems across LeetCode, Codeforces, CodeChef",
+          "recovery": "exact"
+        },
+        "metric": "problems_solved",
+        "value": 900,
+        "context": {
+          "platforms": [
+            "leetcode",
+            "codeforces",
+            "codechef"
+          ],
+          "bound": "open"
+        },
+        "flags": [
+          "aggregate_across_sources"
+        ]
+      },
+      {
+        "claim_id": "c25",
+        "kind": "achievement",
+        "provenance": {
+          "char_start": 1250,
+          "char_end": 1289,
+          "page": 1,
+          "verbatim": "JEE Advanced 2022 - All India Rank 3184",
+          "recovery": "exact"
+        },
+        "metric": "entrance_rank",
+        "value": 3184
+      },
+      {
+        "claim_id": "c26",
+        "kind": "certification",
+        "provenance": {
+          "char_start": 1320,
+          "char_end": 1365,
+          "page": 1,
+          "verbatim": "AWS Certified Solutions Architect - Associate",
+          "recovery": "exact"
+        },
+        "issuer": "Amazon Web Services",
+        "credential_id": "AWS-SAA-2024-88213",
+        "skill_refs": [
+          "aws"
+        ]
+      },
+      {
+        "claim_id": "c27",
+        "kind": "certification",
+        "provenance": {
+          "char_start": 1400,
+          "char_end": 1449,
+          "page": 1,
+          "verbatim": "Certified Kubernetes Application Developer (CKAD)",
+          "recovery": "exact"
+        },
+        "issuer": "Cloud Native Computing Foundation",
+        "credential_id": "CKAD-2025-4471",
+        "skill_refs": [
+          "kubernetes",
+          "docker"
+        ]
+      },
+      {
+        "claim_id": "c28",
+        "kind": "profile",
+        "provenance": {
+          "char_start": 1470,
+          "char_end": 1495,
+          "page": 1,
+          "verbatim": "github.com/a-krishnan-dev",
+          "recovery": "exact"
+        },
+        "platform": "github",
+        "handle": "a-krishnan-dev"
+      },
+      {
+        "claim_id": "c29",
+        "kind": "profile",
+        "provenance": {
+          "char_start": 1510,
+          "char_end": 1540,
+          "page": 1,
+          "verbatim": "linkedin.com/in/a-krishnan-dev",
+          "recovery": "exact"
+        },
+        "platform": "linkedin",
+        "handle": "a-krishnan-dev"
+      },
+      {
+        "claim_id": "c30",
+        "kind": "identifier",
+        "provenance": {
+          "char_start": 1550,
+          "char_end": 1581,
+          "page": 1,
+          "verbatim": "a.krishnan2022@vitstudent.ac.in",
+          "recovery": "exact"
+        },
+        "value": "a.krishnan2022@vitstudent.ac.in"
+      }
+    ],
+    "extraction_meta": {
+      "model_id": "claude-sonnet-5",
+      "prompt_version": "cvv-extract-2.3",
+      "input_hash": "9f2c40b7d1e83a55",
+      "span_failures": 0,
+      "retries": 0,
+      "extracted_at": "2026-08-30T06:11:40Z",
+      "degraded": false
+    }
+  },
+  "evidence_bundle": {
+    "bundle_id": "eb_ak_01",
+    "graph_id": "cg_ak_01",
+    "github": {
+      "handle": "a-krishnan-dev",
+      "ownership": "verified_oauth",
+      "account_created": "2022-09-18",
+      "repos": [
+        {
+          "name": "distributed-kv",
+          "exists": true,
+          "is_fork": false,
+          "owner_matches": true,
+          "created_at": "2025-02-14",
+          "first_commit": "2025-02-14",
+          "last_commit": "2026-06-10",
+          "commit_count": 168,
+          "size_kb": 1420,
+          "is_readme_only": false,
+          "languages": {
+            "Go": 412000,
+            "Shell": 18000,
+            "Dockerfile": 4200
+          },
+          "frameworks": [
+            "docker",
+            "kubernetes"
+          ]
+        },
+        {
+          "name": "ml-pipeline",
+          "exists": true,
+          "is_fork": false,
+          "owner_matches": true,
+          "created_at": "2024-11-03",
+          "first_commit": "2024-11-03",
+          "last_commit": "2026-03-15",
+          "commit_count": 97,
+          "size_kb": 760,
+          "is_readme_only": false,
+          "languages": {
+            "Python": 298000,
+            "Jupyter Notebook": 51000
+          },
+          "frameworks": [
+            "numpy",
+            "pandas",
+            "postgresql"
+          ]
+        },
+        {
+          "name": "react-dashboard",
+          "exists": true,
+          "is_fork": false,
+          "owner_matches": true,
+          "created_at": "2025-06-20",
+          "first_commit": "2025-06-20",
+          "last_commit": "2025-11-24",
+          "commit_count": 61,
+          "size_kb": 430,
+          "is_readme_only": false,
+          "languages": {
+            "TypeScript": 184000,
+            "JavaScript": 22000,
+            "CSS": 16000
+          },
+          "frameworks": [
+            "react",
+            "postgresql"
+          ]
+        },
+        {
+          "name": "mini-compiler",
+          "exists": true,
+          "is_fork": false,
+          "owner_matches": true,
+          "created_at": "2024-01-11",
+          "first_commit": "2024-01-11",
+          "last_commit": "2024-09-05",
+          "commit_count": 38,
+          "size_kb": 210,
+          "is_readme_only": false,
+          "languages": {
+            "C++": 142000,
+            "Makefile": 3000
+          },
+          "frameworks": []
+        },
+        {
+          "name": "awesome-go",
+          "exists": true,
+          "is_fork": true,
+          "owner_matches": true,
+          "last_commit": "2026-01-02",
+          "commit_count": 3,
+          "size_kb": 900,
+          "is_readme_only": false,
+          "languages": {
+            "Go": 1000
+          },
+          "frameworks": []
+        },
+        {
+          "name": "dotfiles",
+          "exists": true,
+          "is_fork": false,
+          "owner_matches": true,
+          "last_commit": "2026-05-01",
+          "commit_count": 14,
+          "size_kb": 40,
+          "is_readme_only": true,
+          "languages": {
+            "Shell": 9000
+          },
+          "frameworks": []
+        },
+        {
+          "name": "thesis-notebooks",
+          "exists": false,
+          "is_fork": false,
+          "owner_matches": false,
+          "commit_count": 0,
+          "size_kb": 0,
+          "is_readme_only": false,
+          "languages": {},
+          "frameworks": []
+        }
+      ],
+      "org_memberships": [
+        "vit-dsl"
+      ],
+      "first_commit_by_language": {
+        "Go": "2025-02-14",
+        "Python": "2022-11-02",
+        "C++": "2024-01-11",
+        "TypeScript": "2025-06-20"
+      },
+      "contribution_windows": [
+        {
+          "start": "2024-01-01",
+          "end": "2024-12-31",
+          "commit_count": 402,
+          "active_days": 143,
+          "primary_languages": [
+            "C++",
+            "Python"
+          ],
+          "source_timestamps": "server_side"
+        },
+        {
+          "start": "2025-01-01",
+          "end": "2025-12-31",
+          "commit_count": 511,
+          "active_days": 168,
+          "primary_languages": [
+            "Go",
+            "TypeScript"
+          ],
+          "source_timestamps": "server_side"
+        },
+        {
+          "start": "2026-01-01",
+          "end": "2026-08-30",
+          "commit_count": 267,
+          "active_days": 94,
+          "primary_languages": [
+            "Go"
+          ],
+          "source_timestamps": "server_side"
+        }
+      ]
+    },
+    "platforms": [
+      {
+        "platform": "codeforces",
+        "handle": "ak_dev",
+        "found": true,
+        "current_rating": 1642,
+        "max_rating": 1687,
+        "rank_title": "expert",
+        "problems_solved": 734,
+        "source_quality": "official_api",
+        "contests": [
+          {
+            "name": "Codeforces Round 1021 (Div. 2)",
+            "rank": 412,
+            "date": "2026-02-08",
+            "rating_after": 1687
+          },
+          {
+            "name": "Educational Round 178",
+            "rank": 901,
+            "date": "2025-10-19",
+            "rating_after": 1601
+          }
+        ]
+      },
+      {
+        "platform": "codechef",
+        "handle": "ak_dev",
+        "found": true,
+        "current_rating": 1774,
+        "max_rating": 1810,
+        "rank_title": "4 star",
+        "problems_solved": 186,
+        "source_quality": "scrape",
+        "contests": []
+      }
+    ],
+    "deployments": [
+      {
+        "url": "https://ops-dash-ak.vercel.app",
+        "reachable": true,
+        "status_code": 200,
+        "checked_at": "2026-08-30T06:14:02Z"
+      },
+      {
+        "url": "https://kv-demo-ak.fly.dev",
+        "reachable": false,
+        "status_code": 502,
+        "checked_at": "2026-08-30T06:14:05Z"
+      }
+    ],
+    "credentials": [
+      {
+        "credential_id": "AWS-SAA-2024-88213",
+        "issuer": "Amazon Web Services",
+        "status": "verified",
+        "method": "issuer_api",
+        "issued_at": "2025-03-22",
+        "expires_at": "2028-03-22"
+      },
+      {
+        "credential_id": "CKAD-2025-4471",
+        "issuer": "Cloud Native Computing Foundation",
+        "status": "issuer_unreachable",
+        "method": "issuer_api",
+        "issued_at": "2025-09-30"
+      }
+    ],
+    "registries": {
+      "Vellore Institute of Technology": {
+        "status": "resolved",
+        "canonical_id": "aicte:1-4021",
+        "registry": "aicte",
+        "score": 0.96,
+        "method": "threshold"
+      },
+      "A. Raghavan": {
+        "status": "ambiguous",
+        "canonical_id": null,
+        "registry": "vit_faculty",
+        "score": 0.61,
+        "method": "threshold"
+      },
+      "Zeta Systems": {
+        "status": "unresolved",
+        "canonical_id": null,
+        "registry": "mca",
+        "score": 0.22,
+        "method": "threshold"
+      }
+    },
+    "gathered_at": "2026-08-30T06:12:00Z",
+    "gaps": [
+      {
+        "source": "leetcode",
+        "reason": "no_handle_in_cv",
+        "detail": "c24 claims LeetCode problems but the CV names no handle"
+      },
+      {
+        "source": "github:thesis-notebooks",
+        "reason": "not_found",
+        "detail": "repository is private or does not exist"
+      }
+    ]
+  },
+  "findings": {
+    "report_id": "fr_ak_01",
+    "graph_id": "cg_ak_01",
+    "discrepancies": [
+      {
+        "finding_id": "f01",
+        "rule_id": "W1",
+        "rule_version": "1.2.0",
+        "tier": "evidence_only",
+        "severity": "low",
+        "confidence": 0.95,
+        "scoring": true,
+        "claim_refs": [
+          "c06"
+        ],
+        "evidence_refs": [
+          "deployments[1]"
+        ],
+        "explanation": "The deployment cited for distributed-kv returns 502.",
+        "innocent_explanation": "A free-tier host that sleeps idle instances."
+      },
+      {
+        "finding_id": "f02",
+        "rule_id": "G7",
+        "rule_version": "1.1.0",
+        "tier": "attention",
+        "severity": "medium",
+        "confidence": 0.88,
+        "scoring": true,
+        "claim_refs": [
+          "c19"
+        ],
+        "evidence_refs": [
+          "github.repos"
+        ],
+        "explanation": "Rust is claimed but no repository contains any Rust.",
+        "innocent_explanation": "Rust work may live in private or employer repositories."
+      },
+      {
+        "finding_id": "f03",
+        "rule_id": "P3",
+        "rule_version": "1.0.0",
+        "tier": "attention",
+        "severity": "low",
+        "confidence": 0.72,
+        "scoring": false,
+        "claim_refs": [
+          "c24"
+        ],
+        "evidence_refs": [
+          "platforms[0]",
+          "platforms[1]"
+        ],
+        "explanation": "920 problems verified across two of three named platforms; LeetCode unchecked.",
+        "innocent_explanation": "No LeetCode handle was given to check."
+      },
+      {
+        "finding_id": "f04",
+        "rule_id": "C5",
+        "rule_version": "1.0.0",
+        "tier": "evidence_only",
+        "severity": "info",
+        "confidence": 0.99,
+        "scoring": false,
+        "claim_refs": [
+          "c27"
+        ],
+        "evidence_refs": [
+          "credentials[1]"
+        ],
+        "explanation": "The CKAD issuer directory was unreachable at verification time.",
+        "innocent_explanation": "Transient outage; the credential may well be valid."
+      }
+    ],
+    "rule_outcomes": [
+      {
+        "rule_id": "D1",
+        "rule_version": "1.0.0",
+        "status": "clean"
+      },
+      {
+        "rule_id": "G3",
+        "rule_version": "1.3.0",
+        "status": "clean",
+        "reason": "OAuth completed; account ownership proven"
+      },
+      {
+        "rule_id": "G7",
+        "rule_version": "1.1.0",
+        "status": "fired"
+      },
+      {
+        "rule_id": "W1",
+        "rule_version": "1.2.0",
+        "status": "fired"
+      },
+      {
+        "rule_id": "P3",
+        "rule_version": "1.0.0",
+        "status": "abstained",
+        "reason": "no LeetCode handle supplied"
+      },
+      {
+        "rule_id": "C5",
+        "rule_version": "1.0.0",
+        "status": "error",
+        "reason": "issuer directory unreachable"
+      }
+    ],
+    "section_confidence": [
+      {
+        "section": "education",
+        "confidence": 0.62,
+        "basis_finding_ids": []
+      },
+      {
+        "section": "employment",
+        "confidence": 0.71,
+        "basis_finding_ids": []
+      },
+      {
+        "section": "projects",
+        "confidence": 0.93,
+        "basis_finding_ids": [
+          "f01"
+        ]
+      },
+      {
+        "section": "skills",
+        "confidence": 0.84,
+        "basis_finding_ids": [
+          "f02"
+        ]
+      },
+      {
+        "section": "certification",
+        "confidence": 0.55,
+        "basis_finding_ids": [
+          "f04"
+        ]
+      },
+      {
+        "section": "achievements",
+        "confidence": 0.9,
+        "basis_finding_ids": [
+          "f03"
+        ]
+      }
+    ],
+    "buckets": {
+      "verified": [
+        "c02",
+        "c06",
+        "c07",
+        "c08",
+        "c09",
+        "c21",
+        "c23",
+        "c26",
+        "c28"
+      ],
+      "contradicted": [],
+      "needs_context": [
+        "c19",
+        "c24",
+        "c27"
+      ],
+      "not_evaluated": [
+        "c04",
+        "c05",
+        "c10",
+        "c20"
+      ],
+      "out_of_scope": [
+        "c01",
+        "c03",
+        "c25",
+        "c29",
+        "c30"
+      ]
+    },
+    "evaluated_at": "2026-08-30T06:15:30Z"
+  },
+  "coverage": {
+    "rules_total": 41,
+    "rules_evaluated": 37,
+    "rules_abstained": 4,
+    "coverage": 0.902,
+    "attestation_depth": "issuer_verified",
+    "identity_confidence": "proven"
+  },
+  "provenance": {
+    "cvv_version": "0.4.1",
+    "contract_version": "1.0.0",
+    "model_id": "claude-sonnet-5",
+    "prompt_versions": {
+      "extract": "cvv-extract-2.3",
+      "narrate": "cvv-narrate-1.4"
+    },
+    "rule_versions": {
+      "D1": "1.0.0",
+      "G3": "1.3.0",
+      "G7": "1.1.0",
+      "W1": "1.2.0",
+      "P3": "1.0.0",
+      "C5": "1.0.0"
+    },
+    "sources_queried": [
+      {
+        "source": "github",
+        "queried_at": "2026-08-30T06:12:10Z",
+        "ttl_days": 30,
+        "response_hash": "a41c93f0"
+      },
+      {
+        "source": "codeforces",
+        "queried_at": "2026-08-30T06:12:22Z",
+        "ttl_days": 7,
+        "response_hash": "77be0d21"
+      },
+      {
+        "source": "codechef",
+        "queried_at": "2026-08-30T06:12:41Z",
+        "ttl_days": 7,
+        "response_hash": "c0d8f145"
+      },
+      {
+        "source": "aws_credly",
+        "queried_at": "2026-08-30T06:13:02Z",
+        "ttl_days": 90,
+        "response_hash": "1e9a7b30"
+      }
+    ]
+  },
+  "valid_as_of": "2026-08-30T06:16:00Z",
+  "signature": null
+}

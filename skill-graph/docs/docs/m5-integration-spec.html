@@ -1,0 +1,647 @@
+<title>M5 Integration Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4; --code-bg:#FBFCFD;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --det:#0F6E63; --det-soft:#E2F0EE; --llm:#6244C5; --llm-soft:#ECE7FA;
+  --warn:#8A5A12; --warn-soft:#F6EEDF; --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B; --code-bg:#12161C;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --llm:#A48FF5; --llm-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B; --code-bg:#12161C;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --llm:#A48FF5; --llm-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.5rem); line-height:1.04; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:38px 0 42px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.75rem; letter-spacing:-.021em; line-height:1.17; margin:0 0 8px; text-wrap:balance; display:flex; gap:14px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.82rem; font-weight:500; color:var(--muted); flex:none; letter-spacing:0}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.11rem; letter-spacing:-.01em; margin:32px 0 8px; text-wrap:balance}
+h3 .own{font-family:var(--f-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 6px; border-radius:3px; margin-left:8px; vertical-align:2px; font-weight:500}
+.own.a{background:var(--llm-soft); color:var(--llm)} .own.b{background:var(--det-soft); color:var(--det)} .own.j{background:var(--surface-2); color:var(--muted)}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:26px 0 9px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.05rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--code-bg); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.3px; line-height:1.62; margin:16px 0 20px; color:var(--ink-2); tab-size:2}
+pre b{color:var(--det); font-weight:500}
+pre i{color:var(--muted); font-style:normal}
+pre u{color:var(--llm); text-decoration:none}
+pre s{color:var(--crit); text-decoration:none}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.3px; line-height:1.48}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:10px 13px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:10px 13px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:11.8px; white-space:nowrap}
+.tag{display:inline-block; font-family:var(--f-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:2.5px 7px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-llm{background:var(--llm-soft); color:var(--llm)} .t-det{background:var(--det-soft); color:var(--det)}
+.t-warn{background:var(--warn-soft); color:var(--warn)} .t-crit{background:var(--crit-soft); color:var(--crit)}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.llm{border-left-color:var(--llm)} .note.det{border-left-color:var(--det)}
+.note.warn{border-left-color:var(--warn)} .note.crit{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.llm h5{color:var(--llm)} .note.det h5{color:var(--det)} .note.warn h5{color:var(--warn)} .note.crit h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+.flow{display:flex; flex-wrap:wrap; gap:9px; align-items:stretch; margin:20px 0 8px; font-family:var(--f-display)}
+.fstep{flex:1 1 158px; border:1px solid var(--rule); border-radius:6px; padding:12px 14px; background:var(--surface); min-width:0}
+.fstep.a{border-top:3px solid var(--llm)} .fstep.b{border-top:3px solid var(--det)}
+.fstep .n{font-family:var(--f-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.fstep .t{font-weight:600; font-size:14px; margin:3px 0 4px; letter-spacing:-.008em}
+.fstep .d{font-size:12.5px; color:var(--muted); line-height:1.45; font-family:var(--f-mono)}
+.ck{list-style:none; padding:0; max-width:var(--measure)}
+.ck li{display:flex; gap:11px; padding:8px 0; border-bottom:1px solid var(--rule); font-family:var(--f-display); font-size:14px; line-height:1.5; margin:0; color:var(--ink-2)}
+.ck li:last-child{border-bottom:none}
+.ck li .box{flex:none; width:15px; height:15px; border:1.5px solid var(--rule-2); border-radius:3px; margin-top:3px}
+.ck li .ow{flex:none; font-family:var(--f-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:1.5px 5px; border-radius:3px; margin-top:2px; height:fit-content}
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M5 — Implementation Contract</p>
+  <h1>M5 Integration Spec</h1>
+  <p class="deck">The concrete artefact both tracks build against: exact schemas, exact endpoints, the stack, and the order to do things in. Everything here is settled before implementation starts, because everything here is expensive to change afterwards.</p>
+  <div class="meta">
+    <span><b>Contract version</b> 1.0.0</span>
+    <span><b>Python</b> 3.12</span>
+    <span><b>Owners</b> A = understanding · B = judgement</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>System shape</h2>
+  <p class="lede">Three services. Each person owns deployable units, and the boundary between them is HTTP with a JSON body — the same style of boundary the wider platform uses.</p>
+
+  <div class="flow">
+    <div class="fstep b"><div class="n">B — orchestrates</div><div class="t">cvv-api</div><div class="d">:8000<br>public surface<br>jobs · storage · metering</div></div>
+    <div class="fstep a"><div class="n">A — owns</div><div class="t">cvv-understanding</div><div class="d">:8001<br>/extract<br>/narrate</div></div>
+    <div class="fstep b"><div class="n">B — owns</div><div class="t">cvv-judgement</div><div class="d">:8002<br>/evaluate</div></div>
+  </div>
+
+  <h4>Request lifecycle</h4>
+<pre><i>client</i> → POST /v1/verifications          <i>(document + optional signals)</i>
+        ← 202 { verification_id, status: "queued" }
+
+<i>worker picks up the job:</i>
+
+  1. <u>POST cvv-understanding/v1/extract</u>   { document_ref }
+     → <b>ClaimGraph</b>
+
+  2. <b>POST cvv-judgement/v1/evaluate</b>      { claim_graph, external_signals? }
+     → <b>FindingsReport</b>
+
+  3. <u>POST cvv-understanding/v1/narrate</u>   { findings_report }
+     → <b>Narrative</b>
+
+  4. assemble → <b>VerificationReport</b> → persist → fire webhook
+
+<i>client</i> → GET /v1/verifications/{id}      ← 200 VerificationReport</pre>
+
+  <div class="note det">
+    <h5>Why the flow is A → B → A</h5>
+    <p>Narrative rendering happens last because it can only describe findings that already exist. It stays in A's service because it is an LLM call and A owns every LLM call — but it takes <em>only</em> the FindingsReport as input, never the document or the ClaimGraph. That input restriction is what makes it structurally impossible for the narrative to introduce a fact nobody computed.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Repository layout</h2>
+  <p>One repository, one <code>docker-compose.yml</code>, three services, and a shared contracts package that both sides import. The contracts package is the seam made executable.</p>
+
+<pre>cv-verification/
+├─ contracts/                    <i>joint — changes need both people</i>
+│  ├─ schemas/*.schema.json      <i>generated from Pydantic, committed</i>
+│  ├─ openapi/*.yaml             <i>one per service</i>
+│  └─ fixtures/
+│     ├─ claimgraphs/            <i>~20 golden ClaimGraphs</i>
+│     └─ reports/                <i>expected FindingsReport per fixture</i>
+├─ packages/
+│  └─ cvv_contracts/             <i>THE shared dependency</i>
+│     ├─ models.py               <i>every Pydantic model in §03</i>
+│     ├─ intervals.py            <i>FuzzyInterval algebra — §04</i>
+│     └─ errors.py
+├─ services/
+│  ├─ api/                       <b>B</b>  FastAPI + arq worker
+│  ├─ understanding/             <u>A</u>  ingest · extract · resolve · narrate
+│  └─ judgement/                 <b>B</b>  rules · attestation · aggregate
+├─ eval/
+│  ├─ mutation/                  <b>B</b>  falsification injection
+│  ├─ goldset/                   <u>A</u>  hand-labelled extraction truth
+│  └─ metrics/                   <i>joint</i>
+├─ docker-compose.yml
+└─ Makefile</pre>
+
+  <div class="note warn">
+    <h5>The one rule about <code>packages/cvv_contracts</code></h5>
+    <p>Both services import it; neither service redefines any model in it. A change here is a change to the contract — it needs both people, a version bump, and regenerated fixtures. Set this expectation in week 1, because the failure mode is silent: one person adds a field locally, the other never sees it, and integration breaks in week 7 for reasons nobody can reconstruct.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>The contracts <span class="own j">joint</span></h2>
+  <p class="lede">Pydantic v2 models in <code>cvv_contracts/models.py</code>. JSON Schema is generated from these and committed, so the schema can never drift from the code.</p>
+
+  <h4>Dates and intervals</h4>
+<pre>from pydantic import BaseModel, Field
+from typing import Literal, Annotated
+from datetime import date
+from enum import StrEnum
+
+Confidence = Annotated[float, Field(ge=0.0, le=1.0)]
+
+class Precision(StrEnum):
+    EXACT = "exact"      <i>day known — rare on a CV</i>
+    MONTH = "month"      <i>"Mar 2021"</i>
+    YEAR  = "year"       <i>"2021"</i>
+
+class FuzzyDate(BaseModel):
+    year: int = Field(ge=1950, le=2100)
+    month: int | None = Field(default=None, ge=1, le=12)
+    day: int | None = Field(default=None, ge=1, le=31)
+    precision: Precision
+
+class Interval(BaseModel):
+    start: FuzzyDate
+    end: FuzzyDate | None = None    <i>None + ongoing=True means "present"</i>
+    ongoing: bool = False</pre>
+
+  <h4>Claims</h4>
+<pre>class ClaimKind(StrEnum):
+    EMPLOYMENT = "employment"; EDUCATION = "education"
+    CERTIFICATION = "certification"; PROJECT = "project"; SKILL = "skill"
+
+class EmploymentType(StrEnum):
+    FULL_TIME = "full_time"; PART_TIME = "part_time"
+    INTERNSHIP = "internship"; FREELANCE = "freelance"; UNSTATED = "unstated"
+
+class Provenance(BaseModel):
+    char_start: int          <i>into ClaimGraph.source.normalised_text</i>
+    char_end: int
+    page: int | None = None
+    verbatim: str            <i>MUST occur in the source — see §06</i>
+    recovery: Literal["exact", "fuzzy"] = "exact"
+
+class ResolutionStatus(StrEnum):
+    RESOLVED = "resolved"; AMBIGUOUS = "ambiguous"; UNRESOLVED = "unresolved"
+
+class Resolution(BaseModel):
+    status: ResolutionStatus
+    canonical_id: str | None = None
+    registry: str | None = None      <i>"esco" | "aicte" | "ugc" | "companies"</i>
+    score: float | None = None
+    method: Literal["threshold", "llm_tiebreak", "none"] = "none"
+
+class Claim(BaseModel):
+    claim_id: str                    <i>stable: sha1(graph_id + char_start + kind)</i>
+    kind: ClaimKind
+    interval: Interval | None = None <i>skills often have none</i>
+    org: str | None = None
+    title: str | None = None
+    degree: str | None = None
+    issuer: str | None = None
+    credential_id: str | None = None
+    employment_type: EmploymentType = EmploymentType.UNSTATED
+    skill_refs: list[str] = []
+    stated_years: float | None = None  <i>"5+ years of Python" → 5.0</i>
+    provenance: Provenance
+    resolution: Resolution | None = None
+    flags: list[str] = []</pre>
+
+  <h4>ClaimGraph — A's output, B's input</h4>
+<pre>class SourceInfo(BaseModel):
+    document_id: str
+    normalised_text: str      <i>the exact string offsets index into</i>
+    pages: int
+    ingest_method: Literal["pdf_text", "docx", "ocr"]
+    ocr_confidence: float | None = None
+
+class ExtractionMeta(BaseModel):
+    <u>model_id: str</u>                 <i>"claude-opus-5"</i>
+    <u>prompt_version: str</u>           <i>"extract/v3"</i>
+    input_hash: str
+    span_failures: int = 0        <i>claims dropped for ungroundable spans</i>
+    retries: int = 0
+    extracted_at: str
+    degraded: bool = False        <i>see §08</i>
+
+class ClaimGraph(BaseModel):
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    graph_id: str
+    source: SourceInfo
+    claims: list[Claim]
+    extraction_meta: ExtractionMeta</pre>
+
+  <h4>External signals — the optional platform input</h4>
+<pre>class ActivityWindow(BaseModel):
+    start: date; end: date
+    commit_count: int
+    active_days: int
+    primary_languages: list[str] = []
+    timezone_offsets: dict[str, int] = {}   <i>"+05:30" → commit count</i>
+
+class ExternalSignals(BaseModel):
+    <i>Every field optional. Absent field → dependent rules ABSTAIN.</i>
+    activity_windows: list[ActivityWindow] = []
+    verified_orgs: list[str] = []
+    first_seen_skills: dict[str, date] = {}  <i>skill → earliest evidence</i>
+    source: str | None = None                <i>"m3" | "customer_ats"</i></pre>
+
+  <h4>Findings — B's output</h4>
+<pre>class Severity(StrEnum):
+    INFO = "info"; LOW = "low"; MEDIUM = "medium"; HIGH = "high"
+
+class Discrepancy(BaseModel):
+    finding_id: str
+    rule_id: str                  <i>"R3"</i>
+    rule_version: str
+    severity: Severity
+    confidence: Confidence
+    <b>scoring: bool</b>                <i>false → NEVER aggregated (R11, R12)</i>
+    claim_refs: list[str]
+    params: dict[str, str | int | float] = {}
+    explanation: str              <i>rendered from the rule's own template</i>
+
+class RuleOutcome(BaseModel):
+    rule_id: str
+    status: Literal["fired", "clean", "abstained", "error"]
+    reason: str | None = None     <i>REQUIRED when abstained or error</i>
+
+class SectionConfidence(BaseModel):
+    section: Literal["employment", "education", "certification", "skills"]
+    confidence: Confidence        <i>noisy-OR over scoring discrepancies</i>
+    basis_finding_ids: list[str]
+
+class FindingsReport(BaseModel):
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    report_id: str
+    graph_id: str
+    discrepancies: list[Discrepancy]
+    rule_outcomes: list[RuleOutcome]     <i>EVERY rule appears here</i>
+    section_confidence: list[SectionConfidence]
+    coverage_gaps: list[str]             <i>human-readable abstention list</i>
+    evaluated_at: str
+    <s>NO overall_score field. Deliberate. Do not add one.</s></pre>
+
+  <h4>The final report</h4>
+<pre>class Narrative(BaseModel):
+    summary: str
+    sections: dict[str, str]
+    cited_finding_ids: list[str]
+    <u>model_id: str</u>
+    <u>prompt_version: str</u>
+    fallback_used: bool = False   <i>True → deterministic template rendered</i>
+
+class VerificationReport(BaseModel):
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    verification_id: str
+    status: Literal["completed", "completed_degraded", "failed"]
+    claim_graph: ClaimGraph
+    findings: FindingsReport
+    narrative: Narrative | None = None
+    created_at: str
+    completed_at: str | None = None</pre>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Interval algebra <span class="own b">B owns, both depend</span></h2>
+  <p class="lede">This lives in <code>cvv_contracts/intervals.py</code> rather than in B's service, because A's post-validators need it too. It is the most-tested file in the repository.</p>
+
+  <h4>Bounds</h4>
+  <p>A fuzzy date expands to the earliest and latest real date consistent with it. That is the whole trick.</p>
+<pre>def bounds(d: FuzzyDate) -> tuple[date, date]:
+    if d.precision is Precision.YEAR:
+        return date(d.year, 1, 1), date(d.year, 12, 31)
+    if d.precision is Precision.MONTH:
+        return date(d.year, d.month, 1), last_day_of(d.year, d.month)
+    return date(d.year, d.month, d.day), date(d.year, d.month, d.day)
+
+<i>"2021" → (2021-01-01, 2021-12-31)   — a 365-day window, not a point</i></pre>
+
+  <h4>Three-valued overlap</h4>
+<pre>class Rel(StrEnum):
+    DEFINITE = "definite"   <i>overlaps under EVERY consistent reading</i>
+    POSSIBLE = "possible"   <i>overlaps under SOME reading</i>
+    NONE     = "none"       <i>disjoint under every reading</i>
+
+def overlap(a: Interval, b: Interval) -> tuple[Rel, float]:
+    a_lo, a_hi = span_bounds(a)   <i>((start_min,start_max),(end_min,end_max))</i>
+    b_lo, b_hi = span_bounds(b)
+
+    <i>pessimistic span — what is true no matter how dates resolve</i>
+    a_core = (a_lo.start_max, a_hi.end_min)
+    b_core = (b_lo.start_max, b_hi.end_min)
+
+    <i>optimistic span — the widest either could be</i>
+    a_max  = (a_lo.start_min, a_hi.end_max)
+    b_max  = (b_lo.start_min, b_hi.end_max)
+
+    if intersect_days(a_core, b_core) &gt; 0:
+        frac = intersect_days(a_core, b_core) / min(len(a_core), len(b_core))
+        return <b>Rel.DEFINITE</b>, frac
+    if intersect_days(a_max, b_max) &gt; 0:
+        return <b>Rel.POSSIBLE</b>, 0.0
+    return <b>Rel.NONE</b>, 0.0</pre>
+
+  <div class="note det">
+    <h5>The rule that makes the engine trustworthy</h5>
+    <p><strong>Only <code>DEFINITE</code> raises a scoring discrepancy.</strong> <code>POSSIBLE</code> is recorded and shown as context, never scored. Most Indian résumés give years only, so almost every pair of adjacent roles is <code>POSSIBLE</code>-overlapping — treat those as findings and the report is noise. This single decision is the difference between a system a recruiter trusts and one they turn off.</p>
+  </div>
+
+  <h4>Property tests — use Hypothesis, not examples</h4>
+<pre>@given(intervals(), intervals())
+def test_symmetric(a, b):
+    assert overlap(a, b)[0] == overlap(b, a)[0]
+
+@given(intervals(), intervals())
+def test_definite_implies_possible_span(a, b):
+    if overlap(a, b)[0] is Rel.DEFINITE:
+        assert intersect_days(max_span(a), max_span(b)) &gt; 0
+
+@given(intervals())
+def test_self_overlap_is_definite(a):
+    assert overlap(a, a)[0] is Rel.DEFINITE
+
+@given(precise_intervals(), precise_intervals())
+def test_matches_naive_when_exact(a, b):
+    <i>with day precision the fuzzy logic must reduce to plain comparison</i>
+    assert (overlap(a,b)[0] is Rel.DEFINITE) == naive_overlap(a, b)</pre>
+  <p>Property-based testing is worth the half-day it takes to learn here. Hand-written examples will not find the off-by-one at a year boundary; Hypothesis finds it in seconds and hands you the minimal failing case.</p>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Service APIs</h2>
+
+  <h3>cvv-api — public surface <span class="own b">B</span></h3>
+<pre><b>POST /v1/verifications</b>
+Headers: Authorization: Bearer &lt;api_key&gt;, Idempotency-Key: &lt;uuid&gt;
+Body (multipart or JSON):
+  { document: &lt;file&gt; | document_url: str,
+    external_signals?: ExternalSignals,
+    options?: { narrative: bool = true, rules_profile: str = "default" } }
+→ 202 { verification_id, status: "queued", estimated_seconds }
+
+<b>GET  /v1/verifications/{id}</b>       → 200 VerificationReport | 202 if pending
+<b>GET  /v1/verifications/{id}/claims/{claim_id}/provenance</b>
+                                    → 200 { verbatim, page, bbox, snippet }
+<b>POST /v1/webhooks</b>                → register a completion callback
+<b>GET  /v1/usage</b>                   → metered verification count
+<b>GET  /healthz  /readyz  /metrics  /openapi.json</b></pre>
+
+  <h3>cvv-understanding <span class="own a">A</span></h3>
+<pre><b>POST /v1/extract</b>
+  { document_ref: str, document_type: "pdf"|"docx"|"image" }
+→ 200 <b>ClaimGraph</b>
+→ 422 { error: "unreadable_document", detail, ocr_confidence }
+
+<b>POST /v1/narrate</b>
+  { findings_report: FindingsReport }      <i>NOTHING else is accepted</i>
+→ 200 <b>Narrative</b>
+
+<b>POST /v1/resolve</b>                          <i>internal, testable alone</i>
+  { surface_forms: list[str], registry: str }
+→ 200 { results: list[Resolution] }</pre>
+
+  <h3>cvv-judgement <span class="own b">B</span></h3>
+<pre><b>POST /v1/evaluate</b>
+  { claim_graph: ClaimGraph, external_signals?: ExternalSignals,
+    rules_profile?: str }
+→ 200 <b>FindingsReport</b>
+
+<b>GET  /v1/rules</b>     → the live catalogue: id, version, scoring, requires
+<b>POST /v1/attest</b>    → { credential: dict } → verification outcome</pre>
+
+  <div class="note warn">
+    <h5>Two contract details that prevent the classic bugs</h5>
+    <p><code>/v1/narrate</code> accepts <em>only</em> a FindingsReport. Not the document, not the ClaimGraph. If the endpoint cannot receive the source text, the narrative cannot quote something the rules never found — the guarantee is enforced by the signature, not by the prompt.</p>
+    <p><code>/v1/rules</code> exists so B's catalogue is introspectable and A's fixtures can assert against it. When a rule is added, A's tests see it immediately instead of discovering it at integration.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>The extraction contract <span class="own a">A</span></h2>
+  <p class="lede">The single most important implementation detail in Track A: what the model returns is <em>not</em> the ClaimGraph.</p>
+
+  <p>The model never produces character offsets. Language models cannot count characters reliably, and a hallucinated offset silently corrupts every downstream provenance link. Instead the model returns <strong>verbatim text</strong>, and A recovers the offsets by searching for that text in the source. Two schemas, one boundary:</p>
+
+<pre><u>ExtractionResponse</u>  <i>what the model returns — structured outputs</i>
+  { claims: [ { kind, verbatim, org?, title?, degree?, issuer?,
+                start_year?, start_month?, end_year?, end_month?,
+                ongoing?, employment_type?, skill_refs?, stated_years? } ] }
+       │
+       ▼   <b>ground_and_validate()</b>   <i>pure Python, no model</i>
+       │   · recover char_start/char_end by searching normalised_text
+       │   · drop claims whose verbatim cannot be located
+       │   · parse and validate dates, reject impossible intervals
+       │   · assign stable claim_ids
+       │   · attach Resolution via /v1/resolve
+       ▼
+<b>ClaimGraph</b>  <i>what B receives</i></pre>
+
+  <h4>Span recovery — normalise both sides first</h4>
+<pre>def recover_span(verbatim: str, source: str) -> tuple[int, int, str] | None:
+    v = nfkc_collapse(verbatim)          <i>NFKC + collapse whitespace</i>
+    s_norm, index_map = nfkc_collapse_with_map(source)
+
+    if (i := s_norm.find(v)) != -1:
+        return index_map[i], index_map[i + len(v)], "exact"
+
+    <i>fuzzy tier — real PDFs break exact matching constantly</i>
+    best, score = closest_window(s_norm, v)
+    if score &gt; 0.92:
+        return index_map[best.start], index_map[best.end], "fuzzy"
+
+    return None     <i>→ claim dropped, span_failures += 1</i></pre>
+
+  <div class="note llm">
+    <h5>Do not skip the normalisation</h5>
+    <p>Ligatures (<code>ﬁ</code>), non-breaking spaces, soft hyphens, and inconsistent whitespace from PDF extractors will fail naïve exact matching on a large fraction of perfectly correct claims. Without NFKC normalisation and the fuzzy tier you will watch your span-failure rate sit at 30%, conclude the model is hallucinating, and spend a week rewriting a prompt that was never the problem. Build <code>recover_span</code> and its test suite <em>before</em> the first real extraction run.</p>
+  </div>
+
+  <h4>Anthropic SDK call</h4>
+<pre>from anthropic import Anthropic
+client = Anthropic()
+
+msg = client.messages.create(
+    model=<u>"claude-opus-5"</u>,
+    max_tokens=16000,
+    thinking={"type": "adaptive"},
+    output_config={
+        "effort": "medium",
+        "format": {"type": "json_schema",
+                   "schema": ExtractionResponse.model_json_schema()},
+    },
+    system=[
+        {"type": "text", "text": EXTRACTION_INSTRUCTIONS,
+         <b>"cache_control": {"type": "ephemeral"}</b>},   <i>stable prefix</i>
+    ],
+    messages=[{"role": "user", "content": document_text}],
+)
+<i>verify caching actually engaged — silent misses are the norm</i>
+assert msg.usage.cache_read_input_tokens &gt; 0 or first_call</pre>
+  <p>Corpus and evaluation runs go through the <strong>Batch API</strong> at half cost — they are not latency-sensitive. Store <code>model_id</code>, <code>prompt_version</code>, and <code>input_hash</code> on every extraction so a prompt change is measurable rather than anecdotal.</p>
+</section>
+
+<section>
+  <h2><span class="num">07</span>Tech stack</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Layer</th><th class="mono">Package</th><th>Owner</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Runtime</td><td class="mono">python 3.12, uv</td><td>joint</td><td><code>uv</code> for locking — fast, and reproducible across two machines.</td></tr>
+      <tr><td>Models</td><td class="mono">pydantic 2.x</td><td>joint</td><td>Source of truth for every schema; JSON Schema generated and committed.</td></tr>
+      <tr><td>Services</td><td class="mono">fastapi, uvicorn</td><td>joint</td><td>OpenAPI falls out of the models automatically.</td></tr>
+      <tr><td>Jobs</td><td class="mono">arq + redis</td><td>B</td><td>Async job queue. Simpler than Celery and sufficient here.</td></tr>
+      <tr><td>Storage</td><td class="mono">postgresql 16, sqlalchemy 2, alembic</td><td>B</td><td>Reports as JSONB; migrations from day one.</td></tr>
+      <tr><td>Objects</td><td class="mono">minio + boto3</td><td>B</td><td>Uploaded documents. S3-compatible.</td></tr>
+      <tr><td>PDF</td><td class="mono">pymupdf</td><td>A</td><td>Text with bounding boxes. <code>pdfplumber</code> as a cross-check on tables.</td></tr>
+      <tr><td>DOCX</td><td class="mono">python-docx</td><td>A</td><td>Parse structure; do not flatten to text.</td></tr>
+      <tr><td>OCR</td><td class="mono">rapidocr-onnxruntime</td><td>A</td><td>ONNX, CPU-only, no heavy install. PaddleOCR if quality demands it.</td></tr>
+      <tr><td>LLM</td><td class="mono">anthropic</td><td>A</td><td><code>claude-opus-5</code>, structured outputs, prompt caching, Batch API.</td></tr>
+      <tr><td>Embeddings</td><td class="mono">sentence-transformers + pgvector</td><td>A</td><td>Pretrained, inference only. <code>bge-small-en-v1.5</code> is enough.</td></tr>
+      <tr><td>Fuzzy match</td><td class="mono">rapidfuzz</td><td>A</td><td>Span recovery and registry blocking. Fast C++ core.</td></tr>
+      <tr><td>Crypto</td><td class="mono">cryptography + rfc8785</td><td>B</td><td>Ed25519 verification + JSON canonicalisation for VCs. <code>didkit</code> if you prefer a library.</td></tr>
+      <tr><td>Testing</td><td class="mono">pytest, hypothesis, schemathesis</td><td>joint</td><td>Hypothesis for interval algebra; Schemathesis fuzzes every OpenAPI surface.</td></tr>
+      <tr><td>Quality</td><td class="mono">ruff, mypy --strict</td><td>joint</td><td>Strict typing across the contracts package is non-negotiable — it is the seam.</td></tr>
+      <tr><td>Observability</td><td class="mono">structlog, opentelemetry</td><td>B</td><td>Trace IDs across all three services from the first week.</td></tr>
+      <tr><td>Local</td><td class="mono">docker compose</td><td>joint</td><td><code>make dev</code> brings up everything. No k8s at this stage.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">08</span>Failure semantics</h2>
+  <p class="lede">Decide these now. Every one of them is a question that will otherwise be answered differently by each person, in a hurry, in week 12.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Failure</th><th>Behaviour</th><th>Surfaced as</th></tr></thead>
+    <tbody>
+      <tr><td>Some spans ungroundable</td><td>Drop those claims, continue</td><td><code>span_failures &gt; 0</code>; <code>degraded=true</code> above a threshold</td></tr>
+      <tr><td>Document unreadable</td><td>Fail fast, do not guess</td><td>422 <code>unreadable_document</code> with OCR confidence</td></tr>
+      <tr><td>Extraction returns zero claims</td><td>Still a valid ClaimGraph</td><td>Empty claims; every rule abstains; report says so</td></tr>
+      <tr><td>One rule raises</td><td><strong>Isolate it.</strong> Other rules still run</td><td><code>RuleOutcome(status="error", reason=…)</code></td></tr>
+      <tr><td>Rule lacks required input</td><td>Abstain — never silently pass</td><td><code>status="abstained"</code> + a coverage gap entry</td></tr>
+      <tr><td>Narrative fails validation twice</td><td>Deterministic template</td><td><code>fallback_used=true</code></td></tr>
+      <tr><td>Understanding service down</td><td>Retry with backoff, then fail the job</td><td><code>status="failed"</code>, webhook fired</td></tr>
+      <tr><td>Judgement service down</td><td>Retry; do not return a partial report</td><td><code>status="failed"</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note crit">
+    <h5>Rule isolation is not optional</h5>
+    <p>A single rule raising on an unusual claim must never take down the report. Wrap every <code>rule.evaluate()</code> in a try/except that records a <code>RuleOutcome</code> error and moves on. Without this, one malformed date in one CV produces a 500 and no report at all — and you will find that out during the demo rather than in testing.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">09</span>How the two tracks stay connected</h2>
+
+  <h4>Four mechanisms, all automated</h4>
+  <ol>
+    <li><strong>Shared package.</strong> Both services import <code>cvv_contracts</code>. Neither redefines a model. <code>mypy --strict</code> catches a drift attempt at commit time.</li>
+    <li><strong>Committed fixtures.</strong> <code>contracts/fixtures/claimgraphs/*.json</code> — B develops entirely against these. CI validates every fixture against the current schema, so a contract change that breaks a fixture fails the build immediately.</li>
+    <li><strong>Paired expectations.</strong> Each fixture has a matching <code>reports/*.json</code>. B's suite asserts fixture → expected report. This is B's regression net and it needs nothing from A.</li>
+    <li><strong>A's output test.</strong> A's suite asserts every produced ClaimGraph validates against the schema and every <code>char_start</code>/<code>char_end</code> actually indexes the verbatim it claims. That check alone catches most integration breakage before it reaches B.</li>
+  </ol>
+
+  <h4>Changing the contract, once implementation has started</h4>
+<pre>1. Open a PR touching ONLY packages/cvv_contracts + contracts/
+2. Bump schema_version   <b>additive → 1.1.0   breaking → 2.0.0</b>
+3. Regenerate JSON Schema, update every affected fixture
+4. <b>Both people approve.</b> No exceptions, no self-merge.
+5. Merge before either service adopts the field.
+
+<i>After week 7 (integration checkpoint 1): additive changes only.</i>
+<i>A breaking change means both people stop and re-plan together.</i></pre>
+
+  <h4>Makefile targets both people use daily</h4>
+<pre>make dev              <i>compose up: postgres, redis, minio, 3 services</i>
+make contracts        <i>regenerate JSON Schema from Pydantic, diff-check</i>
+make fixtures-check   <i>validate every fixture against current schema</i>
+make test-a           <i>understanding suite (mocked LLM by default)</i>
+make test-b           <i>judgement suite (fixtures only, no network)</i>
+make test-contract    <i>schemathesis against all three OpenAPI specs</i>
+make e2e              <i>one real CV end to end through all services</i></pre>
+</section>
+
+<section>
+  <h2><span class="num">10</span>What to do, in order</h2>
+  <p class="lede">The first two weeks are joint and produce no product code. Resist the pull to start building — everything after depends on getting this part right.</p>
+
+  <h4>Week 1 — the contract</h4>
+  <ul class="ck">
+    <li><span class="box"></span><span class="ow own j">joint</span>Repo, <code>uv</code> workspace, ruff + mypy strict, CI running on push</li>
+    <li><span class="box"></span><span class="ow own j">joint</span>Write <code>cvv_contracts/models.py</code> together, in one sitting, at one screen</li>
+    <li><span class="box"></span><span class="ow own j">joint</span>Decide claim kinds, the <code>employment_type</code> enum, and resolution states — these are the arguments worth having now</li>
+    <li><span class="box"></span><span class="ow own b">B</span><code>intervals.py</code> with bounds and three-valued overlap</li>
+    <li><span class="box"></span><span class="ow own b">B</span>Hypothesis property tests for the algebra — all four in §04</li>
+    <li><span class="box"></span><span class="ow own j">joint</span><code>make contracts</code> generating and committing JSON Schema</li>
+    <li><span class="box"></span><span class="ow own j">joint</span>Skeleton OpenAPI for all three services, endpoints returning 501</li>
+  </ul>
+
+  <h4>Week 2 — fixtures and the long-lead item</h4>
+  <ul class="ck">
+    <li><span class="box"></span><span class="ow own j">joint</span>~20 golden ClaimGraphs: clean · definite overlap · possible overlap · anachronistic skill · year-only throughout · unresolvable employer · projects only · empty · single role · credential-bearing</li>
+    <li><span class="box"></span><span class="ow own b">B</span>Expected FindingsReport for each fixture, hand-written</li>
+    <li><span class="box"></span><span class="ow own j">joint</span><strong>Start the CV consent process.</strong> Longest lead time in the project; everything in evaluation waits on it</li>
+    <li><span class="box"></span><span class="ow own a">A</span>Collect 30–50 messy real-world PDFs for ingest testing — two-column, scanned, table-heavy</li>
+    <li><span class="box"></span><span class="ow own b">B</span><code>docker-compose.yml</code> with postgres, redis, minio wired up</li>
+  </ul>
+
+  <h4>Then split — and stop coordinating daily</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Week</th><th>Track A</th><th>Track B</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">3–4</td><td>Ingest: PyMuPDF, reading order, offset map. <code>recover_span</code> + its tests <em>before</em> any model call.</td><td>Rule engine skeleton, registry, R1/R2 with fixtures. API shell: jobs, storage, endpoints.</td></tr>
+      <tr><td class="mono">5–6</td><td>Extractor v1: schema, prompt, grounding loop, post-validators. First real ClaimGraphs.</td><td>Rules R3–R7. Aggregator v1. <code>/v1/rules</code> introspection live.</td></tr>
+      <tr><td class="mono">7</td><td colspan="2"><strong>Integration checkpoint 1.</strong> Real ClaimGraphs replace fixtures. Absorb schema friction here. Freeze to additive-only after this week.</td></tr>
+      <tr><td class="mono">8–9</td><td>Gold set: 100 hand-labelled CVs. First P/R/F1. Resolver: registries, pgvector, tie-break.</td><td>Mutation engine. Attestation: VC verifier + reference issuer.</td></tr>
+      <tr><td class="mono">10–11</td><td>Error taxonomy from gold set, targeted prompt fixes, cache-hit verification, batch pipeline.</td><td>R8–R10 including the <code>external_signals</code> path. One live issuer integration.</td></tr>
+      <tr><td class="mono">12</td><td>Narrative renderer + automated faithfulness checks + template fallback.</td><td>Coverage-gap reporting, scoring/advisory separation enforced in code.</td></tr>
+      <tr><td class="mono">13</td><td colspan="2"><strong>Checkpoint 2 — feature freeze.</strong> Full corpus end to end. Nothing new after this.</td></tr>
+      <tr><td class="mono">14–16</td><td colspan="2">Evaluation runs, fairness disaggregation, hardening, report written against results that already exist.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note det">
+    <h5>Definition of done, per component</h5>
+    <p>A component is finished when it has an OpenAPI entry, passes <code>mypy --strict</code>, has fixtures covering its positive and negative cases, handles its failure mode from §08 explicitly, and emits a metric to §06 of the build plan. Not when it works on one happy-path document.</p>
+  </div>
+</section>
+
+<footer>DevBridge M5 — integration spec, contract version 1.0.0. Companion to the CV Verification Buildout and the DevBridge engineering plan. Settle §03 and §04 before writing service code.</footer>
+
+</div>

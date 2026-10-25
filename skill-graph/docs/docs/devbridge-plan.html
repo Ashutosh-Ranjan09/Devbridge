@@ -1,0 +1,727 @@
+<title>DevBridge Engineering Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --det:#0F6E63; --det-soft:#E2F0EE;
+  --llm:#6244C5; --llm-soft:#ECE7FA;
+  --warn:#8A5A12; --warn-soft:#F6EEDF;
+  --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+    --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+    --det:#43C3B1; --det-soft:#12312E;
+    --llm:#A48FF5; --llm-soft:#221C3C;
+    --warn:#D3A054; --warn-soft:#31281A;
+    --crit:#E08376; --crit-soft:#341F1C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E;
+  --llm:#A48FF5; --llm-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A;
+  --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--f-body); font-size:17px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 28px 120px}
+.cols{display:grid; grid-template-columns:220px minmax(0,1fr); gap:56px; align-items:start}
+@media (max-width:940px){ .cols{grid-template-columns:1fr; gap:0} .toc{display:none} }
+
+/* ---- masthead ---- */
+.mast{padding:72px 0 34px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 20px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.5rem,6vw,4.1rem); line-height:1.02; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.2rem; color:var(--ink-2); max-width:60ch; margin:22px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:10px 30px; margin-top:30px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+
+/* ---- toc ---- */
+.toc{position:sticky; top:0; padding:44px 0; font-family:var(--f-display); font-size:13.5px; max-height:100vh; overflow-y:auto}
+.toc h4{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 14px; font-weight:500}
+.toc a{display:flex; gap:9px; color:var(--ink-2); text-decoration:none; padding:4.5px 0; line-height:1.35; border-radius:3px}
+.toc a span{font-family:var(--f-mono); font-size:11px; color:var(--muted); flex:none; width:18px; padding-top:1px}
+.toc a:hover{color:var(--det)}
+.toc a:focus-visible{outline:2px solid var(--det); outline-offset:3px}
+
+/* ---- sections ---- */
+main{padding-top:44px; min-width:0}
+section{padding:26px 0 46px; scroll-margin-top:20px}
+section + section{border-top:1px solid var(--rule)}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.86rem; letter-spacing:-.021em; line-height:1.16; margin:14px 0 6px; text-wrap:balance; display:flex; gap:15px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.85rem; font-weight:500; color:var(--det); flex:none; letter-spacing:0}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.16rem; letter-spacing:-.01em; margin:38px 0 8px; text-wrap:balance}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:30px 0 10px}
+p{margin:0 0 15px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.08rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 16px; padding-left:1.25em}
+li{margin-bottom:7px}
+li::marker{color:var(--muted)}
+a{color:var(--det)}
+strong{font-weight:600}
+code{font-family:var(--f-mono); font-size:.855em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px; color:var(--ink)}
+
+/* ---- tables ---- */
+.scroller{overflow-x:auto; margin:20px 0 26px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.5px; line-height:1.5}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:11px 14px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono, th.mono{font-family:var(--f-mono); font-size:12px; white-space:nowrap}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---- tags ---- */
+.tag{display:inline-block; font-family:var(--f-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:2.5px 7px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-llm{background:var(--llm-soft); color:var(--llm)}
+.t-det{background:var(--det-soft); color:var(--det)}
+.t-warn{background:var(--warn-soft); color:var(--warn)}
+.t-crit{background:var(--crit-soft); color:var(--crit)}
+
+/* ---- callouts ---- */
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:16px 20px; margin:22px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.llm{border-left-color:var(--llm)}
+.note.det{border-left-color:var(--det)}
+.note.warn{border-left-color:var(--warn)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 8px; font-weight:500; color:var(--muted)}
+.note.llm h5{color:var(--llm)} .note.det h5{color:var(--det)} .note.warn h5{color:var(--warn)}
+.note p:last-child{margin-bottom:0}
+
+/* ---- module cards ---- */
+.mods{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr)); gap:14px; margin:22px 0 8px}
+.mod{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; box-shadow:var(--shadow)}
+.mod .id{font-family:var(--f-mono); font-size:11px; color:var(--det); letter-spacing:.05em; font-weight:500}
+.mod .nm{font-family:var(--f-display); font-weight:600; font-size:15px; margin:2px 0 6px; letter-spacing:-.008em}
+.mod .ds{font-size:13.5px; color:var(--muted); line-height:1.5; font-family:var(--f-display)}
+.mod ul{margin:11px 0 0; padding-left:0; list-style:none; font-family:var(--f-mono); font-size:11.5px; line-height:1.75; color:var(--ink-2)}
+.mod ul li{margin:0; display:flex; gap:8px}
+.mod ul li b{color:var(--muted); font-weight:400; flex:none}
+.mod.stand{border-color:var(--det); border-width:1px; box-shadow:0 0 0 1px var(--det), var(--shadow)}
+
+/* ---- layer band ---- */
+.band{font-family:var(--f-mono); font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:14px; margin:36px 0 4px}
+.band::after{content:""; flex:1; height:1px; background:var(--rule)}
+
+/* ---- pre ---- */
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:16px 18px; overflow-x:auto; font-family:var(--f-mono); font-size:12.5px; line-height:1.6; margin:18px 0 24px; color:var(--ink-2)}
+pre b{color:var(--det); font-weight:500}
+pre i{color:var(--muted); font-style:normal}
+
+/* ---- phases ---- */
+.phase{display:grid; grid-template-columns:88px 1fr; gap:22px; padding:16px 0; border-bottom:1px solid var(--rule); align-items:start}
+.phase:last-child{border-bottom:none}
+.phase .wk{font-family:var(--f-mono); font-size:11.5px; color:var(--det); padding-top:3px; font-variant-numeric:tabular-nums}
+.phase .bd{min-width:0}
+.phase h5{font-family:var(--f-display); font-size:15px; font-weight:600; margin:0 0 4px}
+.phase p{font-size:14.5px; color:var(--muted); margin:0; font-family:var(--f-display); max-width:62ch}
+
+/* ---- q list ---- */
+.q{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:16px 19px; margin-bottom:12px; max-width:var(--measure)}
+.q h5{font-family:var(--f-display); font-size:15px; font-weight:600; margin:0 0 5px}
+.q p{font-size:14.5px; color:var(--muted); margin:0; font-family:var(--f-display)}
+
+footer{margin-top:60px; padding-top:22px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">B.Tech Project — Engineering Plan — Pre-Implementation Draft</p>
+  <h1>DevBridge</h1>
+  <p class="deck">A modular evidence platform for verifiable developer competence. Fifteen independently deployable services, a standalone CV Verification API, and a calibrated skill-graph scoring model — specified end to end before a line of code is written.</p>
+  <div class="meta">
+    <span><b>Source</b> DevBridge_Platform_Proposal.pdf v1.0</span>
+    <span><b>Status</b> Design — no implementation started</span>
+    <span><b>Assumed span</b> 2 semesters</span>
+  </div>
+</header>
+
+<div class="cols">
+<nav class="toc">
+  <h4>Contents</h4>
+  <a href="#thesis"><span>01</span>The technical thesis</a>
+  <a href="#principles"><span>02</span>Architectural principles</a>
+  <a href="#map"><span>03</span>Module map</a>
+  <a href="#cve"><span>04</span>CV Verification Engine</a>
+  <a href="#cpe"><span>05</span>Code Provenance Engine</a>
+  <a href="#vsg"><span>06</span>Skill graph &amp; scoring</a>
+  <a href="#sae"><span>07</span>Assessment &amp; sandbox</a>
+  <a href="#llm"><span>08</span>LLM call-site register</a>
+  <a href="#contracts"><span>09</span>Interface contracts</a>
+  <a href="#eval"><span>10</span>Evaluation plan</a>
+  <a href="#stack"><span>11</span>Stack &amp; infrastructure</a>
+  <a href="#plan"><span>12</span>Sequencing</a>
+  <a href="#risk"><span>13</span>Risks &amp; ethics</a>
+  <a href="#open"><span>14</span>Open decisions</a>
+</nav>
+
+<main>
+
+<section id="thesis">
+  <h2><span class="num">01</span>The technical thesis</h2>
+  <p class="lede">The proposal describes a business. A B.Tech project needs a defensible technical claim underneath it — something a panel can ask you to prove, and something you can measure.</p>
+  <p>The claim worth building the project on:</p>
+  <div class="note det">
+    <h5>Central claim</h5>
+    <p>Developer competence can be estimated from heterogeneous, partially unreliable behavioural evidence — commit history, sandboxed performance, delivery outcomes, document claims — by fusing it into a <strong>single calibrated latent-ability model with explicit uncertainty that grows over time</strong>. The fused estimate outperforms any individual evidence stream, and its stated confidence is empirically accurate.</p>
+  </div>
+  <p>That claim decomposes into three contributions you can defend independently, each with its own experiment:</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Contribution</th><th>What is genuinely hard</th><th>How it is proven</th></tr></thead>
+    <tbody>
+      <tr><td>Multi-source evidence fusion</td><td>Sources disagree, arrive irregularly, and have different reliabilities that nobody has measured</td><td>Ablation study per evidence stream; parameter-recovery simulation against known ground truth; sensitivity sweep showing ranking stability</td></tr>
+      <tr><td>Temporal consistency verification</td><td>Proving a CV claim false requires reconciling free-text claims against behavioural traces on a timeline</td><td>Injected-falsification corpus with perfect ground truth; per-fraud-type detection rate at fixed FPR</td></tr>
+      <tr><td>Authorship &amp; origin consistency</td><td>Deciding whether a code sample is consistent with an author’s own established style, without a labelled fraud corpus to learn from</td><td>Separation between self-distances and the empirical null; ROC over the reference corpus; robustness under auto-formatting</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Everything else in the proposal — the marketplace, escrow, factoring, the recruiter console — is competent engineering that supports the claim but does not constitute it. Build it, scope it honestly, and do not let it consume the semester.</p>
+  <div class="note warn">
+    <h5>Framing note</h5>
+    <p>The system must never output a hiring verdict. It outputs <em>calibrated evidence with stated uncertainty</em>, and routes conflict to a human. This is both the ethically correct design and the one that survives a viva — "what happens when you're wrong about someone?" has a good answer only in this framing.</p>
+  </div>
+</section>
+
+<section id="principles">
+  <h2><span class="num">02</span>Architectural principles</h2>
+  <p>Seven rules that the module boundaries, the contracts, and the review checklist all derive from. Every later section is an application of these.</p>
+
+  <h3>1 — Contracts before code</h3>
+  <p>Each module publishes an OpenAPI 3.1 document into a shared <code>/contracts</code> directory <em>before</em> its implementation begins. Clients are code-generated from those documents, never hand-written. A module is "done" when it satisfies its contract tests, not when its UI works. This is what actually makes independent parallel work possible across a team.</p>
+
+  <h3>2 — No shared database</h3>
+  <p>Every module owns its storage exclusively. Cross-module reads happen over HTTP; cross-module writes happen over events. The moment two services share a table, the module boundary is decorative and the project becomes a monolith with extra latency.</p>
+
+  <h3>3 — Evidence is append-only</h3>
+  <p>Nothing overwrites an evidence record. Scores are <em>derived</em> and recomputable from the event log at any timestamp. This buys you three things a panel will notice: time-travel debugging, reproducible experiments, and a clean answer to "delete my data" that does not corrupt every score in the system.</p>
+
+  <h3>4 — The LLM boundary</h3>
+  <div class="note llm">
+    <h5>The rule that governs every model call</h5>
+    <p>An LLM may translate <strong>unstructured → structured</strong>, or <strong>structured → human prose</strong>. It may never produce a number that enters a score, and it may never be the thing that decides whether a claim is true. Judgement is deterministic, auditable, and re-runnable; language handling is not.</p>
+  </div>
+  <p>Concretely this means claim extraction is a model call, and consistency checking is a rule engine. Challenge <em>generation</em> is a model call, and challenge <em>validation</em> is program execution. Report prose is a model call, and every number in that prose was computed elsewhere. Section&nbsp;08 registers every call site individually.</p>
+
+  <h3>5 — No trained models</h3>
+  <div class="note det">
+    <h5>A hard constraint, adopted deliberately</h5>
+    <p>Nothing in this system is a trained model. Every quantitative judgement comes from <strong>descriptive statistics against a reference distribution</strong> — distances, percentiles, empirical nulls, closed-form filter updates. There is no optimiser, no labelled training set, no learned weights anywhere in the pipeline.</p>
+  </div>
+  <p>This began as a resource constraint and turned out to be the better design. A trained classifier that says someone’s code is inconsistent with their history is a black box making an accusation. A percentile against an explicit reference distribution decomposes into exactly which features deviated and by how much — which is the only form in which such a claim should ever be shown to the person it is about. It also removes the project’s single largest data dependency: labelled examples of the thing you are trying to detect, which nobody has.</p>
+  <p>Note that the Bayesian filter in §06 is <em>not</em> a trained model. Kalman updates are closed-form equations applied in a loop; the parameters that govern them are set from documented reasoning and stress-tested by sensitivity analysis (§06), not fitted.</p>
+
+  <h3>6 — Confidence, never verdicts</h3>
+  <p>Every module emits <code>(value, confidence, evidence_refs)</code>. No module emits a boolean pass/fail. Aggregation happens once, in the skill graph, under a documented model — not implicitly by whichever service happened to threshold first.</p>
+
+  <h3>7 — Standalone-first for the verification engine</h3>
+  <p>The CV Verification Engine is built as a product with external customers from day one: its own auth, its own metering, its own OpenAPI surface, zero imports from marketplace code. It must run correctly on a CV from someone who has never touched the platform. Everything the marketplace needs from it, it gets through the same public API an enterprise would use.</p>
+</section>
+
+<section id="map">
+  <h2><span class="num">03</span>Module map</h2>
+  <p class="lede">Fifteen top-level modules across five layers. Each is a separately deployable service with its own repository directory, contract, datastore, and CI pipeline. Teal-outlined modules are independently sellable products.</p>
+
+  <div class="band">Layer 0 — Substrate</div>
+  <div class="mods">
+    <div class="mod"><div class="id">M0</div><div class="nm">core-gateway</div><div class="ds">Edge routing, OIDC authentication, tenant-scoped RBAC, rate limiting, request metering for billed endpoints.</div></div>
+    <div class="mod"><div class="id">M1</div><div class="nm">identity-consent</div><div class="ds">Accounts, organisations, and an append-only consent ledger with purpose-scoped grants. Owns erasure orchestration.</div>
+      <ul><li><b>1.1</b>account &amp; org registry</li><li><b>1.2</b>consent ledger</li><li><b>1.3</b>erasure orchestrator</li></ul></div>
+    <div class="mod"><div class="id">M2</div><div class="nm">evidence-bus</div><div class="ds">Event backbone, canonical <code>EvidenceEvent</code> schema registry, transactional outbox relay, replay tooling.</div></div>
+  </div>
+
+  <div class="band">Layer 1 — Evidence producers</div>
+  <div class="mods">
+    <div class="mod stand"><div class="id">M3</div><div class="nm">code-provenance</div><div class="ds">Turns repository history into authorship-verified, originality-checked skill evidence.</div>
+      <ul><li><b>3.1</b>vcs-connector</li><li><b>3.2</b>repo-analyzer</li><li><b>3.3</b>authorship-verifier</li><li><b>3.4</b>originality-checker</li><li><b>3.5</b>contribution-timeline</li></ul></div>
+    <div class="mod stand"><div class="id">M4</div><div class="nm">assessment-engine</div><div class="ds">Generates, executes, and calibrates role-specific technical assessments in isolation.</div>
+      <ul><li><b>4.1</b>challenge-registry</li><li><b>4.2</b>challenge-synthesizer</li><li><b>4.3</b>sandbox-runner</li><li><b>4.4</b>scorer</li><li><b>4.5</b>integrity-monitor</li></ul></div>
+    <div class="mod stand"><div class="id">M5</div><div class="nm">cv-verification</div><div class="ds">The standalone enterprise product. Any CV in, structured claims plus discrepancy report out.</div>
+      <ul><li><b>5.1</b>doc-ingest</li><li><b>5.2</b>claim-extractor</li><li><b>5.3</b>entity-resolver</li><li><b>5.4</b>consistency-engine</li><li><b>5.5</b>external-attestation</li><li><b>5.6</b>report-composer</li></ul></div>
+  </div>
+
+  <div class="band">Layer 2 — The graph</div>
+  <div class="mods">
+    <div class="mod stand"><div class="id">M6</div><div class="nm">skill-graph</div><div class="ds">The technical core. Fuses all evidence into per-skill latent ability with time-growing uncertainty.</div>
+      <ul><li><b>6.1</b>ontology-service</li><li><b>6.2</b>evidence-ingestor</li><li><b>6.3</b>scoring-engine</li><li><b>6.4</b>query-api</li><li><b>6.5</b>integrity-analytics</li></ul></div>
+  </div>
+
+  <div class="band">Layer 3 — Marketplace &amp; commerce</div>
+  <div class="mods">
+    <div class="mod"><div class="id">M7</div><div class="nm">marketplace</div><div class="ds">Postings, matching, proposals, and the contract/milestone state machine.</div></div>
+    <div class="mod"><div class="id">M8</div><div class="nm">delivery-review</div><div class="ds">Structured post-gig review plus automated diff-quality analysis on delivered work. Feeds M6.</div></div>
+    <div class="mod"><div class="id">M9</div><div class="nm">payments-escrow</div><div class="ds">Double-entry ledger, escrow state machine, idempotent payout, reconciliation.</div></div>
+    <div class="mod"><div class="id">M10</div><div class="nm">financing</div><div class="ds">Advance-rate decisioning for instant payout, priced off skill-graph and delivery history.</div></div>
+  </div>
+
+  <div class="band">Layer 4 — Enterprise surface</div>
+  <div class="mods">
+    <div class="mod"><div class="id">M11</div><div class="nm">enterprise-api</div><div class="ds">Public Verification API: API keys, quotas, per-verification metering, webhooks, sandbox tenancy.</div></div>
+    <div class="mod"><div class="id">M12</div><div class="nm">ats-connector</div><div class="ds">Adapters for Greenhouse/Lever shapes, plus a conformant mock ATS for demonstration.</div></div>
+    <div class="mod"><div class="id">M13</div><div class="nm">recruiter-console</div><div class="ds">Consent-gated search over the verified pool with per-result evidence explanation.</div></div>
+  </div>
+
+  <div class="band">Cross-cutting</div>
+  <div class="mods">
+    <div class="mod"><div class="id">M14</div><div class="nm">eval-harness</div><div class="ds">Datasets, ground truth, metric computation, ablation runner, calibration reports. The project's scientific backbone.</div></div>
+    <div class="mod"><div class="id">M15</div><div class="nm">web-clients</div><div class="ds">Developer, client, recruiter, and admin front-ends against the public contracts only.</div></div>
+  </div>
+</section>
+
+<section id="cve">
+  <h2><span class="num">04</span>M5 — CV Verification Engine</h2>
+  <p class="lede">Built as a standalone product. It is the module most likely to be independently useful, the easiest to demo, and the right thing to build first.</p>
+
+  <h3>Pipeline</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Stage</th><th>Submodule</th><th>Approach</th><th>Nature</th></tr></thead>
+    <tbody>
+      <tr><td>Ingest</td><td class="mono">5.1 doc-ingest</td><td>Layout-aware extraction preserving reading order, columns, and character offsets. PDF, DOCX, scanned fallback via OCR.</td><td><span class="tag t-det">deterministic</span></td></tr>
+      <tr><td>Extract</td><td class="mono">5.2 claim-extractor</td><td>Text → typed claims (employment, education, certification, project, skill), each carrying a verbatim source span.</td><td><span class="tag t-llm">LLM · L1</span></td></tr>
+      <tr><td>Resolve</td><td class="mono">5.3 entity-resolver</td><td>Embedding retrieval against registries of employers, institutions, titles, skills; LLM only breaks ties within a closed candidate set.</td><td><span class="tag t-det">hybrid</span></td></tr>
+      <tr><td>Check</td><td class="mono">5.4 consistency-engine</td><td>Interval-algebra rules over the claim timeline plus cross-reference against behavioural evidence. Pure logic.</td><td><span class="tag t-det">deterministic</span></td></tr>
+      <tr><td>Attest</td><td class="mono">5.5 external-attestation</td><td>W3C Verifiable Credentials verifier, issuer APIs where they exist, reference issuer where they do not.</td><td><span class="tag t-det">deterministic</span></td></tr>
+      <tr><td>Report</td><td class="mono">5.6 report-composer</td><td>Confidence aggregation, then prose rendered strictly from the computed findings.</td><td><span class="tag t-llm">LLM · L3</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The claim model</h3>
+  <p>Every extracted claim is an interval-typed assertion with provenance back to a character range in the source document. Span grounding is enforced, not trusted: if the returned span does not literally appear in the source text, the claim is rejected and re-extracted. This is the single most effective guard against fabricated extractions.</p>
+<pre><b>Claim</b> {
+  claim_id, subject_id, <i>kind</i>: employment | education | certification | project | skill,
+  <i>interval</i>: { start: YYYY-MM, end: YYYY-MM | present, precision },
+  <i>attributes</i>: { org?, title?, degree?, issuer?, skill_refs[] },
+  <i>provenance</i>: { doc_id, char_start, char_end, verbatim },
+  <i>resolution</i>: { canonical_org_id?, canonical_title_id?, confidence }
+}</pre>
+
+  <h3>Consistency rules — the deterministic core</h3>
+  <p>Each rule emits <code>Discrepancy(type, severity, confidence, evidence_refs)</code>. None emits a verdict. The interesting rules are the cross-modal ones — claims checked against behaviour rather than against other claims.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Rule</th><th>Checks</th><th>Signal quality</th></tr></thead>
+    <tbody>
+      <tr><td>Interval conflict</td><td>Two full-time employments overlapping, or full-time study overlapping full-time work</td><td>Strong, low FPR</td></tr>
+      <tr><td>Commit-activity reconciliation</td><td>Claimed employment period against observed commit cadence, timezone histogram, and organisational repository access</td><td>Strong when public activity exists; abstains otherwise</td></tr>
+      <tr><td>Skill-tenure plausibility</td><td>Claimed years of a technology against earliest observed evidence of it, and against the technology's release date</td><td>Very strong — a claim predating the technology is decisive</td></tr>
+      <tr><td>Title progression</td><td>Seniority trajectory against tenure lengths, using a canonical title ladder</td><td>Weak, advisory only</td></tr>
+      <tr><td>Credential attestation</td><td>Issuer verification, issue/expiry dates, credential signature validation</td><td>Decisive where an issuer responds</td></tr>
+      <tr><td>Timeline gap</td><td>Unexplained gaps above a threshold</td><td class="mono">Advisory — and see §13</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn">
+    <h5>Deliberate design constraint</h5>
+    <p>Gap detection and title-progression rules are the two most likely to encode bias against people with non-linear careers — caregiving, illness, non-Western career ladders. They stay in the system as <em>advisory, non-scoring, human-visible</em> flags. Section 13 makes measuring that bias an explicit deliverable rather than a disclaimer.</p>
+  </div>
+
+  <h3>Public surface</h3>
+<pre>POST /v1/verifications          <i>submit a CV; returns verification_id</i>
+GET  /v1/verifications/{id}     <i>status + full structured report</i>
+POST /v1/verifications/{id}/attestations   <i>attach issuer evidence</i>
+GET  /v1/claims/{id}/provenance <i>the source span behind any claim</i>
+POST /v1/webhooks               <i>completion callbacks</i></pre>
+  <p>Idempotency keys on every mutating call. Async by default with webhook completion — verification involves external lookups and cannot be a synchronous request.</p>
+</section>
+
+<section id="cpe">
+  <h2><span class="num">05</span>M3 — Code Provenance Engine</h2>
+  <p class="lede">The module that answers three separate questions people conflate: did this person write this code, is this code original, and what does it demonstrate they can do.</p>
+
+  <h3>5.1 Repository analysis</h3>
+  <p>One parser front-end for every language: <code>tree-sitter</code> gives real ASTs across Python, JavaScript, TypeScript, Java, Go, C++, Rust and more from a single integration, which is what makes multi-language analysis tractable for a student team. From the AST: cyclomatic and cognitive complexity, function length distributions, test-to-source ratio, dependency profile, framework fingerprints, error-handling density.</p>
+
+  <h3>5.2 Authorship verification</h3>
+  <p>Formulated as <strong>open-set verification</strong>, not closed-set attribution. The question is never "which of these 50 people wrote this" — it is "is this sample consistent with the profile claimed by this account," answered with a calibrated probability.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Feature family</th><th>Examples</th><th>Robustness</th></tr></thead>
+    <tbody>
+      <tr><td>Syntactic (AST)</td><td>Node-type unigram/bigram distributions, AST depth profile, node-type TF-IDF</td><td>High — survives reformatting</td></tr>
+      <tr><td>Idiomatic</td><td>Loop construct preference, comprehension vs. imperative, exception-handling style, import organisation</td><td>High</td></tr>
+      <tr><td>Lexical</td><td>Identifier casing ratios, identifier length distribution, abbreviation habits, comment density and register</td><td>Medium</td></tr>
+      <tr><td>Layout</td><td>Indentation, brace placement, blank-line rhythm, line-length distribution</td><td class="mono">Low — destroyed by formatters</td></tr>
+      <tr><td>Repository metadata</td><td>Commit hour-of-day histogram (a timezone fingerprint), weekday pattern, commit size distribution, message style</td><td>Medium — and hard to fake unintentionally</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h4>Method — a one-sample test, not a classifier</h4>
+  <p>The question is answered by <strong>distance against an empirical null</strong>, with no model fitted at any point:</p>
+  <ol>
+    <li><strong>Profile.</strong> From the author’s established history, compute the feature vector’s per-feature mean and variance. This is their style profile — descriptive statistics over their own work, nothing more.</li>
+    <li><strong>Measure.</strong> For a new sample, compute Mahalanobis distance to that profile, so features the author is personally consistent about count for more than features they vary anyway.</li>
+    <li><strong>Reference.</strong> Compute, once, the distribution of distances between <em>known different-author</em> pairs drawn from the Google Code Jam corpus. This is the empirical null — a lookup table built by a for-loop, not a training run.</li>
+    <li><strong>Report.</strong> Place the observed distance as a percentile of that null. The output is “this sample sits at the 3rd percentile of consistency for this author,” which is calibrated by construction.</li>
+  </ol>
+  <div class="note det">
+    <h5>Why this beats a classifier here</h5>
+    <p>It measures <em>self-consistency</em> rather than predicting a label, so it needs no examples of the thing being detected — and no such labelled corpus exists to be had. It is also fully decomposable: any flagged sample breaks down into which specific features deviated and by how much, which is the only defensible way to show such a finding to the person it concerns. And it degrades honestly: an author with too little history yields a wide profile and the test abstains, rather than guessing.</p>
+  </div>
+  <div class="note det">
+    <h5>The experiment worth running</h5>
+    <p>Auto-formatters (<code>black</code>, <code>prettier</code>, <code>gofmt</code>) are now near-universal, and every layout feature in the classic stylometry literature dies under them. Pass the reference corpus through each formatter, recompute the null, and measure how much separation each feature family retains. Showing that AST-family features survive what kills layout features is a genuine finding, needs no training, and is entirely within reach of a semester.</p>
+  </div>
+
+  <h3>5.3 Model-generated code detection</h3>
+  <p>This did not exist as a problem when the stylometry literature was written, which is exactly why it is worth your attention. Handled entirely by <strong>deterministic rules over commit history</strong> — the stronger signal family in any case, and the one that needs no model:</p>
+  <ul>
+    <li><strong>Process-level</strong> <span class="tag t-det">rules</span> — large complete commits arriving with no iterative refinement, absent debugging commits, tests added wholesale rather than incrementally, no intermediate broken states. Human development leaves a characteristic mess in the history; generated code often arrives finished.</li>
+    <li><strong>Artefact-level</strong> <span class="tag t-det">thresholded statistic</span> — stylistic uniformity and comment-to-code ratio measured against the same empirical null used for authorship. Optionally, perplexity under a <em>pretrained</em> code language model, used at inference only.</li>
+  </ul>
+  <p>Treated as one signal among many, never as an accusation. The honest framing is “this repository shows little evidence of iterative authorship” — which is both defensible and, being a statement about the commit graph rather than about a person, checkable by anyone.</p>
+
+  <h3>5.4 Originality</h3>
+  <p>Winnowing-based fingerprinting (the MOSS approach) against a corpus of tutorials, boilerplate, popular starter templates, and vendored dependencies. The dominant real-world case is not plagiarism — it is <code>node_modules</code>, generated code, and framework scaffolding inflating someone's apparent output. Detecting and excluding it is what makes the volume metrics meaningful at all.</p>
+</section>
+
+<section id="vsg">
+  <h2><span class="num">06</span>M6 — Skill graph &amp; the scoring model</h2>
+  <p class="lede">The technical core, and the part a panel will interrogate hardest. It deserves a real model, not a weighted sum with hand-picked constants.</p>
+
+  <h3>Formulation</h3>
+  <p>For each <code>(developer, skill)</code> pair, maintain a latent ability with explicit uncertainty — a Gaussian state <code>(μ, σ²)</code> updated by Bayesian filtering as evidence arrives. Each evidence event carries a source-specific reliability <code>ρ_k</code> that determines how much the observation moves the estimate. The update is closed-form: <strong>no fitting, no optimiser, no training data</strong> — the equations below are applied directly.</p>
+<pre><i>on evidence e from source k at time τ:</i>
+   observation_variance = f(<b>ρ_k</b>, context_difficulty, sample_size)
+   (μ, σ²) ← <b>kalman_update</b>((μ, σ²), observed, observation_variance)
+
+<i>between events, over elapsed time Δt:</i>
+   σ²(t) = σ²(τ) + <b>λ_s · Δt</b>          <i>uncertainty grows</i>
+   μ(t)  = μ(τ) + (prior_μ − μ(τ)) · (1 − e^(−Δt / <b>h_s</b>))
+
+<i>displayed score:</i>
+   score = <b>μ − z·σ</b>                    <i>a lower confidence bound</i></pre>
+
+  <div class="note det">
+    <h5>Why decay is modelled as growing uncertainty, not a falling score</h5>
+    <p>The proposal says scores decay. Implementing that as "subtract points over time" asserts something false — that the person got worse. Modelling it as <em>growing variance</em> asserts something true: we know less than we did. Because the displayed number is a lower confidence bound <code>μ − zσ</code>, a stale profile still falls — but for a defensible reason, and it recovers immediately on fresh evidence rather than needing to re-earn points. This reframing costs nothing and is a much stronger answer under questioning.</p>
+  </div>
+
+  <h3>Parameters — chosen from reasoning, stress-tested by sensitivity analysis</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Param</th><th>Meaning</th><th>How it is estimated</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ρ_k</td><td>Reliability of evidence source k</td><td>Ordered from first principles — an executed test is more reliable than a client star rating — then swept across its plausible range.</td></tr>
+      <tr><td class="mono">λ_s</td><td>Volatility of skill s</td><td>Set per skill class from ecosystem release cadence: a framework decays faster than a fundamental. Three tiers, not a continuum.</td></tr>
+      <tr><td class="mono">h_s</td><td>Mean-reversion half-life</td><td>Tied to λ_s by a fixed ratio rather than set independently, to keep the parameter count small enough to sweep exhaustively.</td></tr>
+      <tr><td class="mono">γ_edge</td><td>Propagation damping across ontology edges</td><td>Single global constant by edge type (prerequisite vs. related). Evidence for React partially informs JavaScript.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note det">
+    <h5>Sensitivity analysis replaces parameter fitting — and is the stronger result</h5>
+    <p>Fitting these would need outcome labels at a volume no student project will have; fitting them on thin data produces overfitted constants dressed up as science. Instead: set each from documented reasoning, then sweep the full plausible range and report <strong>how stable candidate rankings are across it</strong>. “Rank correlation stays above 0.9 across the entire plausible parameter space” is a stronger claim than a fitted value with no confidence interval, and it is the honest thing to say given the data available.</p>
+    <p>Pair it with a <strong>parameter-recovery simulation</strong>: generate synthetic developers with known true ability, simulate evidence arriving from sources of known reliability, and confirm the filter converges to the truth. This validates the model end to end, requires no real users, and involves no training — it is simulation plus arithmetic.</p>
+  </div>
+
+  <h3>Graph structure</h3>
+  <p>A property graph (Neo4j, or Postgres with recursive CTEs if you want one less system to operate): <code>Skill</code> nodes with <code>PREREQUISITE_OF</code> and <code>RELATED_TO</code> edges, seeded from ESCO/O*NET and extended with a reviewed alias table. <code>Developer</code> nodes hold per-skill states; <code>Evidence</code> nodes are immutable and referenced by every score, which is what makes any score explainable on demand.</p>
+
+  <h3>6.5 Anti-gaming</h3>
+  <p>A scored marketplace is an adversarial environment; treat it as one from the start. Detection targets: Sybil clusters posting gigs to each other, review-reciprocity rings, commit-farming (many trivial commits), backdated history via rewritten git timestamps, assessment collusion (near-identical solutions across accounts, timing correlation). Techniques: graph community detection on the transaction graph, statistical anomaly detection on evidence-arrival patterns, and cross-checking git author dates against committer dates and push timestamps — the latter is a cheap, decisive check that most systems skip.</p>
+</section>
+
+<section id="sae">
+  <h2><span class="num">07</span>M4 — Assessment engine &amp; sandbox</h2>
+
+  <h3>Isolation</h3>
+  <p>You are executing untrusted code submitted by strangers. Recommendation: <strong>gVisor</strong> (<code>runsc</code>) under containerd — user-space syscall interception gives strong isolation without the operational weight of managing microVMs, and it runs on ordinary hardware. Firecracker is the documented upgrade path if you want a stronger boundary and have KVM available.</p>
+  <p>Threat model to write up explicitly, because a panel will ask: network egress (block all, including DNS — DNS exfiltration is the one people forget), filesystem escape, resource exhaustion via CPU/memory/PID/disk quotas, fork bombs, cryptomining, and side-channel timing attacks against other tenants. Each gets a control and a test that attempts the attack.</p>
+
+  <h3>Determinism</h3>
+  <p>Scores must be reproducible: base images pinned by digest, fixed random seeds, no network, CPU pinning where timing contributes to the score, and a fixed wall-clock budget enforced outside the sandbox rather than inside it.</p>
+
+  <h3>Challenge synthesis and its validation loop</h3>
+  <p>Generating novel, role-specific problems is the one place in this system where an LLM is doing something no other technique can. But a generated challenge is worthless until it is proven to work — so generation is wrapped in an execution gate:</p>
+  <ol>
+    <li>Generate spec, statement, starter code, reference solution, hidden test suite, and rubric from a target skill vector and difficulty. <span class="tag t-llm">LLM · L4</span></li>
+    <li>Execute the reference solution against the hidden tests. It must pass completely, or the challenge is discarded.</li>
+    <li>Execute deliberately mutated/incorrect solutions. They must fail, or the tests are not discriminative and the challenge is discarded.</li>
+    <li>Pilot on a cohort; compute <strong>empirical difficulty</strong> (raw pass rate) and <strong>discrimination</strong> (point-biserial correlation between item score and total score). Two formulas, no model fitted.</li>
+    <li>Admit to the registry only on passing all four. <span class="tag t-det">deterministic gate</span></li>
+  </ol>
+  <div class="note llm">
+    <h5>Why this is the right shape</h5>
+    <p>Nothing generated is trusted on the strength of having been generated. The model proposes; execution disposes. "First-pass validation rate" then becomes a real metric you can report, and difficulty drift becomes measurable rather than assumed.</p>
+  </div>
+
+  <h3>Scoring</h3>
+  <p>Three independent components, reported separately rather than collapsed into one number too early: functional correctness (hidden test pass rate, weighted by test importance), code quality (the same static analysis M3 runs, so a candidate is measured the same way in both contexts), and process signals from the edit trace.</p>
+  <p>Comparability across different challenges comes from <strong>percentile scoring against the cohort distribution</strong> for that item, not from a latent-trait model. A raw score becomes “72nd percentile among candidates who attempted this challenge,” which is directly interpretable, needs only a stored distribution per item, and is exactly what the original proposal specified — “benchmarked against the anonymised performance distribution of prior candidates.” Items with too few attempts report a wide interval rather than a false precision.</p>
+
+  <h3>4.5 Integrity monitoring</h3>
+  <p>Paste-burst detection, long-idle-then-large-insert patterns, tab-focus loss, and the same rule-based generated-code signals from M3 applied to the submission’s edit trace. Reported as an integrity confidence alongside the score, never as an automatic invalidation.</p>
+</section>
+
+<section id="llm">
+  <h2><span class="num">08</span>LLM call-site register</h2>
+  <p class="lede">Every place a language model is invoked, with the justification for why nothing simpler suffices, the guardrail that constrains it, and the metric that proves it works. Anything not on this list does not call a model.</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Module</th><th>Task</th><th>Why an LLM</th><th>Guardrail</th><th>Metric</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">L1</td><td class="mono">5.2</td>
+        <td>CV text → typed claims with source spans</td>
+        <td>Résumés are unbounded free-form across arbitrary layouts and phrasings; rule-based NER breaks on the long tail</td>
+        <td>Strict JSON schema via structured outputs; <strong>every claim's verbatim span verified to exist in the source</strong>, else rejected and retried</td>
+        <td>Claim-level P/R/F1 vs. gold; span-grounding violation rate</td>
+      </tr>
+      <tr>
+        <td class="mono">L2</td><td class="mono">5.3</td>
+        <td>Ambiguous employer / title normalisation</td>
+        <td>Tie-breaking only, after embedding retrieval — resolves "SDE-2 @ Flipkart" to a canonical ladder position</td>
+        <td>Closed candidate set; may only select from provided options or abstain</td>
+        <td>Top-1 accuracy; abstention calibration</td>
+      </tr>
+      <tr>
+        <td class="mono">L3</td><td class="mono">5.6</td>
+        <td>Findings JSON → recruiter-readable rationale</td>
+        <td>Explanations must read naturally for non-technical recruiters</td>
+        <td>Generated <strong>only</strong> from computed findings; every sentence must cite a finding ID; no numbers introduced that were not computed</td>
+        <td>Faithfulness audit — unsupported-statement rate on a sampled set</td>
+      </tr>
+      <tr>
+        <td class="mono">L4</td><td class="mono">4.2</td>
+        <td>Skill vector + difficulty → full challenge artefacts</td>
+        <td>Generating novel, non-memorised, role-specific problems at scale has no non-generative alternative</td>
+        <td>Four-stage execution validation gate (§07) — reference passes, mutants fail, empirical difficulty within tolerance</td>
+        <td>First-pass validation rate; |predicted − observed| pass rate; point-biserial discrimination</td>
+      </tr>
+      <tr>
+        <td class="mono">L5</td><td class="mono">6.1</td>
+        <td>New skill-string → ontology mapping proposal</td>
+        <td>The technology long tail moves faster than manual curation</td>
+        <td><strong>Offline batch, human-approval queue.</strong> Never in the request path, never auto-merged</td>
+        <td>Reviewer acceptance rate</td>
+      </tr>
+      <tr>
+        <td class="mono">L6</td><td class="mono">7</td>
+        <td>Job description → structured skill requirements</td>
+        <td>Same unstructured→structured problem as L1, different document class</td>
+        <td>Structured output; importance emitted as buckets (required / preferred / optional), never continuous weights</td>
+        <td>Agreement with recruiter-labelled requirements</td>
+      </tr>
+      <tr>
+        <td class="mono">L7</td><td class="mono">8</td>
+        <td>Delivery diff → qualitative review findings</td>
+        <td>Semantic review comments need code understanding that static analysis cannot supply</td>
+        <td>Findings anchored to <code>file:line</code>; static analysis runs first; <strong>output goes to the human reviewer and never into a score</strong></td>
+        <td>Precision vs. expert review; false-positive rate</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Where an LLM is explicitly forbidden</h3>
+  <p>This list matters as much as the one above, and is worth stating in the report:</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Function</th><th>Technique used instead</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Skill score computation</td><td>Bayesian filtering (§06)</td><td>Must be reproducible, auditable, and stable across re-runs. A number that influences hiring cannot be non-deterministic.</td></tr>
+      <tr><td>Authorship verification</td><td>Mahalanobis distance vs. empirical null</td><td>Needs a percentile that decomposes into named features. An LLM opinion is neither calibrated nor decomposable.</td></tr>
+      <tr><td>Timeline consistency</td><td>Interval algebra rule engine</td><td>Deterministic, provable, and explainable to the person being assessed.</td></tr>
+      <tr><td>Assessment pass/fail</td><td>Test execution</td><td>Ground truth exists. Asking a model to guess it is strictly worse.</td></tr>
+      <tr><td>Originality detection</td><td>Winnowing fingerprints</td><td>Exact-match problem with an exact algorithm.</td></tr>
+      <tr><td>Anti-gaming</td><td>Graph anomaly detection</td><td>Adversarial setting; needs statistical guarantees, not judgement.</td></tr>
+      <tr><td>Any hiring recommendation</td><td>— nothing —</td><td>The platform does not emit verdicts, by any mechanism.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Operational choices</h3>
+  <p>Default to <code>claude-opus-5</code> (1M context, $5/$25 per MTok) with adaptive thinking for the reasoning-heavy call sites — L1 and L4 especially. Two levers matter a great deal at this project's volume:</p>
+  <ul>
+    <li><strong>Prompt caching.</strong> L1's schema, ontology excerpt, and few-shot block are a large stable prefix. Put them first, cache them, and verify with <code>usage.cache_read_input_tokens</code> — anything varying inside that prefix silently kills the hit rate.</li>
+    <li><strong>Batch API.</strong> Corpus backfills and evaluation runs are not latency-sensitive and run at 50% cost. Every dataset build in §10 should go through it.</li>
+    <li><strong>Prompt versioning.</strong> Every LLM-derived record stores <code>model_id</code> and <code>prompt_version</code> in its provenance, so results stay reproducible after a prompt change and you can re-run an ablation honestly.</li>
+    <li><strong>Effort tuning</strong> — <code>output_config.effort</code> at <code>high</code> for L4, lower for the mechanical extractions. Worth a small sweep as an appendix; it is a real cost/quality result.</li>
+  </ul>
+</section>
+
+<section id="contracts">
+  <h2><span class="num">09</span>Interface contracts</h2>
+  <p class="lede">Modules connect through these and nothing else. Getting them right in week two is what makes parallel work possible for the following seven months.</p>
+
+  <h3>The canonical evidence envelope</h3>
+  <p>Every evidence producer emits this shape onto the bus. M6 is the only consumer that computes from it. Note the provenance block — it is what makes any score reproducible and any LLM-derived record re-runnable.</p>
+<pre><b>EvidenceEvent</b> {
+  event_id, occurred_at, ingested_at, schema_version,
+  subject:      { type: "developer", id },
+  source:       { module, module_version, run_id },
+  skill_refs:   [ { skill_id, relevance: 0..1 } ],
+  observation:  { kind: commit_activity | assessment_result | gig_review
+                      | cv_claim | attestation | integrity_flag,
+                  payload: &lt;kind-specific&gt; },
+  strength:     0..1,   <i>how much signal this observation carries</i>
+  reliability:  0..1,   <i>producer's own confidence in it</i>
+  consent_scope: [ purposes ],
+  provenance:   { input_hash, code_version, <b>model_id?</b>, <b>prompt_version?</b> }
+}</pre>
+
+  <h3>Conventions every module honours</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Concern</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>Spec</td><td>OpenAPI 3.1 in <code>/contracts/&lt;module&gt;/v1.yaml</code>, committed before implementation. CI fails if the served spec and the committed spec diverge.</td></tr>
+      <tr><td>Versioning</td><td>Major in the path (<code>/v1/</code>); minor changes additive only. Breaking change means a new path, with both served during migration.</td></tr>
+      <tr><td>Idempotency</td><td><code>Idempotency-Key</code> required on every mutating endpoint. Replays return the original response.</td></tr>
+      <tr><td>Long operations</td><td>202 + resource URL + webhook. Nothing that touches an external system is synchronous.</td></tr>
+      <tr><td>Errors</td><td>RFC 9457 problem details, with a stable machine-readable <code>type</code>.</td></tr>
+      <tr><td>Health</td><td><code>/healthz</code>, <code>/readyz</code>, <code>/metrics</code>, <code>/openapi.json</code> on every service without exception.</td></tr>
+      <tr><td>Async</td><td>CloudEvents envelope over the bus; schemas registered and compatibility-checked in CI.</td></tr>
+      <tr><td>Contract tests</td><td>Consumer-driven (Pact) plus schema fuzzing (Schemathesis) against every published spec.</td></tr>
+      <tr><td>Consent</td><td>Every read of developer data carries a purpose. M1 authorises it. Unauthorised purpose is a 403, logged.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="eval">
+  <h2><span class="num">10</span>Evaluation plan</h2>
+  <p class="lede">This section is what separates a strong B.Tech project from a working demo. Build M14 early and keep it running — a system with numbers behind it defends itself.</p>
+
+  <h3>Datasets to construct</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Dataset</th><th>Construction</th><th>Ground truth</th><th>Supports</th></tr></thead>
+    <tbody>
+      <tr><td>Injected-falsification CV corpus</td><td>Consented real CVs plus programmatically mutated variants: shifted dates, substituted employers, inflated tenure, fabricated credentials, anachronistic skills</td><td><strong>Perfect</strong> — you created every falsification</td><td>M5 end to end</td></tr>
+      <tr><td>Authorship reference corpus</td><td>Google Code Jam + GitHub-mined per-author sets. Used to compute the empirical null distribution — <em>not</em> a training set</td><td>Account-level authorship</td><td>M3.3</td></tr>
+      <tr><td>Formatter-robustness set</td><td>The above, passed through <code>black</code>/<code>prettier</code>/<code>gofmt</code></td><td>Inherited</td><td>M3.3 ablation</td></tr>
+      <tr><td>Human-vs-generated code set</td><td>Pre-2021 GitHub repositories vs. generated equivalents. Used to <em>validate</em> the commit-history rules, not to fit them</td><td>By construction</td><td>M3.3, M4.5</td></tr>
+      <tr><td>Assessment cohort</td><td>50+ volunteers attempting generated challenges</td><td>Observed response patterns</td><td>M4.4 percentile tables</td></tr>
+      <tr><td>Parameter-recovery simulation</td><td>Synthetic developers with known true ability; evidence simulated from sources of known reliability</td><td><strong>Exact</strong> — abilities are set by you</td><td>M6 — the central claim</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note det">
+    <h5>The injected-falsification design is the strongest experimental idea here</h5>
+    <p>You cannot obtain a labelled corpus of real fraudulent CVs — nobody will give you one, and no honest ground truth exists. But if you generate the falsifications yourself, you know exactly what is wrong with every document. That yields per-fraud-type detection rates at a fixed false-positive rate on clean CVs, which is precisely the table a reviewer wants to see, and it is entirely achievable.</p>
+  </div>
+
+  <h3>Metrics</h3>
+  <ul>
+    <li><strong>Extraction</strong> — claim-level precision/recall/F1; span-grounding violation rate.</li>
+    <li><strong>Detection</strong> — per-fraud-type recall at fixed FPR; overall AUC; the FPR on clean documents is the number that actually matters.</li>
+    <li><strong>Authorship</strong> — separation between self-distances and the empirical null (ROC over the reference corpus, equal error rate); degradation under formatting; abstention rate on thin profiles.</li>
+    <li><strong>Calibration</strong> — reliability diagrams, expected calibration error, Brier score. "When we say 80%, is it right 80% of the time?" is the question the whole confidence framing rests on.</li>
+    <li><strong>Ranking</strong> — nDCG@k for recruiter search against expert-ranked candidate sets.</li>
+    <li><strong>Ablation</strong> — remove each evidence stream in turn and measure the drop. This table directly proves or refutes the multi-source thesis.</li>
+    <li><strong>Fairness</strong> — false-positive rate disaggregated across subgroups (see §13). A gap here is a finding to report, not a failure to hide.</li>
+  </ul>
+</section>
+
+<section id="stack">
+  <h2><span class="num">11</span>Stack &amp; infrastructure</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Concern</th><th>Choice</th><th>Rationale</th></tr></thead>
+    <tbody>
+      <tr><td>Service language</td><td>Python 3.12 + FastAPI</td><td>The ML-heavy modules dominate this system; one language across them beats polyglot novelty. Native OpenAPI generation supports the contracts-first rule.</td></tr>
+      <tr><td>Sandbox supervisor</td><td>Go</td><td>The one place a second language earns its cost — static binary, tight resource control, clean containerd integration.</td></tr>
+      <tr><td>Front-end</td><td>TypeScript + Next.js</td><td>Clients generated from the OpenAPI specs, never hand-written.</td></tr>
+      <tr><td>Parsing</td><td>tree-sitter</td><td>Real ASTs for every target language from a single integration — the decision that makes M3 feasible at all.</td></tr>
+      <tr><td>Graph store</td><td>Neo4j</td><td>Traversal-heavy propagation queries. Postgres recursive CTEs are a legitimate alternative if you would rather run one fewer system.</td></tr>
+      <tr><td>Relational</td><td>PostgreSQL, one schema per module</td><td>Enforced boundary; separate credentials per service so violations fail loudly.</td></tr>
+      <tr><td>Event bus</td><td>Redpanda</td><td>Kafka protocol without the ZooKeeper-era operational weight. Single binary in dev.</td></tr>
+      <tr><td>Object storage</td><td>MinIO</td><td>S3-compatible for CVs, repo snapshots, submission artefacts.</td></tr>
+      <tr><td>Isolation</td><td>gVisor / containerd</td><td>Strong syscall isolation without requiring KVM. Firecracker documented as the upgrade path.</td></tr>
+      <tr><td>Vectors</td><td>pgvector</td><td>Entity-resolution retrieval. Avoids introducing a dedicated vector database for this scale.</td></tr>
+      <tr><td>LLM</td><td>Anthropic SDK, <code>claude-opus-5</code></td><td>Structured outputs for schema enforcement, prompt caching for the stable prefixes, Batch API for corpus runs.</td></tr>
+      <tr><td>Orchestration</td><td>Docker Compose → k3s</td><td>Compose for development and demo; k3s only if deployment is itself part of the assessment.</td></tr>
+      <tr><td>Observability</td><td>OpenTelemetry → Prometheus + Grafana + Tempo</td><td>Distributed tracing is not optional once fifteen services call each other.</td></tr>
+      <tr><td>Repository</td><td>Monorepo, per-module CI</td><td>Independent deployability without fifteen repositories to keep synchronised.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="plan">
+  <h2><span class="num">12</span>Sequencing</h2>
+  <p class="lede">Assuming roughly 34 working weeks. The ordering is deliberate: the standalone product first, the research core second, the commerce layer last and deliberately thin.</p>
+
+  <div class="phase"><div class="wk">W1–3</div><div class="bd"><h5>Phase 0 — Contracts and spikes</h5><p>OpenAPI specs for M1/M5/M6, the EvidenceEvent schema, architecture decision records, monorepo and CI scaffolding. Four throwaway spikes: gVisor isolation, tree-sitter multi-language extraction, structured-output extraction against a real CV, Neo4j propagation query. <strong>No product code.</strong></p></div></div>
+  <div class="phase"><div class="wk">W4–9</div><div class="bd"><h5>Phase 1 — CV Verification vertical</h5><p>M5 complete, plus the minimum of M0/M1 to support it. Ship it as a standalone API with its own docs. Build the injected-falsification corpus alongside — not after. First real metrics by week 9.</p></div></div>
+  <div class="phase"><div class="wk">W10–16</div><div class="bd"><h5>Phase 2 — Code provenance and skill graph v1</h5><p>M3 through authorship verification; M6 scoring engine with the fusion model. The formatter-robustness experiment lands here. First cross-modal consistency rules — commit activity checked against CV claims — connect M3 to M5.</p></div></div>
+  <div class="phase"><div class="wk">W17–23</div><div class="bd"><h5>Phase 3 — Assessment engine</h5><p>M4 including the sandbox, the synthesis validation gate, and the cohort study that builds the per-item percentile tables. Recruit volunteers early; this phase has an external dependency on people’s time and it will be the schedule risk.</p></div></div>
+  <div class="phase"><div class="wk">W24–29</div><div class="bd"><h5>Phase 4 — Marketplace and commerce</h5><p>M7–M10, deliberately thinner than the rest. Razorpay sandbox, escrow state machine, a financing model that is honest about being a demonstration. Timeboxed hard — this is the de-scope reservoir.</p></div></div>
+  <div class="phase"><div class="wk">W30–34</div><div class="bd"><h5>Phase 5 — Enterprise surface and the report</h5><p>M11–M13, full ablation study, calibration report, fairness audit, thesis writing. Reserve the last three weeks entirely for evaluation and writing — the difference between a good project and a good <em>defence</em> is made here.</p></div></div>
+
+  <h3>De-scope order, decided now rather than in a panic</h3>
+  <ol>
+    <li>Financing risk model → replace with a documented static advance rate</li>
+    <li>Real ATS connectors → keep the mock ATS only</li>
+    <li>Managed team assembly → drop entirely</li>
+    <li>Marketplace bidding sophistication → direct-award only</li>
+    <li>Multi-language breadth in M3 → narrow to Python and JavaScript, well</li>
+  </ol>
+  <div class="note crit" style="border-left-color:var(--crit)">
+    <h5 style="color:var(--crit)">Never cut</h5>
+    <p>The evaluation harness, the calibration study, and the ablation table. A project with three working modules and rigorous numbers defends better than one with fifteen modules and no evidence any of them work.</p>
+  </div>
+</section>
+
+<section id="risk">
+  <h2><span class="num">13</span>Risks &amp; ethics</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Risk</th><th>Severity</th><th>Response</th></tr></thead>
+    <tbody>
+      <tr><td>No access to university or employer verification systems</td><td><span class="tag t-crit">high</span></td><td>Build a <strong>W3C Verifiable Credentials reference issuer</strong> and a conformant mock registry. Implementing the protocol and demonstrating the integration path is academically stronger than obtaining one real API key would have been.</td></tr>
+      <tr><td>GitHub rate limits on corpus construction</td><td><span class="tag t-warn">medium</span></td><td>GH Archive via BigQuery for bulk history; the REST API only for authenticated per-user detail. Budget corpus collection weeks in advance of when you need it.</td></tr>
+      <tr><td>Assessment cohort recruitment</td><td><span class="tag t-warn">medium</span></td><td>Start recruiting in Phase 1. Percentile tables need volume per item, and this is the only deliverable gated on other people’s cooperation.</td></tr>
+      <tr><td>Scope — 15 modules is genuinely a lot</td><td><span class="tag t-crit">high</span></td><td>The de-scope order in §12 is decided in advance precisely so it is not decided under pressure in week 30.</td></tr>
+      <tr><td>Authorship verification has a real error rate</td><td><span class="tag t-crit">high</span></td><td>Never surfaced as an accusation. Report calibrated probability with evidence; route conflict to human review; make the person's own evidence visible to them.</td></tr>
+      <tr><td>Bias in verification against non-linear careers</td><td><span class="tag t-crit">high</span></td><td>Treat as a measured deliverable: disaggregate FPR across career-gap presence, non-Western institutions, non-native-English phrasing. Publishing the gap is the honest outcome.</td></tr>
+      <tr><td>Consent and personal data in the corpus</td><td><span class="tag t-warn">medium</span></td><td>Written consent for every real CV; pseudonymisation at ingest; corpus never published; DPDP purpose-limitation modelled in M1 from day one rather than retrofitted.</td></tr>
+      <tr><td>Surveillance framing of the freelance-to-hire pipeline</td><td><span class="tag t-warn">medium</span></td><td>Opt-in, revocable, and visible: a developer can see exactly what a recruiter would see about them. Consent that cannot be inspected is not meaningful consent.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="open">
+  <h2><span class="num">14</span>Open decisions</h2>
+  <p class="lede">Everything above holds under the stated assumptions. These are the questions whose answers would actually change the plan — worth settling before Phase 0 begins.</p>
+
+  <div class="q"><h5>Team size and duration</h5><p>The sequencing assumes roughly 34 weeks and 3–4 people working in parallel across module boundaries. A solo project or a single semester changes the module count substantially — probably to M5 + M3 + M6 only, with the marketplace dropped entirely.</p></div>
+  <div class="q"><h5>Does the evaluation need to reach publication standard?</h5><p>If a paper is a goal, the formatter-robustness study and the calibration analysis should expand and the marketplace should shrink further. If the department weights the working system more heavily, the balance shifts the other way. This is the single biggest fork in the plan.</p></div>
+  <div class="q"><h5>Where does the corpus come from?</h5><p>Access to real CVs — a placement cell, an alumni network, willing classmates — determines whether the injected-falsification experiment is realistic or purely synthetic. Worth resolving in week 1, because it has the longest lead time of anything here.</p></div>
+  <div class="q"><h5>Is deployment part of the assessment?</h5><p>If the panel expects a live system, k3s and real infrastructure enter scope and cost several weeks. If a local demo suffices, Docker Compose is enough and those weeks go to evaluation instead.</p></div>
+  <div class="q"><h5>LLM budget ceiling</h5><p>Corpus-scale extraction runs are the dominant cost. Batch API and prompt caching bring it down substantially, but a hard ceiling would change which call sites use which effort settings — worth knowing before the evaluation runs are designed.</p></div>
+</section>
+
+<footer>DevBridge — engineering plan, pre-implementation draft. Derived from DevBridge_Platform_Proposal.pdf v1.0. No implementation started; all module boundaries and contracts open for revision.</footer>
+
+</main>
+</div>
+</div>

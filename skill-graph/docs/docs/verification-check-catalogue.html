@@ -1,0 +1,429 @@
+<title>Verification Check Catalogue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --det:#0F6E63; --det-soft:#E2F0EE;
+  --llm:#6244C5; --llm-soft:#ECE7FA;
+  --hum:#8A5A12; --hum-soft:#F6EEDF;
+  --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --llm:#A48FF5; --llm-soft:#221C3C;
+  --hum:#D3A054; --hum-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --llm:#A48FF5; --llm-soft:#221C3C;
+  --hum:#D3A054; --hum-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.6rem); line-height:1.03; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:38px 0 42px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.75rem; letter-spacing:-.021em; line-height:1.17; margin:0 0 8px; text-wrap:balance; display:flex; gap:14px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.82rem; font-weight:500; color:var(--muted); flex:none; letter-spacing:0}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.11rem; letter-spacing:-.01em; margin:32px 0 8px; text-wrap:balance}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:26px 0 9px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.05rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.4px; line-height:1.6; margin:16px 0 20px; color:var(--ink-2)}
+pre b{color:var(--det); font-weight:500} pre i{color:var(--muted); font-style:normal}
+pre u{color:var(--llm); text-decoration:none} pre s{color:var(--hum); text-decoration:none}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.2px; line-height:1.47}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500; font-family:var(--f-mono); font-size:11.5px; white-space:nowrap}
+td.w{color:var(--ink); font-weight:500; font-family:var(--f-display); font-size:13.2px; white-space:normal}
+.tag{display:inline-block; font-family:var(--f-mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; padding:2px 6px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-llm{background:var(--llm-soft); color:var(--llm)} .t-det{background:var(--det-soft); color:var(--det)}
+.t-hum{background:var(--hum-soft); color:var(--hum)} .t-crit{background:var(--crit-soft); color:var(--crit)}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.llm{border-left-color:var(--llm)} .note.det{border-left-color:var(--det)}
+.note.hum{border-left-color:var(--hum)} .note.crit{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.llm h5{color:var(--llm)} .note.det h5{color:var(--det)} .note.hum h5{color:var(--hum)} .note.crit h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+.three{display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr)); gap:16px; margin:24px 0}
+.card{border:1px solid var(--rule); border-radius:7px; background:var(--surface); padding:19px 21px; box-shadow:var(--shadow)}
+.card.l{border-top:3px solid var(--llm)} .card.m{border-top:3px solid var(--det)} .card.h{border-top:3px solid var(--hum)}
+.card .k{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.15em; text-transform:uppercase; font-weight:500}
+.card.l .k{color:var(--llm)} .card.m .k{color:var(--det)} .card.h .k{color:var(--hum)}
+.card .n{font-family:var(--f-display); font-size:2.1rem; font-weight:700; letter-spacing:-.03em; margin:6px 0 0; line-height:1; font-variant-numeric:tabular-nums}
+.card .u{font-family:var(--f-mono); font-size:11px; color:var(--muted); margin:2px 0 12px}
+.card .d{font-family:var(--f-display); font-size:13.4px; color:var(--ink-2); line-height:1.5}
+.card ul{margin:11px 0 0; padding-left:0; list-style:none; font-family:var(--f-display); font-size:13px; max-width:none}
+.card ul li{padding:5px 0; border-top:1px solid var(--rule); margin:0; color:var(--ink-2); line-height:1.4}
+.buckets{border:1px solid var(--rule); border-radius:7px; overflow:hidden; margin:22px 0; background:var(--surface)}
+.bk{display:grid; grid-template-columns:34px 1fr; border-bottom:1px solid var(--rule)}
+.bk:last-child{border-bottom:none}
+.bk .ic{display:flex; align-items:flex-start; justify-content:center; padding:14px 0 0; font-family:var(--f-mono); font-size:14px; font-weight:600}
+.bk .bd{padding:13px 16px 14px 4px; min-width:0}
+.bk .ti{font-family:var(--f-mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:500; margin-bottom:3px}
+.bk .de{font-family:var(--f-display); font-size:13.4px; color:var(--muted); line-height:1.5}
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M5 — Consolidated Plan · Supersedes earlier drafts</p>
+  <h1>Verification Check Catalogue</h1>
+  <p class="deck">Every check the CV verification system performs, classified by who does it — a language model, deterministic code, or a person. Forty-one checks, five of which involve an LLM.</p>
+  <div class="meta">
+    <span><b>Module</b> M5 — cv-verification</span>
+    <span><b>Team</b> 2</span>
+    <span><b>Span</b> 16 weeks</span>
+    <span><b>Trained models</b> none</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>What the system does</h2>
+  <p class="lede">Corrected from earlier drafts. Internal consistency was the headline; it should have been the fallback.</p>
+  <div class="note det">
+    <h5>Product statement</h5>
+    <p>Given a developer's CV, DevBridge extracts the claims, finds the accounts the candidate names — GitHub, Codeforces, LeetCode, live deployments — and checks what they say about themselves against what those systems actually return. Where no account is verifiable, it falls back to internal consistency and credential attestation. It never claims to verify employment.</p>
+  </div>
+  <p>The reason this works on developer CVs and not on CVs generally: <strong>developer CVs are unusually artifact-dense.</strong> Every project carries a repository and often a live URL. Every competitive-programming claim has a public API behind it. Compare "Managed a team of 12 at Deloitte" — checkable by nobody. The vertical focus is not a market choice; it is the technical precondition that makes verification possible at all.</p>
+
+  <h3>Evidence sources, by strength</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Rank</th><th class="mono">Source</th><th>What it settles</th><th>Availability</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td class="w">Competitive-programming APIs</td><td>Ratings, contest ranks, problems solved — exactly, from the authority</td><td>Codeforces, LeetCode, AtCoder public; CodeChef scrape-only</td></tr>
+      <tr><td>2</td><td class="w">GitHub API</td><td>Repo existence, ownership, dates, languages, substance, portfolio composition</td><td>Public data always; private with OAuth</td></tr>
+      <tr><td>3</td><td class="w">Credential issuers</td><td>Whether a certificate is real</td><td>Credly, AWS, Azure, Coursera</td></tr>
+      <tr><td>4</td><td class="w">Live deployments</td><td>Whether a claimed product exists and responds</td><td>Always — one HTTP call</td></tr>
+      <tr><td>5</td><td class="w">Public registries</td><td>Institution and employer existence</td><td>AICTE, UGC, company registries</td></tr>
+      <tr><td>6</td><td class="w">The document itself</td><td>Internal coherence, arithmetic, anachronism, provenance</td><td>Always — the fallback floor</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>The division of labour</h2>
+  <p class="lede">One principle decides every allocation: <strong>machines settle facts, humans settle significance, and the model only translates between prose and structure.</strong></p>
+
+  <div class="three">
+    <div class="card l">
+      <div class="k">LLM</div>
+      <div class="n">5</div>
+      <div class="u">of 41 checks</div>
+      <div class="d">Translation only. Unstructured text into typed data, and computed findings back into prose. Never produces a number that enters a finding.</div>
+      <ul>
+        <li>CV text → typed claims</li>
+        <li>Handles &amp; URLs → typed identifiers</li>
+        <li>Self-declaration footnotes → markers</li>
+        <li>Entity resolution tie-break (closed set)</li>
+        <li>Findings → recruiter prose</li>
+      </ul>
+    </div>
+    <div class="card m">
+      <div class="k">Machine</div>
+      <div class="n">30</div>
+      <div class="u">of 41 checks</div>
+      <div class="d">Every check with an API behind it, plus all arithmetic, interval logic, registry lookup, and structural parsing. Deterministic, reproducible, auditable.</div>
+      <ul>
+        <li>All platform &amp; repository queries</li>
+        <li>All date and interval reasoning</li>
+        <li>All registry and issuer lookups</li>
+        <li>All document-intrinsic logic</li>
+      </ul>
+    </div>
+    <div class="card h">
+      <div class="k">Human</div>
+      <div class="n">6</div>
+      <div class="u">of 41 checks</div>
+      <div class="d">Everything requiring context the system does not have, plus every consequential decision. The machine gathers and presents; the person judges.</div>
+      <ul>
+        <li>Interpreting attention signals</li>
+        <li>Seniority and substance fit</li>
+        <li>Assessing an explanation</li>
+        <li>Any contested finding</li>
+        <li>The hiring decision</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Three tiers, and what each one licenses</h3>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Tier</th><th>Meaning</th><th>Report treatment</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag t-det">decisive</span></td><td>Authoritative source plus deterministic comparison. The answer is the answer.</td><td>Stated as fact, with the source named and linked</td></tr>
+      <tr><td><span class="tag t-hum">attention</span></td><td>Signal computed reliably, but innocent explanations exist that the system cannot see.</td><td>Posed as a <em>question</em> to a reviewer, never as a finding</td></tr>
+      <tr><td><span class="tag t-crit">evidence only</span></td><td>Material a person needs in order to judge. No machine conclusion at all.</td><td>Displayed with provenance; never scored</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note hum">
+    <h5>Decisive still does not mean automatic</h5>
+    <p>"Claimed Codeforces rating 1495, API returns 1200" is settled <em>as a fact</em>. Whether that means a stale CV, a typo, a different handle, or a lie is not settled at all — and the consequence is never the machine's to draw. Automation ends where fact-finding ends.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>The catalogue</h2>
+  <p class="lede">Forty-one checks across six evidence groups. <span class="tag t-llm">llm</span> <span class="tag t-det">machine</span> <span class="tag t-hum">human</span> marks who performs it; the tier marks what it licenses.</p>
+
+  <h4>A · Document-intrinsic — always available, no external calls</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Check</th><th>Method</th><th class="mono">By</th><th class="mono">Tier</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td class="w">Claim extraction</td><td>CV text → typed claims with verbatim spans</td><td><span class="tag t-llm">llm</span></td><td>foundation</td></tr>
+      <tr><td>D2</td><td class="w">Span grounding</td><td>Every verbatim verified present in source; NFKC normalised</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>D3</td><td class="w">Self-declaration markers</td><td>Parse the document's own disclaimers and asterisks; inherit its trust boundaries</td><td><span class="tag t-llm">llm</span></td><td>decisive</td></tr>
+      <tr><td>D4</td><td class="w">Document provenance</td><td>Producer, creation vs. modification date, institutional template fingerprint</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>D5</td><td class="w">Interval overlap</td><td>Three-valued algebra; only DEFINITE raises</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>D6</td><td class="w">Duration arithmetic</td><td>Stated total experience vs. summed non-overlapping intervals</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>D7</td><td class="w">Technology anachronism</td><td>Skill claimed before the technology existed; release-date registry</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>D8</td><td class="w">Degree duration</td><td>Programme length vs. standard duration</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>D9</td><td class="w">Roll-number structure</td><td>Encoded admission year and department vs. claimed dates and programme</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>D10</td><td class="w">Internal contradiction</td><td>Same role given different dates in different sections</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>D11</td><td class="w">Timeline gap</td><td>Unexplained gap over threshold</td><td><span class="tag t-det">mach</span></td><td>attention · non-scoring</td></tr>
+      <tr><td>D12</td><td class="w">Title progression</td><td>Seniority trajectory vs. tenure</td><td><span class="tag t-det">mach</span></td><td>attention · non-scoring</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>B · GitHub — the core evidence source</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Check</th><th>Method</th><th class="mono">By</th><th class="mono">Tier</th></tr></thead>
+    <tbody>
+      <tr><td>G1</td><td class="w">Handle extraction</td><td>Parse owner from repo URLs and profile links in the CV</td><td><span class="tag t-llm">llm</span></td><td>foundation</td></tr>
+      <tr><td>G2</td><td class="w">Account exists</td><td>Users API</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>G3</td><td class="w">Ownership proof</td><td>OAuth or gist challenge; else state remains <code>claimed_unverified</code></td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>G4</td><td class="w">Repo exists, owned, not a fork</td><td>Repos API per named repository</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>G5</td><td class="w">Commit window vs. claimed dates</td><td>Server-side timestamps only — never <code>git log</code> author dates</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>G6</td><td class="w">Language profile vs. claimed stack</td><td>Repo languages endpoint vs. extracted tech claims</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>G7</td><td class="w">Repo substance</td><td>Commit count, file count, size — is it more than a README shell</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>G8</td><td class="w">Portfolio composition</td><td>Fork ratio, tutorial-clone detection across the account</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>G9</td><td class="w">Language tenure</td><td>Claimed years vs. first commit in that language</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>G10</td><td class="w">Activity during claimed employment</td><td>Contribution calendar over the claimed window</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>G11</td><td class="w">Org membership</td><td>Public GitHub org vs. claimed employer</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>G12</td><td class="w">Contribution authenticity</td><td>Commit size distribution; detects farming and bulk imports</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note det">
+    <h5>Two things that make this group work</h5>
+    <p><strong>Server-side timestamps only.</strong> <code>git commit --date=</code> sets author dates arbitrarily; so does <code>GIT_COMMITTER_DATE</code>. Both live inside the repo and are attacker-controlled. Only GitHub's own record of when a push occurred is trustworthy, which is why G5 and G10 read the contribution calendar rather than a clone.</p>
+    <p><strong>An unverified handle still counts — in one direction.</strong> A self-claimed account that <em>contradicts</em> the CV is strong evidence, because nobody lists a handle that undermines them. One that <em>corroborates</em> is weak, because it could be anyone's. So <code>claimed_unverified</code> accounts may lower confidence and never raise it.</p>
+  </div>
+
+  <h4>C · Developer platforms — the most decisive source in the system</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Check</th><th>Method</th><th class="mono">By</th><th class="mono">Tier</th></tr></thead>
+    <tbody>
+      <tr><td>P1</td><td class="w">Codeforces rating</td><td><code>user.info</code> → rating, maxRating, rank title</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>P2</td><td class="w">Contest rank claim</td><td><code>user.rating</code> → full contest history, exact match on round and rank</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>P3</td><td class="w">Problems-solved count</td><td><code>user.status</code> → distinct accepted problems</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>P4</td><td class="w">LeetCode statistics</td><td>Public GraphQL endpoint</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>P5</td><td class="w">CodeChef rating</td><td>Profile scrape — weaker source, degrade accordingly</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>P6</td><td class="w">Cross-platform handle consistency</td><td>Same or near-identical handle across platforms</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note det">
+    <h5>Why this group matters more than its size suggests</h5>
+    <p>Competitive-programming claims are among the most padded items on early-career developer CVs, and they are the <em>only</em> claims where a public API returns ground truth directly. One HTTP call converts "peak rating 1495 (Specialist)" from an assertion into a settled fact. Nothing else in the catalogue has that property.</p>
+  </div>
+
+  <h4>D · Deployments and artefacts</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Check</th><th>Method</th><th class="mono">By</th><th class="mono">Tier</th></tr></thead>
+    <tbody>
+      <tr><td>W1</td><td class="w">Deployment liveness</td><td>HTTP GET on each claimed live URL; status and response body present</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>W2</td><td class="w">Deployment matches description</td><td>Reviewer opens the link</td><td><span class="tag t-hum">human</span></td><td>evidence only</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>E · Credentials, institutions, people</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Check</th><th>Method</th><th class="mono">By</th><th class="mono">Tier</th></tr></thead>
+    <tbody>
+      <tr><td>C1</td><td class="w">Credential attestation</td><td>Issuer API or W3C Verifiable Credential signature verification</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
+      <tr><td>C2</td><td class="w">Institution existence</td><td>AICTE / UGC registry match</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>C3</td><td class="w">Named supervisor exists</td><td>Institutional public faculty directory</td><td><span class="tag t-det">mach</span></td><td>attention</td></tr>
+      <tr><td>C4</td><td class="w">Employer resolution</td><td>Embedding retrieval; model breaks ties within a closed candidate set</td><td><span class="tag t-llm">llm</span></td><td>attention</td></tr>
+      <tr><td>C5</td><td class="w">Narrative rendering</td><td>Computed findings → recruiter prose, every sentence citing a finding</td><td><span class="tag t-llm">llm</span></td><td>presentation</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>F · Human-only</h4>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Judgement</th><th>Why no machine can make it</th></tr></thead>
+    <tbody>
+      <tr><td>H1</td><td class="w">Does the work match the claimed seniority</td><td>Requires a role model the system does not hold and should not invent</td></tr>
+      <tr><td>H2</td><td class="w">Is the portfolio substantial for this level</td><td>Norms differ by institution, year, and market; encoding them encodes bias</td></tr>
+      <tr><td>H3</td><td class="w">Code quality in context</td><td>Static metrics do not survive contact with intent and constraints</td></tr>
+      <tr><td>H4</td><td class="w">Is the candidate's explanation satisfactory</td><td>Only a person can hear an explanation</td></tr>
+      <tr><td>H5</td><td class="w">Any contested finding</td><td>Contest is precisely the signal that automation has reached its limit</td></tr>
+      <tr><td>H6</td><td class="w">The hiring decision</td><td>Not the system's to make, under any configuration</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Deliberately excluded</h2>
+  <p class="lede">Refusals belong in the specification, not in a footnote. Each of these is technically achievable and excluded on purpose.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">ID</th><th>Excluded</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>X1</td><td class="w">Entrance rank vs. published cutoff</td><td><strong>Fairness.</strong> JEE and similar cutoffs vary enormously by reservation category. Without category data the check systematically flags reserved-category candidates for a rank that is entirely valid. Build it only with correct per-category tables, or not at all.</td></tr>
+      <tr><td>X2</td><td class="w">AI-generated CV detection</td><td>Using a model to write a CV is not fraud — it is what a careers advisor does. Detection penalises non-native English speakers hardest for behaviour that is not wrong.</td></tr>
+      <tr><td>X3</td><td class="w">Identity verification</td><td>The system cannot confirm a person exists and must not imply it.</td></tr>
+      <tr><td>X4</td><td class="w">Employment verification</td><td>Impossible without the employer. Activity data corroborates a period; it never confirms a job.</td></tr>
+      <tr><td>X5</td><td class="w">Grades and coursework</td><td>No accessible source. Frequently the document already declares them unverified — inherit that rather than guess.</td></tr>
+      <tr><td>X6</td><td class="w">Any overall trust score</td><td>Collapsing findings into one number converts an evidence report into an automated judgement, and becomes a hiring threshold within a week of shipping.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>The report</h2>
+  <p class="lede">Five buckets, ordered by what a reviewer must act on. The tier of each check decides its bucket automatically, so a judgement call can never be presented as a fact.</p>
+
+  <div class="buckets">
+    <div class="bk"><div class="ic" style="color:var(--det)">✓</div><div class="bd">
+      <div class="ti" style="color:var(--det)">Verified</div>
+      <div class="de">Decisive checks that passed, confirmed against a named source. Collapses to a single line — a reviewer should never scroll past twelve green rows to reach the thing that matters.</div></div></div>
+    <div class="bk"><div class="ic" style="color:var(--crit)">✗</div><div class="bd">
+      <div class="ti" style="color:var(--crit)">Contradicted</div>
+      <div class="de">Decisive checks that failed. Machine-certain as fact, and still requiring a person to decide what it means. At most five, ranked by confidence, each linked to its source and its span in the document.</div></div></div>
+    <div class="bk"><div class="ic" style="color:var(--hum)">?</div><div class="bd">
+      <div class="ti" style="color:var(--hum)">Needs context</div>
+      <div class="de">Attention-tier signals, phrased as questions. Capped at three visible, the rest behind a disclosure. Every one carries the innocent explanation alongside it.</div></div></div>
+    <div class="bk"><div class="ic" style="color:var(--muted)">–</div><div class="bd">
+      <div class="ti" style="color:var(--muted)">Not evaluated</div>
+      <div class="de">Every abstention with its reason. "GitHub activity: not evaluated — account ownership unverified." Silence would read as a pass.</div></div></div>
+    <div class="bk"><div class="ic" style="color:var(--muted)">□</div><div class="bd">
+      <div class="ti" style="color:var(--muted)">Out of scope</div>
+      <div class="de">Named explicitly — employment history, grades, identity. The reader must not infer that an unmentioned thing was checked.</div></div></div>
+  </div>
+
+  <div class="note hum">
+    <h5>The constraint that decides whether this product works at all</h5>
+    <p>A recruiter gives a report about sixty seconds. If the attention bucket routinely holds twenty items, they read none of them and switch the tool off. <strong>The entire architecture is an effort to move checks out of "needs context" and into "verified" or "contradicted"</strong> — which is exactly what GitHub and the platform APIs buy: they convert judgement calls into facts. Report volume is a design metric, and it belongs in the evaluation.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Build allocation and schedule</h2>
+  <p class="lede">The two-track split holds. What changed is that external evidence gathering is now first-class work, not an optional extra.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Track</th><th>Owns</th><th>Checks</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td class="w">Understanding — ingest, extraction, resolution, narrative</td><td>D1, D3, G1, C4, C5 &nbsp;<span class="tag t-llm">all five LLM sites</span></td></tr>
+      <tr><td>B</td><td class="w">Judgement — rules, evidence gathering, aggregation, service shell</td><td>Everything else — 30 machine checks across five groups</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>B's load grows with the platform and GitHub connectors. The compensating cut is the material dropped in §04 plus the cross-document and corpus-duplication ideas from earlier drafts — reasonable features, but not what makes this product distinctive.</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Week</th><th>Track A</th><th>Track B</th></tr></thead>
+    <tbody>
+      <tr><td>1–2</td><td colspan="2"><strong>Joint.</strong> ClaimGraph and Discrepancy schemas including <code>tier</code>, <code>account_verified</code>, <code>consent_ref</code>. ~20 golden fixtures. Start CV consent — longest lead time in the project.</td></tr>
+      <tr><td>3–4</td><td>Ingest, reading order, offset map, <code>recover_span</code> and its tests</td><td>Interval algebra + property tests. D5–D12. Service shell.</td></tr>
+      <tr><td>5–6</td><td>Extractor v1 including handle and URL claims (D1, D3, G1)</td><td><strong>Platform connectors</strong> — P1–P6, W1. Decisive and quick to land.</td></tr>
+      <tr><td>7</td><td colspan="2"><strong>Integration checkpoint 1.</strong> Real ClaimGraphs replace fixtures. Additive-only after this week.</td></tr>
+      <tr><td>8–9</td><td>Gold set of 100 CVs; first P/R/F1. Resolver and registries.</td><td><strong>GitHub connector</strong> — G2–G7, the decisive half.</td></tr>
+      <tr><td>10–11</td><td>Error taxonomy, prompt revisions, cache verification, batch pipeline</td><td>G8–G12 attention tier. C1–C3. Reference issuer.</td></tr>
+      <tr><td>12</td><td>Narrative renderer, faithfulness checks, template fallback</td><td>Five-bucket report assembly; tier→bucket enforced in code</td></tr>
+      <tr><td>13</td><td colspan="2"><strong>Checkpoint 2 — feature freeze.</strong></td></tr>
+      <tr><td>14–16</td><td colspan="2">Evaluation, fairness disaggregation, hardening, report written against results that already exist.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note det">
+    <h5>Sequencing note</h5>
+    <p>Platform connectors land in weeks 5–6, before GitHub. They are far simpler — one HTTP call against a documented public API, no OAuth, no pagination, no rate-limit strategy — and they produce decisive results immediately. That gives B a working, demonstrable verification path by week 6, which de-risks everything after it.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">07</span>Evaluation</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Owner</th><th>Metric</th><th>Why it is the right measure</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td class="w">Claim extraction P / R / F1, per kind</td><td>Recall dominates — a missed claim is checked by no rule</td></tr>
+      <tr><td>A</td><td class="w">Handle and URL extraction recall</td><td>Gates the entire GitHub and platform path; a missed handle silently disables 18 checks</td></tr>
+      <tr><td>A</td><td class="w">Span-grounding failure rate</td><td>Early warning that a prompt change went wrong</td></tr>
+      <tr><td>A</td><td class="w">Narrative faithfulness</td><td>Automated numeral and citation containment, blocking in CI</td></tr>
+      <tr><td>B</td><td class="w">Per-check detection rate at fixed FPR</td><td>Injected-falsification corpus; the headline table</td></tr>
+      <tr><td>B</td><td class="w">False-positive rate on clean CVs</td><td>The number that actually matters — a system that flags honest people is worse than none</td></tr>
+      <tr><td>B</td><td class="w"><strong>Attention-bucket volume per report</strong></td><td>Directly measures whether the report is usable in sixty seconds</td></tr>
+      <tr><td>B</td><td class="w">Decisive share of total findings</td><td>Tracks the central design goal — moving checks out of judgement into fact</td></tr>
+      <tr><td>B</td><td class="w">Fairness disaggregation of FPR</td><td>Across career-gap presence, institution region, phrasing register. A measured gap is a finding.</td></tr>
+      <tr><td>joint</td><td class="w">Latency and cost per verification</td><td>~25–40s and ~$0.10–0.13 with caching; it is a priced product</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">08</span>What changed from earlier drafts</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Change</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td class="w">GitHub and platform evidence moved from optional input to core</td><td>They are the differentiator. Treating them as enrichment produced a generic CV verifier.</td></tr>
+      <tr><td class="w">M5 owns a metadata-only GitHub component</td><td>M3's deep clone-and-analyse work stays separate. Different data at different cost — and M5 cannot wait for a module that does not exist.</td></tr>
+      <tr><td class="w">Competitive-programming APIs added as a first-class source</td><td>The only place a public API returns ground truth on a padded claim class.</td></tr>
+      <tr><td class="w">Every check carries an explicit tier</td><td>Prevents a judgement call being rendered as a fact, structurally rather than by convention.</td></tr>
+      <tr><td class="w">Report restructured into five buckets</td><td>Flat discrepancy lists do not survive a sixty-second read.</td></tr>
+      <tr><td class="w">Entrance-rank check removed</td><td>Category-blind cutoff comparison is a bias generator.</td></tr>
+      <tr><td class="w">Cross-document diff, corpus duplication, forensics-as-headline dropped</td><td>Sound features, wrong emphasis. Document provenance survives in reduced form as D4.</td></tr>
+      <tr><td class="w">No trained models anywhere</td><td>Descriptive statistics against reference distributions throughout. Removes the labelled-data dependency and keeps every finding decomposable.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>DevBridge M5 — Verification Check Catalogue. Consolidates the CV Verification Buildout and M5 Integration Spec; where they differ, this document is current. Schemas and endpoints remain as specified in the integration spec, with the additions noted in §06.</footer>
+
+</div>

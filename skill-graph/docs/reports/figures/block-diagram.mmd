@@ -1,0 +1,75 @@
+flowchart BT
+  subgraph L0[" L0 &nbsp;·&nbsp; Substrate "]
+    direction LR
+    M0["M0<br/>gateway"]
+    M1x["M1<br/>identity"]
+    M2["M2<br/>evidence-bus"]
+  end
+
+  subgraph L1[" L1 &nbsp;·&nbsp; Evidence Producers "]
+    direction LR
+    M3["M3<br/>code-provenance"]
+    M4["M4<br/>assessment-engine"]
+    M5["M5<br/><b>cv-verification</b>"]:::hl
+  end
+
+  subgraph L2[" L2 &nbsp;·&nbsp; The Graph "]
+    M6["M6<br/><b>skill-graph</b>"]:::hl
+  end
+
+  M8["M8<br/>delivery-review"]:::l3
+
+  subgraph L3[" L3 &nbsp;·&nbsp; Marketplace "]
+    direction LR
+    M7["M7<br/>marketplace"]
+    M9["M9<br/>payments-escrow"]
+    M10["M10<br/>financing"]
+  end
+
+  subgraph L4[" L4 &nbsp;·&nbsp; Enterprise "]
+    direction LR
+    M11["M11<br/>enterprise-api"]
+    M12["M12<br/>ats-connector"]
+    M13["M13<br/>recruiter-console"]
+  end
+
+  M3 -->|evidence| M6
+  M4 -->|evidence| M6
+  M5 -->|evidence| M6
+  M8 -->|evidence| M6
+  M2 -.->|events| M6
+  M6 -->|ability read| M7
+  M6 -->|ability read| M11
+  M6 -->|ability read| M13
+
+  L0 ~~~ L1 ~~~ L2 ~~~ L3 ~~~ L4
+
+  classDef l0 fill:#E8F1F8,stroke:#3D6E93,stroke-width:1.3px,color:#2C4F68,font-family:sans-serif,font-size:14px;
+  classDef l1 fill:#FBEEE0,stroke:#B5651D,stroke-width:1.3px,color:#8C4A15,font-family:sans-serif,font-size:14px;
+  classDef l3 fill:#F1ECF9,stroke:#7B5EA7,stroke-width:1.3px,color:#5A4380,font-family:sans-serif,font-size:14px;
+  classDef l4 fill:#E7F3F0,stroke:#2E8C7C,stroke-width:1.3px,color:#1F6358,font-family:sans-serif,font-size:14px;
+  classDef hl fill:#DCEAE4,stroke:#1C6A5E,stroke-width:2.8px,color:#123F37,font-weight:bold,font-family:sans-serif,font-size:15px;
+
+  class M0,M1x,M2 l0;
+  class M3,M4 l1;
+  class M7,M9,M10 l3;
+  class M11,M12,M13 l4;
+
+  style L0 fill:none,stroke:none,color:#2C4F68,font-family:sans-serif;
+  style L1 fill:none,stroke:none,color:#8C4A15,font-family:sans-serif;
+  style L2 fill:none,stroke:none,color:#123F37,font-family:sans-serif;
+  style L3 fill:none,stroke:none,color:#5A4380,font-family:sans-serif;
+  style L4 fill:none,stroke:none,color:#1F6358,font-family:sans-serif;
+
+  linkStyle 0 stroke:#1C6A5E,stroke-width:1.6px;
+  linkStyle 1 stroke:#1C6A5E,stroke-width:1.6px;
+  linkStyle 2 stroke:#1C6A5E,stroke-width:1.6px;
+  linkStyle 3 stroke:#7B5EA7,stroke-width:1.6px;
+  linkStyle 4 stroke:#6B7772,stroke-width:1.2px,stroke-dasharray:4 3;
+  linkStyle 5 stroke:#1C6A5E,stroke-width:1.6px;
+  linkStyle 6 stroke:#1C6A5E,stroke-width:1.6px;
+  linkStyle 7 stroke:#1C6A5E,stroke-width:1.6px;
+  linkStyle 8 stroke:none;
+  linkStyle 9 stroke:none;
+  linkStyle 10 stroke:none;
+  linkStyle 11 stroke:none;

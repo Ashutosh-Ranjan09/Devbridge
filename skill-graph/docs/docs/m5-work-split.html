@@ -1,0 +1,309 @@
+<title>M5 Work Split</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --acq:#6244C5; --acq-soft:#ECE7FA; --acq-line:#B3A2EE;
+  --rsn:#0F6E63; --rsn-soft:#E2F0EE; --rsn-line:#8FC4BC;
+  --warn:#8A5A12; --warn-soft:#F6EEDF; --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --acq:#A48FF5; --acq-soft:#221C3C; --acq-line:#4B3E82;
+  --rsn:#43C3B1; --rsn-soft:#12312E; --rsn-line:#2A6B62;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --acq:#A48FF5; --acq-soft:#221C3C; --acq-line:#4B3E82;
+  --rsn:#43C3B1; --rsn-soft:#12312E; --rsn-line:#2A6B62;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.5rem); line-height:1.04; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:38px 0 42px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.72rem; letter-spacing:-.021em; line-height:1.17; margin:0 0 8px; text-wrap:balance; display:flex; gap:14px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.82rem; font-weight:500; color:var(--muted); flex:none}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.11rem; letter-spacing:-.01em; margin:32px 0 8px}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:26px 0 9px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.05rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.4px; line-height:1.6; margin:16px 0 20px; color:var(--ink-2)}
+pre b{color:var(--rsn); font-weight:500} pre i{color:var(--muted); font-style:normal} pre u{color:var(--acq); text-decoration:none}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.3px; line-height:1.47}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:10px 13px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:10px 13px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:11.8px; white-space:nowrap}
+.num-c{font-variant-numeric:tabular-nums; text-align:right}
+.tag{display:inline-block; font-family:var(--f-mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; padding:2px 6px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-a{background:var(--acq-soft); color:var(--acq)} .t-b{background:var(--rsn-soft); color:var(--rsn)}
+.t-w{background:var(--warn-soft); color:var(--warn)} .t-c{background:var(--crit-soft); color:var(--crit)}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.a{border-left-color:var(--acq)} .note.b{border-left-color:var(--rsn)}
+.note.w{border-left-color:var(--warn)} .note.c{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.a h5{color:var(--acq)} .note.b h5{color:var(--rsn)} .note.w h5{color:var(--warn)} .note.c h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:24px 0}
+@media (max-width:840px){ .two{grid-template-columns:1fr} }
+.pane{border:1px solid var(--rule); border-radius:7px; background:var(--surface); padding:20px 22px; box-shadow:var(--shadow)}
+.pane.a{border-top:3px solid var(--acq)} .pane.b{border-top:3px solid var(--rsn)}
+.pane .who{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.15em; text-transform:uppercase; font-weight:500}
+.pane.a .who{color:var(--acq)} .pane.b .who{color:var(--rsn)}
+.pane h4{margin:6px 0 3px; font-family:var(--f-display); font-size:1.14rem; font-weight:600; letter-spacing:-.01em; text-transform:none; color:var(--ink)}
+.pane .sub{font-family:var(--f-display); font-size:13.4px; color:var(--muted); margin:0 0 15px; line-height:1.5}
+.pane ul{margin:0; padding-left:0; list-style:none; font-family:var(--f-display); font-size:13.3px; max-width:none}
+.pane ul li{display:flex; gap:10px; padding:6px 0; border-top:1px solid var(--rule); margin:0; line-height:1.45; color:var(--ink-2)}
+.pane ul li b{font-family:var(--f-mono); font-size:10.5px; color:var(--muted); flex:none; width:52px; padding-top:2px; font-weight:400}
+.pane .tot{margin-top:14px; padding-top:11px; border-top:1px solid var(--rule-2); font-family:var(--f-mono); font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between}
+.pane .tot b{color:var(--ink); font-weight:600}
+.sched{margin:22px 0; border:1px solid var(--rule); border-radius:7px; overflow:hidden; background:var(--surface)}
+.sr{display:grid; grid-template-columns:66px 1fr 1fr; border-bottom:1px solid var(--rule)}
+.sr:last-child{border-bottom:none}
+.sr.hd{background:var(--surface-2)}
+.sr.hd div{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); padding:10px 13px; font-weight:500}
+.sr.hd .x{color:var(--acq)} .sr.hd .y{color:var(--rsn)}
+.wk{font-family:var(--f-mono); font-size:11.5px; color:var(--muted); padding:13px; border-right:1px solid var(--rule); font-variant-numeric:tabular-nums; background:var(--surface-2)}
+.ca,.cb{padding:12px 14px; font-family:var(--f-display); font-size:13.3px; line-height:1.48; color:var(--ink-2); min-width:0}
+.ca{border-right:1px solid var(--rule); border-left:2px solid var(--acq-line)}
+.cb{border-left:2px solid var(--rsn-line)}
+.jt{grid-column:2 / span 2; padding:12px 14px; font-family:var(--f-display); font-size:13.3px; line-height:1.48; color:var(--ink-2); background:var(--surface-2); border-left:2px solid var(--rule-2)}
+.jt strong{color:var(--ink)}
+@media (max-width:840px){ .sr{grid-template-columns:56px 1fr} .sr.hd{display:none} .ca,.cb{grid-column:2; border-right:none} .wk{grid-row:span 2} .jt{grid-column:2} }
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M5 — Revised Two-Person Allocation</p>
+  <h1>M5 Work Split</h1>
+  <p class="deck">The LLM-versus-deterministic cut stopped balancing once GitHub and the platform APIs became core. This re-cuts the work along acquisition versus reasoning — which balances, keeps all five LLM sites with one person, and improves the testing story on both sides.</p>
+  <div class="meta">
+    <span><b>Scope</b> 41 checks</span>
+    <span><b>Team</b> 2</span>
+    <span><b>Span</b> 16 weeks</span>
+    <span><b>Seam</b> 2 contracts</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>Why the old split broke</h2>
+  <p class="lede">The original cut put every LLM call on A and everything deterministic on B. That was elegant while the system was mostly document logic. It is no longer viable.</p>
+  <p>Making GitHub and the competitive-programming platforms core added six external integrations, eleven GitHub checks, six platform checks, and the credential path — <strong>all of it deterministic, so all of it landed on B.</strong> Meanwhile A's work barely moved. Counted in person-weeks the old split now runs roughly 10 against 19, which is not a two-person project; it is one person with a helper.</p>
+  <div class="note c">
+    <h5>The diagnosis</h5>
+    <p>"LLM versus not-LLM" is a useful way to <em>understand</em> the system — it is why the check catalogue is organised that way, and it stays true. It is a poor way to <em>divide</em> the system, because only five of forty-one checks involve a model. Any split along that line puts 88% of the work on one side.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>The revised split</h2>
+  <p class="lede">Cut between <strong>getting facts</strong> and <strong>reasoning over facts</strong>. Everything that talks to the outside world on one side; everything that runs on data already in hand on the other.</p>
+
+  <div class="two">
+    <div class="pane a">
+      <div class="who">Person A</div>
+      <h4>Acquisition</h4>
+      <p class="sub">Every boundary with the outside world — documents in, APIs out. One coherent skill profile: HTTP clients, auth, rate limits, retries, caching, and normalising messy responses into a fixed schema.</p>
+      <ul>
+        <li><b>2.5 wk</b>doc-ingest — PDF, DOCX, OCR, reading order, offset map</li>
+        <li><b>2.5 wk</b>claim-extractor — schema, prompt, span grounding, validators</li>
+        <li><b>1.5 wk</b>entity-resolver — registries, pgvector, closed-set tie-break</li>
+        <li><b>1.5 wk</b>platform connectors — Codeforces, LeetCode, CodeChef, liveness</li>
+        <li><b>3.0 wk</b>GitHub connector — App auth, GraphQL, repos, rate limits, caching</li>
+        <li><b>2.0 wk</b>credentials — issuer APIs, VC verifier, reference issuer</li>
+        <li><b>1.0 wk</b>narrative renderer — findings → prose, faithfulness checks</li>
+        <li><b>1.0 wk</b>gold set — 100 hand-labelled CVs</li>
+      </ul>
+      <div class="tot"><span>All 5 LLM sites</span><span><b>15.0</b> person-weeks</span></div>
+    </div>
+    <div class="pane b">
+      <div class="who">Person B</div>
+      <h4>Reasoning &amp; delivery</h4>
+      <p class="sub">Everything computed from data already in hand, plus the product surface. One coherent skill profile: pure logic, exhaustive testing, state machines, and service engineering.</p>
+      <ul>
+        <li><b>1.5 wk</b>interval algebra — three-valued relations, property tests</li>
+        <li><b>2.0 wk</b>rules D5–D12 — document-intrinsic logic</li>
+        <li><b>2.0 wk</b>rules G2–G12 — GitHub logic over the evidence bundle</li>
+        <li><b>1.0 wk</b>rules P1–P6, W1 — platform and deployment logic</li>
+        <li><b>0.5 wk</b>rules C1–C3 — credential and registry logic</li>
+        <li><b>2.0 wk</b>tier system, aggregator, five-bucket report</li>
+        <li><b>3.0 wk</b>service shell — API, jobs, storage, metering, tenancy, CI</li>
+        <li><b>2.0 wk</b>mutation engine and evaluation harness</li>
+      </ul>
+      <div class="tot"><span>36 of 41 checks</span><span><b>14.0</b> person-weeks</span></div>
+    </div>
+  </div>
+
+  <div class="note b">
+    <h5>The factoring this buys — connectors separated from rules</h5>
+    <p>A writes the thing that <em>fetches</em> GitHub data; B writes the rules that <em>reason</em> about it. So G5 — "commit window versus claimed project dates" — is pure logic over a fixed structure, unit-testable from a JSON fixture with no network, no token, and no rate limit. Had one person owned "GitHub" end to end, every rule test would have needed a live API or a mocking layer. This is a better factoring on its own merits, independent of the balance argument.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>The seam — now two contracts</h2>
+  <p class="lede">A produces both. B consumes both. Nothing else crosses.</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Contract</th><th>Carries</th><th>Answers</th></tr></thead>
+    <tbody>
+      <tr><td><code>ClaimGraph</code></td><td>Typed claims with verbatim spans and resolutions</td><td>What does this person say about themselves?</td></tr>
+      <tr><td><code>EvidenceBundle</code></td><td>Everything the outside world returned</td><td>What do the source systems actually show?</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+<pre>class <b>RepoEvidence</b>(BaseModel):
+    name: str; exists: bool; is_fork: bool; owner_matches: bool
+    created_at: date | None; commit_count: int | None
+    languages: dict[str, int]          <i>bytes per language</i>
+    first_commit: date | None; last_commit: date | None
+    size_kb: int; is_readme_only: bool
+
+class <b>GitHubEvidence</b>(BaseModel):
+    handle: str
+    ownership: Literal["verified_oauth", "verified_challenge",
+                       "claimed_unverified", "not_found"]
+    account_created: date | None
+    contribution_windows: list[ActivityWindow]   <i>server-side timestamps only</i>
+    repos: list[RepoEvidence]
+    org_memberships: list[str]
+    first_commit_by_language: dict[str, date]
+
+class <b>PlatformEvidence</b>(BaseModel):
+    platform: Literal["codeforces", "leetcode", "codechef", "atcoder"]
+    handle: str; found: bool
+    current_rating: int | None; max_rating: int | None
+    rank_title: str | None; problems_solved: int | None
+    contests: list[ContestResult]
+
+class <b>EvidenceBundle</b>(BaseModel):
+    schema_version: Literal["1.0.0"] = "1.0.0"
+    bundle_id: str; graph_id: str
+    github: GitHubEvidence | None = None
+    platforms: list[PlatformEvidence] = []
+    deployments: list[DeploymentEvidence] = []
+    credentials: list[CredentialEvidence] = []
+    registries: dict[str, Resolution] = {}
+    gathered_at: str
+    <b>gaps: list[Gap] = []</b>      <i>what could not be fetched, and why</i>
+
+class <b>Gap</b>(BaseModel):
+    source: str                   <i>"github" | "codeforces" | ...</i>
+    reason: Literal["no_handle_in_cv", "not_found", "rate_limited",
+                    "unreachable", "ownership_unverified", "no_consent"]
+    detail: str | None = None</pre>
+
+  <div class="note a">
+    <h5><code>gaps</code> is the field that makes abstention honest</h5>
+    <p>Every rule that needs an absent source reads its gap and abstains <em>with that reason attached</em>, which flows straight into the report's "not evaluated" bucket. "GitHub activity — not evaluated: no handle found in CV" is information a recruiter needs. Without this field, a missing source is indistinguishable from a clean pass, and silence reads as approval.</p>
+  </div>
+
+  <h4>Service topology</h4>
+<pre><u>cvv-acquisition</u>  :8001   <u>POST /v1/extract</u>  → ClaimGraph
+                          <u>POST /v1/gather</u>   → EvidenceBundle
+                          <u>POST /v1/narrate</u>  → Narrative
+<b>cvv-reasoning</b>    :8002   <b>POST /v1/evaluate</b> → FindingsReport
+<b>cvv-api</b>          :8000   public surface, orchestration, jobs, metering
+
+<i>flow:</i>  extract → gather → evaluate → narrate → assemble</pre>
+</section>
+
+<section>
+  <h2><span class="num">04</span>Why this split is better beyond balance</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Property</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr><td>Coherent skill per side</td><td>A is integration engineering throughout — auth, retries, pagination, caching, schema normalisation. B is pure logic and service work. Neither person context-switches between two unrelated disciplines.</td></tr>
+      <tr><td>B needs no network, ever</td><td>Every rule test runs against committed fixtures. No tokens in CI, no rate limits, no flakiness, no API outage blocking a test run.</td></tr>
+      <tr><td>A needs no rules</td><td>Connectors are testable against recorded API responses. A never has to know what R-number consumes a field.</td></tr>
+      <tr><td>Failure isolation stays clean</td><td>A wrong report traces to a wrong claim, a wrong evidence fetch, or a wrong rule — three inspectable artefacts between input and output.</td></tr>
+      <tr><td>Both sides demo independently</td><td>A can demo "here is what GitHub says about this candidate." B can demo "here is the report from this bundle." Neither demo waits on the other.</td></tr>
+      <tr><td>Attributable for assessment</td><td>A owns extraction and acquisition metrics; B owns detection, false-positive, and report-volume metrics. Separate chapters, separate defences.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note w">
+    <h5>The one cost</h5>
+    <p>A now owns work that is not LLM-related — the connectors are ordinary HTTP integration. If one of you specifically wants the model-facing work and nothing else, that person takes extraction, resolution, and narrative (about 5 person-weeks) and the remainder has to be redistributed by hand. The split above is the one that balances; a strict LLM-only role does not.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Schedule</h2>
+  <div class="sched">
+    <div class="sr hd"><div>Week</div><div class="x">A — Acquisition</div><div class="y">B — Reasoning</div></div>
+    <div class="sr"><div class="wk">1</div><div class="jt"><strong>Joint — contracts.</strong> ClaimGraph, EvidenceBundle, Gap, Discrepancy with <code>tier</code>. Repo, CI, mypy strict. Write the models together at one screen.</div></div>
+    <div class="sr"><div class="wk">2</div><div class="jt"><strong>Joint — fixtures and consent.</strong> ~20 ClaimGraphs plus paired EvidenceBundles, including gap-only bundles. Start CV consent: longest lead time in the project.</div></div>
+    <div class="sr"><div class="wk">3–4</div><div class="ca">Ingest: PyMuPDF, reading order, offset map. <code>recover_span</code> and its tests before any model call.</div><div class="cb">Interval algebra + Hypothesis property tests. Rules D5–D12. Service shell skeleton.</div></div>
+    <div class="sr"><div class="wk">5–6</div><div class="ca">Extractor v1 — claims, handles, URLs. <strong>Platform connectors</strong>: Codeforces first, then liveness.</div><div class="cb">Rules P1–P6, W1 against fixtures. Tier system. Aggregator v1.</div></div>
+    <div class="sr"><div class="wk">7</div><div class="jt"><strong>Checkpoint 1.</strong> Real ClaimGraphs and real Codeforces bundles replace fixtures. First genuine end-to-end verification. Additive-only changes after this week.</div></div>
+    <div class="sr"><div class="wk">8–9</div><div class="ca"><strong>GitHub connector</strong> — App auth, GraphQL contributions, repos, rate-limit strategy, response caching.</div><div class="cb">Rules G2–G7, the decisive half. Mutation engine for the evaluation corpus.</div></div>
+    <div class="sr"><div class="wk">10–11</div><div class="ca">Credentials — issuer APIs, VC verifier, reference issuer. Resolver and registries. Gold set labelling.</div><div class="cb">Rules G8–G12, C1–C3. Five-bucket report assembly with tier→bucket enforced in code.</div></div>
+    <div class="sr"><div class="wk">12</div><div class="ca">Narrative renderer, automated faithfulness checks, deterministic template fallback.</div><div class="cb">Coverage-gap reporting, metering, API hardening, OpenAPI finalisation.</div></div>
+    <div class="sr"><div class="wk">13</div><div class="jt"><strong>Checkpoint 2 — feature freeze.</strong> Full corpus end to end. Nothing new after this week.</div></div>
+    <div class="sr"><div class="wk">14–16</div><div class="jt"><strong>Joint — evaluation and writing.</strong> Detection rates, false-positive rate on clean CVs, attention-bucket volume, fairness disaggregation. Report written against results that already exist.</div></div>
+  </div>
+
+  <div class="note b">
+    <h5>Two sequencing decisions worth defending</h5>
+    <p><strong>Codeforces before GitHub.</strong> One HTTP call against a documented public API — no OAuth, no pagination, no rate-limit strategy — and it returns decisive results. A complete verification path exists by week 6, which de-risks everything after it. GitHub is three weeks of integration work and belongs after something already works.</p>
+    <p><strong>Checkpoint 1 lands in week 7, not later.</strong> Two contracts now cross the seam instead of one, so there is more to get wrong. Scheduling the collision early is what keeps it cheap.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Ownership at a glance</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Area</th><th class="mono">A</th><th class="mono">B</th></tr></thead>
+    <tbody>
+      <tr><td>Document ingestion, OCR, offset map</td><td><span class="tag t-a">owns</span></td><td>—</td></tr>
+      <tr><td>All five LLM call sites</td><td><span class="tag t-a">owns</span></td><td>—</td></tr>
+      <tr><td>GitHub, Codeforces, LeetCode, issuers, liveness</td><td><span class="tag t-a">owns</span></td><td>—</td></tr>
+      <tr><td>Registries and entity resolution</td><td><span class="tag t-a">owns</span></td><td>—</td></tr>
+      <tr><td>Interval algebra</td><td>consumes</td><td><span class="tag t-b">owns</span></td></tr>
+      <tr><td>All 41 rules</td><td>—</td><td><span class="tag t-b">owns</span></td></tr>
+      <tr><td>Tiers, aggregation, five-bucket report</td><td>—</td><td><span class="tag t-b">owns</span></td></tr>
+      <tr><td>API, jobs, storage, metering, tenancy</td><td>—</td><td><span class="tag t-b">owns</span></td></tr>
+      <tr><td>Evaluation harness and mutation engine</td><td>gold set</td><td><span class="tag t-b">owns</span></td></tr>
+      <tr><td><code>cvv_contracts</code> package</td><td colspan="2"><span class="tag t-w">joint — both approve every change</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>DevBridge M5 — work split, revision 2. Supersedes the track allocation in the CV Verification Buildout. Check definitions in the Verification Check Catalogue; schemas in the M5 Integration Spec plus EvidenceBundle above.</footer>
+
+</div>

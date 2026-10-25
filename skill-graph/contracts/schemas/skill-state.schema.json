@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devbridge.dev/schemas/skill-state/1.0.0",
+  "title": "SkillState",
+  "description": "Latent ability for one (developer, skill) pair, held in LOGIT space so the Kalman update is exact on an unbounded variable. This record is a DERIVED CACHE, never a source of truth: it is recomputable at any timestamp by folding the immutable evidence log in occurred_at order. Deleting every SkillState must lose nothing.",
+  "type": "object",
+  "required": ["schema_version", "subject_ref", "skill_id", "mu", "var", "as_of", "tier", "evidence_count"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "subject_ref": { "type": "string", "description": "Pseudonymous stable reference. Never a name or email." },
+    "skill_id": { "type": "string", "description": "Canonical ontology id, ESCO-seeded. An event naming an unknown id is quarantined, never dropped." },
+    "mu": { "type": "number", "description": "Mean of the latent ability in logit space. Display value is sigmoid(mu)." },
+    "var": { "type": "number", "minimum": 0, "description": "Variance in logit space. Grows with elapsed time: var(t) = var(tau) + lambda_s * dt." },
+    "as_of": { "type": "string", "format": "date-time", "description": "Timestamp this state was decayed to. A state is only meaningful together with its as_of." },
+    "tier": {
+      "enum": ["fundamental", "ecosystem", "framework"],
+      "description": "Volatility class, fixing lambda_s and h_s. Three tiers, not a continuum, so the sweep stays exhaustive."
+    },
+    "evidence_count": { "type": "integer", "minimum": 0, "description": "Direct evidence events folded into this state. Zero means the state is the prior, and the query API must say so rather than reporting a score as though it were measured." },
+    "newest_evidence_at": {
+      "type": ["string", "null"], "format": "date-time",
+      "description": "occurred_at of the most recent direct evidence. Drives days_since_newest_evidence in the explain response."
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["parameter_version", "event_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "parameter_version": { "type": "string", "description": "Version of m6-parameters.yaml this state was computed under. A parameter change invalidates every state; the version is how you know." },
+        "code_version": { "type": "string" },
+        "event_ids": { "type": "array", "items": { "type": "string" }, "description": "Every event folded in, in order. Makes the score decomposable and any single source ablatable." }
+      }
+    },
+    "propagated": {
+      "type": ["object", "null"],
+      "description": "Present only on read-time propagated states. Absent on direct-evidence states, which are the only ones propagation may source from.",
+      "required": ["from_skill_id", "edge_type", "gamma"],
+      "additionalProperties": false,
+      "properties": {
+        "from_skill_id": { "type": "string" },
+        "edge_type": { "enum": ["PREREQUISITE_OF", "REQUIRES", "RELATED_TO"] },
+        "gamma": { "type": "number", "minimum": 0, "maximum": 1, "description": "Damping for this edge TYPE, never for this edge individually." }
+      }
+    }
+  }
+}

@@ -1,0 +1,81 @@
+# DevBridge M6 — ontology seed
+#
+# The skill graph, owned by 6.1 (packages/m6_ontology) and read by everything
+# else: 6.2 resolves skill_ids against it to decide what to quarantine, 6.3 reads
+# tiers for decay and edges for propagation, 6.4 reads it to offer a filter.
+#
+# This file is the source of truth — no skill, tier or edge is defined in code —
+# so it is reviewable by whoever knows the field rather than whoever last edited
+# the module. `python3 -m m6_ontology check` validates it; that check is in the
+# test suite and in `make all`, because every way this file can be wrong is
+# silent at runtime.
+#
+# Volatility tier fixes the decay rate: lambda_s in m6-parameters.yaml, and
+# half-life h_s = 0.35 / lambda_s. Getting a tier wrong is the difference between
+# a skill that fades in a year and one that holds for a decade, so tier is a
+# claim about the SKILL, not about any candidate.
+ontology_version: "0.1.0"
+
+tiers:
+  fundamental: >
+    Transferable and slow to decay. Someone who could reason about algorithms in
+    2019 can still do so; the substrate does not move.
+  ecosystem: >
+    A language and its surrounding practice. Moves, but over years.
+  framework: >
+    A specific library, framework or platform. The fastest-moving tier — this is
+    where a two-year-old signal genuinely stops meaning much.
+
+skills:
+  # ── fundamental ───────────────────────────────────────────────────────────
+  algorithms:        {tier: fundamental, label: Algorithms}
+  problem_solving:   {tier: fundamental, label: Problem solving}
+  cpp:               {tier: fundamental, label: "C++"}
+  c:                 {tier: fundamental, label: C}
+  data_structures:   {tier: fundamental, label: Data structures}
+  cryptography:      {tier: fundamental, label: Cryptography}
+  networking:        {tier: fundamental, label: Networking}
+  # ── ecosystem ─────────────────────────────────────────────────────────────
+  typescript:        {tier: ecosystem, label: TypeScript}
+  javascript:        {tier: ecosystem, label: JavaScript}
+  python:            {tier: ecosystem, label: Python}
+  java:              {tier: ecosystem, label: Java}
+  go:                {tier: ecosystem, label: Go}
+  rust:              {tier: ecosystem, label: Rust}
+  sql:               {tier: ecosystem, label: SQL}
+  # ── framework ─────────────────────────────────────────────────────────────
+  react:             {tier: framework, label: React}
+  nextjs:            {tier: framework, label: "Next.js"}
+  nodejs:            {tier: framework, label: "Node.js"}
+  mongodb:           {tier: framework, label: MongoDB}
+  postgresql:        {tier: framework, label: PostgreSQL}
+  redis:             {tier: framework, label: Redis}
+  jwt:               {tier: framework, label: JWT}
+  deployment:        {tier: framework, label: Deployment}
+  aws:               {tier: framework, label: AWS}
+  docker:            {tier: framework, label: Docker}
+  kubernetes:        {tier: framework, label: Kubernetes}
+  numpy:             {tier: framework, label: NumPy}
+  pandas:            {tier: framework, label: pandas}
+
+edges:
+  # from -> to, with the edge type whose gamma damps propagation (m6-parameters).
+  # One hop only, at read time, from direct evidence — so these are deliberately
+  # sparse. An edge is a claim that evidence for one skill is genuine evidence
+  # for another, which is a strong thing to assert.
+  - {from: cpp,        to: algorithms,       type: REQUIRES}
+  # The edge the published trace propagates along. It is also the edge that
+  # exposed the presentation problem: `c` ends up with a visible score on no
+  # direct evidence at all. The fix is to SHOW that (evidence_count 0 and a
+  # `propagated` block), never to clamp the number.
+  - {from: cpp,        to: c,                type: RELATED_TO}
+  - {from: algorithms, to: data_structures,  type: RELATED_TO}
+  - {from: algorithms, to: problem_solving,  type: PREREQUISITE_OF}
+  - {from: nextjs,     to: react,            type: REQUIRES}
+  - {from: react,      to: javascript,       type: REQUIRES}
+  - {from: typescript, to: javascript,       type: PREREQUISITE_OF}
+  - {from: nodejs,     to: javascript,       type: REQUIRES}
+  - {from: postgresql, to: sql,              type: REQUIRES}
+  - {from: kubernetes, to: docker,           type: REQUIRES}
+  - {from: numpy,      to: python,           type: REQUIRES}
+  - {from: pandas,     to: numpy,            type: REQUIRES}

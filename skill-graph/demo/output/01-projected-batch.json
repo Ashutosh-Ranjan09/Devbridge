@@ -1,0 +1,812 @@
+{
+  "schema_version": "1.0.0",
+  "batch_id": "evb_08141addee61",
+  "verification_id": "ver_01K2DEMO7QX4N",
+  "subject_ref": "subj_c4f80a12",
+  "emitted_at": "2026-08-30T00:00:00Z",
+  "consent_scope": [
+    "skill_graph_inclusion",
+    "recruiter_visibility"
+  ],
+  "events": [
+    {
+      "event_id": "ev_135137e60ca5",
+      "kind": "claim_corroborated",
+      "occurred_at": "2024-09-05T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "cpp",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c13"
+        ],
+        "evidence_ref": "c13:cpp"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "proficient",
+        "corroborating_repos": [
+          "mini-compiler"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_5ba702fbfd3a",
+      "kind": "repo_artifact",
+      "occurred_at": "2024-09-05T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "cpp",
+          "relevance": 0.95
+        }
+      ],
+      "strength": 0.5,
+      "reliability": 0.7,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c09"
+        ],
+        "evidence_ref": "mini-compiler"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.7,
+      "payload": {
+        "repo": "mini-compiler",
+        "substance_band": "small",
+        "commit_count": 38,
+        "size_kb": 210,
+        "languages": {
+          "C++": 142000,
+          "Makefile": 3000
+        },
+        "is_fork": false
+      }
+    },
+    {
+      "event_id": "ev_005e5c176916",
+      "kind": "credential_verified",
+      "occurred_at": "2025-03-22T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "aws",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.6,
+      "reliability": 0.95,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "issuer_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c26"
+        ],
+        "evidence_ref": "AWS-SAA-2024-88213"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.95,
+      "payload": {
+        "issuer": "Amazon Web Services",
+        "credential_id": "AWS-SAA-2024-88213"
+      }
+    },
+    {
+      "event_id": "ev_0c6adefad96b",
+      "kind": "claim_corroborated",
+      "occurred_at": "2025-11-24T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "react",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c15"
+        ],
+        "evidence_ref": "c15:react"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "intermediate",
+        "corroborating_repos": [
+          "react-dashboard"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_517e93a621ce",
+      "kind": "repo_artifact",
+      "occurred_at": "2025-11-24T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "postgresql",
+          "relevance": 0.6
+        },
+        {
+          "skill_id": "react",
+          "relevance": 0.8
+        },
+        {
+          "skill_id": "typescript",
+          "relevance": 0.9144
+        }
+      ],
+      "strength": 0.55,
+      "reliability": 0.7,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c08"
+        ],
+        "evidence_ref": "react-dashboard"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.7,
+      "payload": {
+        "repo": "react-dashboard",
+        "substance_band": "substantial",
+        "commit_count": 61,
+        "size_kb": 430,
+        "languages": {
+          "TypeScript": 184000,
+          "JavaScript": 22000,
+          "CSS": 16000
+        },
+        "is_fork": false
+      }
+    },
+    {
+      "event_id": "ev_5c17067cf052",
+      "kind": "claim_corroborated",
+      "occurred_at": "2025-11-24T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "typescript",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c14"
+        ],
+        "evidence_ref": "c14:typescript"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "intermediate",
+        "corroborating_repos": [
+          "react-dashboard"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_fc8cbb1c657a",
+      "kind": "platform_rating",
+      "occurred_at": "2026-02-08T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "algorithms",
+          "relevance": 0.95
+        },
+        {
+          "skill_id": "cpp",
+          "relevance": 0.7
+        },
+        {
+          "skill_id": "problem_solving",
+          "relevance": 0.9
+        }
+      ],
+      "strength": 0.8,
+      "reliability": 0.9,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "codeforces_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c21",
+          "c23"
+        ],
+        "evidence_ref": "codeforces:ak_dev"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.9,
+      "payload": {
+        "platform": "codeforces",
+        "max_rating": 1687,
+        "rank_title": "expert",
+        "problems_solved": 734,
+        "source_quality": "official_api"
+      }
+    },
+    {
+      "event_id": "ev_7120a08a7363",
+      "kind": "claim_corroborated",
+      "occurred_at": "2026-03-15T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "python",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c12"
+        ],
+        "evidence_ref": "c12:python"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "expert",
+        "corroborating_repos": [
+          "ml-pipeline"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_b6c51a251d46",
+      "kind": "claim_corroborated",
+      "occurred_at": "2026-03-15T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "postgresql",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c16"
+        ],
+        "evidence_ref": "c16:postgresql"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "intermediate",
+        "corroborating_repos": [
+          "ml-pipeline",
+          "react-dashboard"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_ce8f17dd7f94",
+      "kind": "repo_artifact",
+      "occurred_at": "2026-03-15T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "jupyter_notebook",
+          "relevance": 0.5731
+        },
+        {
+          "skill_id": "numpy",
+          "relevance": 0.8
+        },
+        {
+          "skill_id": "pandas",
+          "relevance": 0.8
+        },
+        {
+          "skill_id": "postgresql",
+          "relevance": 0.6
+        },
+        {
+          "skill_id": "python",
+          "relevance": 0.9269
+        }
+      ],
+      "strength": 0.55,
+      "reliability": 0.7,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c07"
+        ],
+        "evidence_ref": "ml-pipeline"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.7,
+      "payload": {
+        "repo": "ml-pipeline",
+        "substance_band": "substantial",
+        "commit_count": 97,
+        "size_kb": 760,
+        "languages": {
+          "Python": 298000,
+          "Jupyter Notebook": 51000
+        },
+        "is_fork": false
+      }
+    },
+    {
+      "event_id": "ev_03157a6415c0",
+      "kind": "claim_corroborated",
+      "occurred_at": "2026-06-10T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "docker",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c17"
+        ],
+        "evidence_ref": "c17:docker"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "familiar",
+        "corroborating_repos": [
+          "distributed-kv"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_163dd9721672",
+      "kind": "repo_artifact",
+      "occurred_at": "2026-06-10T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "docker",
+          "relevance": 0.8
+        },
+        {
+          "skill_id": "go",
+          "relevance": 0.95
+        },
+        {
+          "skill_id": "kubernetes",
+          "relevance": 0.8
+        }
+      ],
+      "strength": 0.6,
+      "reliability": 0.7,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c06"
+        ],
+        "evidence_ref": "distributed-kv"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.7,
+      "payload": {
+        "repo": "distributed-kv",
+        "substance_band": "large",
+        "commit_count": 168,
+        "size_kb": 1420,
+        "languages": {
+          "Go": 412000,
+          "Shell": 18000,
+          "Dockerfile": 4200
+        },
+        "is_fork": false
+      }
+    },
+    {
+      "event_id": "ev_6dc49c0b4eae",
+      "kind": "claim_corroborated",
+      "occurred_at": "2026-06-10T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "kubernetes",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c18"
+        ],
+        "evidence_ref": "c18:kubernetes"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "familiar",
+        "corroborating_repos": [
+          "distributed-kv"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_aa678cd68a4e",
+      "kind": "claim_corroborated",
+      "occurred_at": "2026-06-10T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "go",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.7,
+      "reliability": 0.8,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "github_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c11"
+        ],
+        "evidence_ref": "c11:go"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.8,
+      "payload": {
+        "proficiency": "proficient",
+        "corroborating_repos": [
+          "distributed-kv"
+        ]
+      }
+    },
+    {
+      "event_id": "ev_236d1c252364",
+      "kind": "cv_claim",
+      "occurred_at": "2026-07-12T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "problem_solving",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.3,
+      "reliability": 0.119,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "cv_document",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c24"
+        ],
+        "evidence_ref": "c24:achievement"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.2,
+      "reliability_factors": [
+        {
+          "factor": "aggregate_across_sources",
+          "value": 0.7,
+          "reason": "The claim pools a count over several platforms, so no single source can confirm the total. Where one of the named platforms IS verified, that part is already carried by its own platform_rating event; what remains here is the unverified remainder, and only the remainder should be weighed."
+        },
+        {
+          "factor": "open_bound",
+          "value": 0.85,
+          "reason": "An open bound cannot be contradicted by any observation, so it carries less information than the same claim stated exactly. positive_only for the usual reason: nobody understates themselves on a CV."
+        }
+      ],
+      "payload": {
+        "metric": "problems_solved",
+        "value": 900,
+        "platforms_claimed": [
+          "leetcode",
+          "codeforces",
+          "codechef"
+        ],
+        "independently_confirmed": [
+          {
+            "platform": "codeforces",
+            "value": 734
+          },
+          {
+            "platform": "codechef",
+            "value": 186
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "ev_3d6bac79e0ea",
+      "kind": "cv_claim",
+      "occurred_at": "2026-07-12T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "rust",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.3,
+      "reliability": 0.2,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "cv_document",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c19"
+        ],
+        "evidence_ref": "c19:rust"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.2,
+      "payload": {
+        "proficiency": "familiar"
+      }
+    },
+    {
+      "event_id": "ev_48e9bf3b87fa",
+      "kind": "cv_claim",
+      "occurred_at": "2026-07-12T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "python",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.3,
+      "reliability": 0.2,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "cv_document",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c10"
+        ],
+        "evidence_ref": "c10:project"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.2,
+      "payload": {
+        "project": "thesis-notebooks",
+        "artefact_verified": false
+      }
+    },
+    {
+      "event_id": "ev_e0dcf5796925",
+      "kind": "cv_claim",
+      "occurred_at": "2026-07-12T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "docker",
+          "relevance": 1.0
+        },
+        {
+          "skill_id": "kubernetes",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.3,
+      "reliability": 0.2,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "cv_document",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c27"
+        ],
+        "evidence_ref": "c27:certification"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.2,
+      "payload": {
+        "issuer": "Cloud Native Computing Foundation",
+        "credential_id": "CKAD-2025-4471",
+        "issuer_confirmed": false
+      }
+    },
+    {
+      "event_id": "ev_fa55893055c8",
+      "kind": "cv_claim",
+      "occurred_at": "2026-07-12T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "haskell",
+          "relevance": 1.0
+        }
+      ],
+      "strength": 0.3,
+      "reliability": 0.2,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "cv_document",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c20"
+        ],
+        "evidence_ref": "c20:haskell"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.2,
+      "payload": {
+        "proficiency": "familiar"
+      }
+    },
+    {
+      "event_id": "ev_43e1413de142",
+      "kind": "platform_rating",
+      "occurred_at": "2026-08-30T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "algorithms",
+          "relevance": 0.95
+        },
+        {
+          "skill_id": "problem_solving",
+          "relevance": 0.9
+        }
+      ],
+      "strength": 0.8,
+      "reliability": 0.63,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "codechef_api",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c22"
+        ],
+        "evidence_ref": "codechef:ak_dev"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.9,
+      "reliability_factors": [
+        {
+          "factor": "scraped_source",
+          "value": 0.7,
+          "reason": "A scraped profile page can be stale, partially rendered, or misparsed in ways an API response cannot. The rating is still the platform's own claim, so this discounts the reading rather than the achievement."
+        }
+      ],
+      "payload": {
+        "platform": "codechef",
+        "max_rating": 1810,
+        "rank_title": "4 star",
+        "problems_solved": 186,
+        "source_quality": "scrape"
+      }
+    },
+    {
+      "event_id": "ev_6b5654d75283",
+      "kind": "artifact_live",
+      "occurred_at": "2026-08-30T00:00:00Z",
+      "skill_refs": [
+        {
+          "skill_id": "deployment",
+          "relevance": 0.7
+        },
+        {
+          "skill_id": "react",
+          "relevance": 0.6
+        }
+      ],
+      "strength": 0.4,
+      "reliability": 0.85,
+      "direction": "positive",
+      "source": {
+        "module": "m5-cv-verification",
+        "module_version": "1.0.0",
+        "origin": "http_probe",
+        "verification_id": "ver_01K2DEMO7QX4N",
+        "claim_refs": [
+          "c08"
+        ],
+        "evidence_ref": "https://ops-dash-ak.vercel.app"
+      },
+      "observed_at": "2026-08-30T00:00:00Z",
+      "reliability_base": 0.85,
+      "payload": {
+        "url": "https://ops-dash-ak.vercel.app",
+        "status_code": 200
+      }
+    }
+  ],
+  "not_emitted": [
+    {
+      "what": "awesome-go \u2014 fork, shell or not owned",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "dotfiles \u2014 fork, shell or not owned",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "thesis-notebooks \u2014 fork, shell or not owned",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "c25 \u2014 entrance_rank has no skill mapping",
+      "reason": "no_skill_mapping"
+    },
+    {
+      "what": "W1 \u2014 https://kv-demo-ak.fly.dev returns 502",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "employment, education, identifier and profile claims \u2014 c01, c02, c03, c04, c05, c28, c29, c30",
+      "reason": "no_skill_mapping"
+    },
+    {
+      "what": "claims disclaimed by the document itself: cgpa, coursework",
+      "reason": "institution_disclaimed"
+    }
+  ]
+}

@@ -1,0 +1,455 @@
+<title>From CV to Skill Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --ground:#F4F5F8; --surface:#FFFFFF; --surface-2:#EDEFF4; --code:#FBFCFD;
+  --ink:#12151C; --ink-2:#39404F; --muted:#5B6478; --rule:#DDE1E9; --rule-2:#C6CCD8;
+  --det:#0F6E63; --det-soft:#E2F0EE; --llm:#6244C5; --llm-soft:#ECE7FA;
+  --warn:#8A5A12; --warn-soft:#F6EEDF; --crit:#A03A28; --crit-soft:#F8E9E6;
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -16px rgba(18,21,28,.22);
+  --measure:69ch;
+  --f-display:"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --f-body:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B; --code:#12161C;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --llm:#A48FF5; --llm-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0E1116; --surface:#161A21; --surface-2:#1D222B; --code:#12161C;
+  --ink:#E5E8EF; --ink-2:#BFC6D4; --muted:#939DB0; --rule:#262C36; --rule-2:#333B48;
+  --det:#43C3B1; --det-soft:#12312E; --llm:#A48FF5; --llm-soft:#221C3C;
+  --warn:#D3A054; --warn-soft:#31281A; --crit:#E08376; --crit-soft:#341F1C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px; margin:0 auto; padding:0 28px 110px}
+.mast{padding:66px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono); font-size:11.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); margin:0 0 18px}
+h1{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,5.2vw,3.5rem); line-height:1.04; letter-spacing:-.028em; margin:0; text-wrap:balance}
+.deck{font-size:1.15rem; color:var(--ink-2); max-width:62ch; margin:19px 0 0; text-wrap:pretty}
+.meta{display:flex; flex-wrap:wrap; gap:9px 28px; margin-top:24px; font-family:var(--f-mono); font-size:12px; color:var(--muted)}
+.meta b{color:var(--ink-2); font-weight:500}
+section{padding:38px 0 42px; border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--f-display); font-weight:600; font-size:1.72rem; letter-spacing:-.021em; line-height:1.17; margin:0 0 8px; text-wrap:balance; display:flex; gap:14px; align-items:baseline}
+h2 .num{font-family:var(--f-mono); font-size:.82rem; font-weight:500; color:var(--muted); flex:none}
+h3{font-family:var(--f-display); font-weight:600; font-size:1.11rem; letter-spacing:-.01em; margin:32px 0 8px}
+h4{font-family:var(--f-mono); font-weight:500; font-size:11.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin:26px 0 9px}
+p{margin:0 0 14px; max-width:var(--measure); text-wrap:pretty}
+.lede{font-size:1.05rem; color:var(--ink-2)}
+ul,ol{max-width:var(--measure); margin:0 0 15px; padding-left:1.25em}
+li{margin-bottom:6px} li::marker{color:var(--muted)}
+code{font-family:var(--f-mono); font-size:.85em; background:var(--surface-2); padding:1.5px 5px; border-radius:3px}
+pre{background:var(--code); border:1px solid var(--rule); border-radius:6px; padding:15px 17px; overflow-x:auto; font-family:var(--f-mono); font-size:12.2px; line-height:1.58; margin:16px 0 20px; color:var(--ink-2)}
+pre b{color:var(--det); font-weight:500} pre i{color:var(--muted); font-style:normal}
+pre u{color:var(--llm); text-decoration:none} pre s{color:var(--crit); text-decoration:none}
+pre em{color:var(--warn); font-style:normal}
+.scroller{overflow-x:auto; margin:18px 0 22px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-family:var(--f-display); font-size:13.2px; line-height:1.47}
+th{text-align:left; font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:500; color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--rule-2); white-space:nowrap; background:var(--surface-2)}
+td{padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+td:first-child{color:var(--ink); font-weight:500}
+td.mono,th.mono{font-family:var(--f-mono); font-size:11.5px; white-space:nowrap}
+.n{font-variant-numeric:tabular-nums; text-align:right}
+.tag{display:inline-block; font-family:var(--f-mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; padding:2px 6px; border-radius:3px; white-space:nowrap; font-weight:500}
+.t-d{background:var(--det-soft); color:var(--det)} .t-l{background:var(--llm-soft); color:var(--llm)}
+.t-w{background:var(--warn-soft); color:var(--warn)} .t-c{background:var(--crit-soft); color:var(--crit)}
+.note{border-left:3px solid var(--rule-2); background:var(--surface); padding:15px 19px; margin:19px 0; border-radius:0 5px 5px 0; max-width:var(--measure)}
+.note.d{border-left-color:var(--det)} .note.l{border-left-color:var(--llm)}
+.note.w{border-left-color:var(--warn)} .note.c{border-left-color:var(--crit)}
+.note h5{font-family:var(--f-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 7px; font-weight:500; color:var(--muted)}
+.note.d h5{color:var(--det)} .note.l h5{color:var(--llm)} .note.w h5{color:var(--warn)} .note.c h5{color:var(--crit)}
+.note p:last-child{margin-bottom:0}
+.cv{background:var(--surface); border:1px solid var(--rule); border-radius:6px; padding:18px 20px; font-family:var(--f-mono); font-size:12.2px; line-height:1.72; color:var(--ink-2); margin:18px 0 22px; overflow-x:auto}
+.cv h6{font-family:var(--f-mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted); margin:14px 0 5px; font-weight:500}
+.cv h6:first-child{margin-top:0}
+.cv b{color:var(--ink); font-weight:600}
+.bars{margin:20px 0}
+.bar{display:grid; grid-template-columns:106px 1fr 66px; gap:13px; align-items:center; padding:8px 0; border-bottom:1px solid var(--rule)}
+.bar:last-child{border-bottom:none}
+.bar .lb{font-family:var(--f-mono); font-size:11.5px; color:var(--ink)}
+.bar .tr{height:9px; background:var(--surface-2); border-radius:5px; position:relative; overflow:hidden}
+.bar .fl{position:absolute; left:0; top:0; bottom:0; border-radius:5px}
+.bar .band{position:absolute; top:0; bottom:0; background:var(--rule-2); opacity:.55}
+.bar .vl{font-family:var(--f-mono); font-size:11.5px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
+footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font-family:var(--f-mono); font-size:11.5px; color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">DevBridge M5 → M6 — Worked Examples</p>
+  <h1>From CV to Skill Graph</h1>
+  <p class="deck">One document traced end to end: every claim shape the extractor must handle, the evidence gathered against it, the rules that fire, and exactly how the result becomes skill-graph evidence with calibrated reliability.</p>
+  <div class="meta">
+    <span><b>Reference date</b> 2026-08-24</span>
+    <span><b>Claim kinds</b> 8</span>
+    <span><b>Shapes covered</b> 22</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>The source document</h2>
+  <p class="lede">A representative Indian engineering CV in institutional placement-cell format — the densest and most verifiable case the system will see.</p>
+  <div class="note w">
+    <h5>Anonymised</h5>
+    <p>Names, roll numbers, and handles are replaced with placeholders. Every structural feature — date precisions, claim types, artefact links, self-declaration footnotes — is preserved exactly, because those are what the extractor and rules actually operate on.</p>
+  </div>
+
+  <div class="cv">
+<h6>Header</h6>R. SHARMA | <b>22CS10118</b> | B.Tech.(Hons.) COMPUTER SCIENCE AND ENGINEERING
+<h6>Education</h6><b>2026</b>  B.TECH            IIT Kharagpur              CGPA 9.34 / 10
+<b>2022</b>  CBSE Class XII    Krishna Public School      92.4%
+<b>2020</b>  CBSE Class X      Open Minds School          75%
+<h6>Projects</h6><b>Automatic Timetable Management</b> | Course Project           [Mar '25 – Apr '25]
+  Under Prof. D. Samanta · Live: https://atma-rs.vercel.app
+  GitHub: https://github.com/r-sharma-dev/ATMA-Final
+  · full-stack React/Next.js application with MongoDB backend
+  · JWT-based authentication using Next.js middleware
+<b>CF-Connect</b> | Self Project                              [May '25 – Jun '25]
+  Live: https://cf-connect-rs.vercel.app
+  GitHub: https://github.com/r-sharma-dev/cf-connect
+  · Next.js and MongoDB application for Codeforces users
+<b>RSA Chat Application</b> | Self Project                              [Jun '24]
+  GitHub: https://github.com/r-sharma-dev/Terminal-Chat-Room
+  · Python TCP sockets, custom RSA key generation
+<h6>Skills</h6><b>Programming</b> : Proficient – C, C++ | Intermediate – Python, JavaScript
+             | Familiar – TypeScript, Bash
+<b>Frameworks</b> : C++ STL, NumPy, Pandas, Next.js, Express.js
+<h6>Awards</h6>· Peak <b>Codeforces</b> rating <b>1495 (Specialist)</b> — handle: <b>RS118</b>
+· Ranked <b>1106</b> globally in <b>Codeforces Round 998 (Div. 3)</b>
+· Solved <b>500+</b> problems across LeetCode, Codeforces, GeeksforGeeks
+· All India Rank <b>873</b> in JEE Advanced 2022
+<h6>Coursework</h6>Programming and Data Structures* | Algorithms-I* | Software Engineering*
+<b>*self declared by the student. CDC could not verify the relevant documents</b>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>The ClaimGraph</h2>
+  <p class="lede">What Track A produces. Abbreviated to the instructive claims — a full graph for this document holds 31.</p>
+
+<pre>{
+  "schema_version": "1.0.0",
+  "graph_id": "cg_01J9X…",
+  "source": { "document_id": "doc_7f2…", "pages": 1,
+              "ingest_method": "pdf_text", "normalised_text": "…" },
+  "claims": [
+
+  <i>── EDUCATION · year precision · end date in the future ──</i>
+  { "claim_id": "c01", "kind": "education",
+    "interval": { "start": {"year":2022,"precision":"year"},
+                  "end":   {"year":2026,"precision":"year"} },
+    "org": "IIT Kharagpur", "degree": "B.Tech (Hons.) Computer Science",
+    "provenance": { "char_start": 291, "char_end": 338,
+                    "verbatim": "2026  B.TECH  IIT Kharagpur", "recovery": "exact" },
+    "resolution": { "status":"resolved", "canonical_id":"aicte:1-3512",
+                    "registry":"aicte", "score":0.97, "method":"threshold" },
+    "flags": ["end_in_future"] },
+
+  <i>── IDENTITY · roll number carries structure ──</i>
+  { "claim_id": "c02", "kind": "identifier",
+    "org": "IIT Kharagpur", "credential_id": "22CS10118",
+    "parsed": { "admission_year": 2022, "dept_code": "CS", "serial": 10118 },
+    "provenance": { "char_start": 14, "char_end": 24, "verbatim": "22CS10118" } },
+
+  <i>── PROJECT · month precision · closed interval · linked artefacts ──</i>
+  { "claim_id": "c07", "kind": "project",
+    "interval": { "start": {"year":2025,"month":3,"precision":"month"},
+                  "end":   {"year":2025,"month":4,"precision":"month"} },
+    "title": "Automatic Timetable Management",
+    "skill_refs": ["react","nextjs","mongodb","jwt"],
+    "artefacts": [
+      { "type":"repo",       "platform":"github",
+        "url":"https://github.com/r-sharma-dev/ATMA-Final", "owner":"r-sharma-dev" },
+      { "type":"deployment", "url":"https://atma-rs.vercel.app" } ],
+    "supervisor": "D. Samanta",
+    "provenance": { "char_start": 612, "char_end": 690, "verbatim": "…" } },
+
+  <i>── PROFILE · the handle that unlocks 18 downstream checks ──</i>
+  { "claim_id": "c14", "kind": "profile",
+    "platform": "github", "handle": "r-sharma-dev",
+    "provenance": { "char_start": 655, "char_end": 690,
+                    "verbatim": "github.com/r-sharma-dev/ATMA-Final" },
+    "flags": ["derived_from_repo_url"] },
+
+  { "claim_id": "c15", "kind": "profile",
+    "platform": "codeforces", "handle": "RS118",
+    "provenance": { "char_start": 1402, "char_end": 1420,
+                    "verbatim": "handle: RS118" } },
+
+  <i>── SKILL · proficiency band, no years stated ──</i>
+  { "claim_id": "c18", "kind": "skill",
+    "skill_refs": ["cpp"], "proficiency": "proficient", "stated_years": null,
+    "provenance": { "char_start": 1180, "char_end": 1204,
+                    "verbatim": "Proficient – C, C++" } },
+
+  <i>── ACHIEVEMENT · a quantitative claim, directly checkable ──</i>
+  { "claim_id": "c22", "kind": "achievement",
+    "platform": "codeforces", "metric": "max_rating", "value": 1495,
+    "qualifier": "Specialist",
+    "provenance": { "char_start": 1361, "char_end": 1401,
+                    "verbatim": "Peak Codeforces rating 1495 (Specialist)" } },
+
+  { "claim_id": "c23", "kind": "achievement",
+    "platform": "codeforces", "metric": "contest_rank", "value": 1106,
+    "context": { "contest": "Round 998", "division": 3 },
+    "provenance": { "char_start": 1440, "char_end": 1495, "verbatim": "…" } },
+
+  <i>── SELF-DECLARATION MARKER · the document disclaiming itself ──</i>
+  { "claim_id": "c29", "kind": "declaration_marker",
+    "scope": ["coursework"], "asserted_by": "institution",
+    "text": "self declared by the student. CDC could not verify",
+    "effect": "inherit_unverified",
+    "provenance": { "char_start": 1980, "char_end": 2049, "verbatim": "…" } }
+  ],
+  "extraction_meta": { <u>"model_id": "claude-opus-5"</u>, <u>"prompt_version": "extract/v3"</u>,
+                       "input_hash":"sha256:9c1…", "span_failures": 0, "retries": 0 }
+}</pre>
+
+  <div class="note l">
+    <h5>Two extraction details this example exercises</h5>
+    <p><strong>The GitHub handle is derived, not stated.</strong> This CV never prints a profile URL — only repository URLs. The owner segment must be parsed out of the path, and the resulting claim carries <code>derived_from_repo_url</code> so a reviewer knows it was inferred. Miss this and eighteen downstream checks silently never run.</p>
+    <p><strong>The declaration marker is a claim, not metadata.</strong> Modelling the institution's own disclaimer as a first-class claim lets the rules read it. Coursework claims inherit <code>unverified</code> from it rather than being separately assessed and confidently reported on.</p>
+  </div>
+
+  <h3>Claim shape gallery</h3>
+  <p>Every shape the extractor and the interval algebra must survive. Each needs at least one fixture.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">#</th><th>Shape</th><th>Example</th><th>Why it is hard</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Employment, month precision, ongoing</td><td class="mono">Jul 2022 – Present</td><td><code>end=null, ongoing=true</code>; only one may be full-time</td></tr>
+      <tr><td>2</td><td>Employment, year precision</td><td class="mono">2021 – 2023</td><td>730-day uncertainty window; most overlaps become POSSIBLE</td></tr>
+      <tr><td>3</td><td>Short internship</td><td class="mono">May – Jul 2021</td><td>Must not conflict with concurrent study</td></tr>
+      <tr><td>4</td><td>Education, future end</td><td class="mono">2022 – 2026</td><td>End date beyond today is valid, not an error</td></tr>
+      <tr><td>5</td><td>Single-point education</td><td class="mono">CBSE Class XII, 2022</td><td>A year, not an interval</td></tr>
+      <tr><td>6</td><td>Project, month range + artefacts</td><td class="mono">Mar '25 – Apr '25</td><td>Two-digit year; repo and deployment attached</td></tr>
+      <tr><td>7</td><td>Project, single month</td><td class="mono">Jun '25</td><td>Start equals end</td></tr>
+      <tr><td>8</td><td>Skill, proficiency band</td><td class="mono">Proficient – C++</td><td>Ordinal, not numeric; no years</td></tr>
+      <tr><td>9</td><td>Skill with years</td><td class="mono">Python (5 years)</td><td>Feeds tenure bounds</td></tr>
+      <tr><td>10</td><td>Skill list, mixed bands, one line</td><td class="mono">Proficient – C, C++ | Familiar – Bash</td><td>One span, many claims, differing bands</td></tr>
+      <tr><td>11</td><td>Framework vs. language</td><td class="mono">Next.js, NumPy</td><td>Resolve to framework nodes, not language nodes</td></tr>
+      <tr><td>12</td><td>Profile, explicit</td><td class="mono">handle: RS118</td><td>Straightforward</td></tr>
+      <tr><td>13</td><td>Profile, derived from repo URL</td><td class="mono">github.com/u/repo</td><td>Owner parsed from path</td></tr>
+      <tr><td>14</td><td>Deployment URL</td><td class="mono">https://x.vercel.app</td><td>Liveness-checkable artefact</td></tr>
+      <tr><td>15</td><td>Achievement, numeric</td><td class="mono">rating 1495</td><td>Directly checkable against an API</td></tr>
+      <tr><td>16</td><td>Achievement, ranked in a named event</td><td class="mono">1106 in Round 998</td><td>Needs contest identity resolution</td></tr>
+      <tr><td>17</td><td>Achievement, aggregate</td><td class="mono">500+ across three platforms</td><td>Open bound, multi-source sum</td></tr>
+      <tr><td>18</td><td>Credential with ID</td><td class="mono">AWS SAA, ABC123</td><td>Issuer-attestable</td></tr>
+      <tr><td>19</td><td>Identifier with structure</td><td class="mono">22CS10118</td><td>Encodes year and department</td></tr>
+      <tr><td>20</td><td>Declaration marker</td><td class="mono">*CDC could not verify</td><td>Scopes other claims to unverified</td></tr>
+      <tr><td>21</td><td>Named supervisor</td><td class="mono">Prof. D. Samanta</td><td>Directory-checkable person</td></tr>
+      <tr><td>22</td><td>Unresolvable employer</td><td class="mono">Techno Solutions Pvt Ltd</td><td>Must yield <code>unresolved</code>, not a wrong ID</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>The EvidenceBundle</h2>
+  <p class="lede">What the outside world returns for the handles found above.</p>
+<pre>{
+  "bundle_id": "eb_01J9X…", "graph_id": "cg_01J9X…",
+
+  "github": {
+    "handle": "r-sharma-dev",
+    <em>"ownership": "claimed_unverified"</em>,        <i>no OAuth — caps reliability</i>
+    "account_created": "2022-08-14",
+    "repos": [
+      { "name":"ATMA-Final", "exists":true, "is_fork":false, "owner_matches":true,
+        "first_commit":"2025-03-11", "last_commit":"2025-04-27",
+        "commit_count":142, "size_kb":3820, "is_readme_only":false,
+        "languages": {"TypeScript":184320,"JavaScript":41200,"CSS":18400} },
+      { "name":"cf-connect", "exists":true, "is_fork":false, "owner_matches":true,
+        "first_commit":"2025-05-03", "last_commit":"2025-06-19",
+        "commit_count":97, "languages": {"TypeScript":151000,"CSS":9800} },
+      { "name":"Terminal-Chat-Room", "exists":true, "is_fork":false,
+        "first_commit":"2024-06-02", "last_commit":"2024-06-28",
+        "commit_count":31, "languages": {"Python":24600} } ],
+    "first_commit_by_language": { "Python":"2023-01-19", "TypeScript":"2024-11-02",
+                                  "JavaScript":"2023-08-08", "C++":"2022-11-30" },
+    "org_memberships": [] },
+
+  "platforms": [
+    { "platform":"codeforces", "handle":"RS118", "found":true,
+      <b>"max_rating": 1495</b>, "current_rating": 1443, <b>"rank_title": "specialist"</b>,
+      "problems_solved": 412,
+      "contests": [ { "name":"Codeforces Round 998 (Div. 3)", <b>"rank": 1106</b>,
+                      "date":"2025-01-14" } ] } ],
+
+  "deployments": [
+    { "url":"https://atma-rs.vercel.app",       "reachable":true,  "status_code":200 },
+    { "url":"https://cf-connect-rs.vercel.app", <s>"reachable":false</s>, "status_code":404 } ],
+
+  "registries": { "IIT Kharagpur": {"status":"resolved","canonical_id":"aicte:1-3512"},
+                  "D. Samanta":    {"status":"resolved","registry":"iitkgp_faculty"} },
+
+  "gaps": [
+    { "source":"github", "reason":"ownership_unverified",
+      "detail":"handle derived from repo URL; no OAuth or challenge completed" },
+    { "source":"leetcode", "reason":"no_handle_in_cv",
+      "detail":"'500+ problems' names LeetCode but no handle given" } ]
+}</pre>
+</section>
+
+<section>
+  <h2><span class="num">04</span>What the rules conclude</h2>
+  <div class="scroller">
+  <table>
+    <thead><tr><th class="mono">Rule</th><th>Evaluates</th><th>Outcome</th><th class="mono">Bucket</th></tr></thead>
+    <tbody>
+      <tr><td>P1</td><td>max_rating 1495 vs. API 1495</td><td>Exact match</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>P2</td><td>Round 998 rank 1106 vs. contest history</td><td>Exact match</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>P3</td><td>"500+ problems" vs. CF 412</td><td>Claim spans three platforms; CF alone insufficient, LeetCode handle absent</td><td><span class="tag t-w">not evaluated</span></td></tr>
+      <tr><td>G4</td><td>3 repos exist, owned, non-fork</td><td>All confirmed</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>G5</td><td>ATMA claimed Mar–Apr '25 vs. commits 11 Mar – 27 Apr</td><td>Within window</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>G6</td><td>Claimed React/Next.js vs. TypeScript-dominant repo</td><td>Consistent</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>G7</td><td>142 / 97 / 31 commits, 3.8 MB</td><td>Substantial, not shells</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>W1</td><td>2 deployments</td><td><strong>cf-connect returns 404</strong></td><td><span class="tag t-c">contradicted</span></td></tr>
+      <tr><td>D5</td><td>Education 2022–2026 vs. projects 2024–2025</td><td>Study and coursework projects — expected</td><td><span class="tag t-d">clean</span></td></tr>
+      <tr><td>D7</td><td>Anachronism across all skill claims</td><td>No skill predates its technology</td><td><span class="tag t-d">clean</span></td></tr>
+      <tr><td>D9</td><td>Roll 22CS10118 → 2022 admission, CS vs. claimed B.Tech CSE 2022–2026</td><td>Consistent</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>C3</td><td>Supervisor in faculty directory</td><td>Found</td><td><span class="tag t-d">verified</span></td></tr>
+      <tr><td>G10</td><td>Activity vs. claimed employment</td><td>No employment claimed</td><td><span class="tag t-w">n/a</span></td></tr>
+      <tr><td>G3</td><td>Handle ownership</td><td>Derived from repo URL; unproven</td><td><span class="tag t-w">not evaluated</span></td></tr>
+      <tr><td>—</td><td>CGPA 9.34, coursework</td><td>Inherits the institution's own disclaimer (c29)</td><td><span class="tag t-w">out of scope</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note c">
+    <h5>The one contradiction, and why it is not an accusation</h5>
+    <p>A dead deployment link is a fact — the URL returns 404. It is <em>not</em> evidence of dishonesty: free hosting expires, projects get taken down, subdomains get reclaimed. The report states what was found and leaves the meaning to a person. Precisely the decisive-but-not-automatic case.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>Becoming skill-graph evidence</h2>
+  <p class="lede">M6 does not consume discrepancies — it has no interest in fraud. It consumes <strong>corroborated capability signals</strong>, each carrying a reliability that determines how far it moves the estimate.</p>
+
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Event kind</th><th>Produced when</th><th class="mono n">strength</th><th class="mono n">reliability</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">cv_claim</td><td>A skill appears in the CV with nothing corroborating it</td><td class="n">0.30</td><td class="n">0.20</td></tr>
+      <tr><td class="mono">claim_corroborated</td><td>A claimed skill matches verified repository or platform evidence</td><td class="n">0.70</td><td class="n">0.80</td></tr>
+      <tr><td class="mono">repo_artifact</td><td>A verified non-fork repo with substance and a language profile</td><td class="n">0.60</td><td class="n">0.70</td></tr>
+      <tr><td class="mono">platform_rating</td><td>A rating returned by an authoritative public API</td><td class="n">0.80</td><td class="n">0.90</td></tr>
+      <tr><td class="mono">artifact_live</td><td>A claimed deployment responds</td><td class="n">0.40</td><td class="n">0.85</td></tr>
+      <tr><td class="mono">credential_verified</td><td>An issuer confirms a certificate</td><td class="n">0.60</td><td class="n">0.95</td></tr>
+      <tr><td class="mono">claim_contradicted</td><td>A decisive check fails against a skill claim</td><td class="n">0.90</td><td class="n">0.95</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note w">
+    <h5>Unverified ownership caps reliability at ingest</h5>
+    <p>This bundle carries <code>ownership: "claimed_unverified"</code>. Every GitHub-derived event is therefore emitted with reliability multiplied by <strong>0.6</strong> — and events that would <em>raise</em> a score are capped, while contradicting events are not. The asymmetry is deliberate: nobody lists a handle that undermines them, so a contradiction from a self-claimed account is credible in a way corroboration is not.</p>
+  </div>
+
+  <h4>Events emitted for this candidate</h4>
+<pre><b>platform_rating</b>   skills=[algorithms, cpp, problem_solving]
+                   value=1495 · strength 0.80 · <b>reliability 0.90</b>
+                   <i>authoritative API, ownership irrelevant — the handle resolved</i>
+
+<b>repo_artifact</b>     skills=[typescript, nextjs, mongodb]  repo=ATMA-Final
+                   strength 0.60 · reliability 0.70 × 0.6 = <em>0.42</em>
+
+<b>repo_artifact</b>     skills=[python]                       repo=Terminal-Chat-Room
+                   strength 0.60 · reliability <em>0.42</em> · <i>occurred_at 2024-06-28</i>
+
+<b>claim_corroborated</b> skills=[typescript] · <i>"Familiar – TypeScript" + 335 KB shipped</i>
+                   strength 0.70 · reliability 0.80 × 0.6 = <em>0.48</em>
+
+<b>cv_claim</b>          skills=[cpp]     "Proficient" · strength 0.30 · reliability 0.20
+<b>cv_claim</b>          skills=[numpy, pandas] · no corroborating artefact anywhere
+                   strength 0.30 · reliability 0.20
+
+<b>artifact_live</b>     skills=[nextjs] · atma-rs.vercel.app 200
+                   strength 0.40 · reliability 0.85 × 0.6 = <em>0.51</em></pre>
+
+  <h3>Fusion, per skill</h3>
+  <p>Displayed score is the lower confidence bound <code>μ − zσ</code>, so the band matters as much as the centre. Grey shows the uncertainty interval.</p>
+
+  <div class="bars">
+    <div class="bar"><div class="lb">cpp</div>
+      <div class="tr"><div class="band" style="left:56%;width:20%"></div><div class="fl" style="width:56%;background:var(--det)"></div></div>
+      <div class="vl">0.56</div></div>
+    <div class="bar"><div class="lb">algorithms</div>
+      <div class="tr"><div class="band" style="left:61%;width:14%"></div><div class="fl" style="width:61%;background:var(--det)"></div></div>
+      <div class="vl">0.61</div></div>
+    <div class="bar"><div class="lb">typescript</div>
+      <div class="tr"><div class="band" style="left:48%;width:22%"></div><div class="fl" style="width:48%;background:var(--det)"></div></div>
+      <div class="vl">0.48</div></div>
+    <div class="bar"><div class="lb">nextjs</div>
+      <div class="tr"><div class="band" style="left:45%;width:23%"></div><div class="fl" style="width:45%;background:var(--det)"></div></div>
+      <div class="vl">0.45</div></div>
+    <div class="bar"><div class="lb">python</div>
+      <div class="tr"><div class="band" style="left:29%;width:31%"></div><div class="fl" style="width:29%;background:var(--warn)"></div></div>
+      <div class="vl">0.29</div></div>
+    <div class="bar"><div class="lb">numpy</div>
+      <div class="tr"><div class="band" style="left:12%;width:38%"></div><div class="fl" style="width:12%;background:var(--muted)"></div></div>
+      <div class="vl">0.12</div></div>
+  </div>
+
+  <div class="note d">
+    <h5>Read the two extremes — this is the multi-source thesis in one candidate</h5>
+    <p><strong>C++ scores well with no repository evidence at all.</strong> Competitive programming does not live in GitHub. Its entire signal comes from one Codeforces API call at reliability 0.90. A repository-only system would have scored this candidate's strongest skill near zero.</p>
+    <p><strong>TypeScript scores well with no platform evidence at all.</strong> 335 KB of shipped TypeScript across two substantial non-fork repositories, plus a live deployment. A contest-only system would have missed it entirely.</p>
+    <p>Neither source covers both. That is the whole argument for fusion, and this single CV demonstrates it — which is why it belongs in the report.</p>
+  </div>
+
+  <h4>Decay in action</h4>
+  <p>Python's evidence is a single repository last touched <strong>June 2024</strong> — 26 months before the reference date. Under <code>σ²(t) = σ²(τ) + λ_s·Δt</code> the uncertainty has grown wide, so the lower bound sits at 0.29 while the mean is materially higher. The score has not fallen because the candidate got worse; it has fallen because <em>we know less</em>. One fresh Python commit restores it immediately — no points to re-earn.</p>
+  <p>Contrast TypeScript, whose newest evidence is June 2025: a narrower band and a higher bound from comparable raw strength.</p>
+
+  <h4>Propagation across the ontology</h4>
+<pre>typescript ──<b>PREREQUISITE_OF</b>──▶ javascript      γ = 0.55
+nextjs     ──<b>REQUIRES</b>─────────▶ react           γ = 0.70
+react      ──<b>REQUIRES</b>─────────▶ javascript      γ = 0.60
+cpp        ──<b>RELATED_TO</b>───────▶ c               γ = 0.40
+
+<i>javascript receives no direct evidence, yet reaches ~0.31 — damped,
+ wider band than typescript, and every contribution traceable to its source.</i></pre>
+
+  <h4>What M6 refuses from this bundle</h4>
+  <ul>
+    <li><strong>Employment and education discrepancies</strong> — not capability signals; they stay in the verification report.</li>
+    <li><strong>Advisory findings (D11, D12)</strong> — non-scoring by construction; the aggregator cannot pass them on.</li>
+    <li><strong>The 404 deployment</strong> — a dead link says nothing about skill. It is a report finding, not evidence.</li>
+    <li><strong>CGPA, coursework, JEE rank</strong> — the institution disclaimed them and no skill maps to them.</li>
+    <li><strong>Anything at unverified-ownership reliability that would raise a score</strong> — capped at ingest, before the filter sees it.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="num">06</span>Why every score stays explainable</h2>
+  <p class="lede">Each evidence node is immutable and referenced by every score it touched, so any number decomposes on demand.</p>
+<pre>GET /v1/developers/{id}/skills/cpp/explain
+
+{ "skill": "cpp", "score": 0.56, "mean": 0.68, "sigma": 0.12,
+  "contributions": [
+    { "event":"platform_rating", "source":"codeforces", "weight": 0.79,
+      "detail":"max_rating 1495 (specialist)", "occurred_at":"2025-01-14",
+      "verification_id":"ver_01J9X…" },
+    { "event":"cv_claim", "source":"cv", "weight": 0.14,
+      "detail":"stated proficiency: proficient", "reliability": 0.20 },
+    { "event":"propagated", "from":"c", "weight": 0.07, "gamma": 0.40 } ],
+  "decay": { "days_since_newest_evidence": 587, "lambda": 0.00021 },
+  "abstentions": ["no repository evidence — competitive programming is off-platform"] }</pre>
+  <p>Three properties fall out of this and all three matter under questioning. A recruiter can see exactly why a number is what it is. A candidate can see what the system used and contest a specific node. And the evaluation harness can ablate any single source and re-run, which is what makes the fusion claim in §05 measurable rather than asserted.</p>
+</section>
+
+<footer>DevBridge — worked examples, M5 → M6. Anonymised; structure preserved. Claim shapes in §02 should each have a committed fixture. Reliability constants in §05 are documented priors, swept in the sensitivity analysis, not fitted.</footer>
+
+</div>

@@ -1,0 +1,129 @@
+"""Load contracts/projection-rules.yaml.
+
+The YAML is the single source of truth. Nothing in this package hard-codes a
+threshold, a relevance constant or a reliability prior — change the contract and
+the module changes with it, which is what lets the sensitivity sweep reach these
+values without a code edit.
+"""
+from __future__ import annotations
+
+import functools
+import pathlib
+from dataclasses import dataclass
+from typing import Any
+
+import yaml
+
+DEFAULT_RULES = pathlib.Path(__file__).resolve().parents[2] / "contracts" / "projection-rules.yaml"
+
+
+@dataclass(frozen=True, slots=True)
+class Priors:
+    """strength / reliability_base / direction for one event kind."""
+    strength: float
+    reliability_base: float
+    direction: str = "positive"
+
+
+class Rules:
+    """Typed accessors over projection-rules.yaml."""
+
+    def __init__(self, raw: dict[str, Any]) -> None:
+        self._raw = raw
+        self._t = raw["thresholds"]
+        self._emit = {r["id"]: r for r in raw["emit"]}
+        self._factors = {f["factor"]: f for f in raw["reliability_factors"]}
+
+    # ── construction ────────────────────────────────────────────────────────
+    @classmethod
+    def load(cls, path: pathlib.Path | str | None = None) -> "Rules":
+        p = pathlib.Path(path) if path else DEFAULT_RULES
+        return cls(yaml.safe_load(p.read_text()))
+
+    @property
+    def contract_version(self) -> str:
+        return str(self._raw["contract_version"])
+
+    # ── per-kind priors ─────────────────────────────────────────────────────
+    def priors(self, rule_id: str) -> Priors:
+        r = self._emit[rule_id]
+        strength = r.get("strength")
+        # repo_artifact's strength is a formula, not a scalar; resolved per repo.
+        return Priors(strength=float(strength) if isinstance(strength, (int, float)) else float("nan"),
+                      reliability_base=float(r["reliability_base"]),
+                      direction=str(r.get("direction", "positive")))
+
+    def factor(self, name: str) -> tuple[float, str, str]:
+        """(multiplier, direction_scope, rationale)"""
+        f = self._factors[name]
+        return (float(f["value"]), str(f.get("direction_scope", "both")),
+                " ".join(str(f.get("rationale", "")).split()))
+
+    # ── thresholds ──────────────────────────────────────────────────────────
+    @property
+    def band_order(self) -> list[str]:
+        return list(self._t["substance_bands"]["order"])
+
+    def band_spec(self, name: str) -> dict[str, Any]:
+        return dict(self._t["substance_bands"][name])
+
+    @property
+    def repo_strength(self) -> tuple[float, float]:
+        s = self._t["strength"]["repo_artifact"]
+        return float(s["base"]), float(s["per_band"])
+
+    @property
+    def language(self) -> dict[str, float]:
+        return {k: float(v) for k, v in self._t["language_relevance"].items()}
+
+    @property
+    def framework(self) -> dict[str, Any]:
+        f = dict(self._t["framework_relevance"])
+        f["secondary_skills"] = set(f.get("secondary_skills", []))
+        return f
+
+    @property
+    def aliases(self) -> dict[str, str]:
+        return {str(k).lower(): str(v) for k, v in self._t["aliases"].items()}
+
+    def claim_discount_factors(self, flags: Any, bound: Any) -> tuple[str, ...]:
+        """Reliability factors earned by M5's own flags on a claim.
+
+        M5 already records when a claim is an aggregate or an open bound. Reading
+        those here is the difference between "500+ across three platforms" and a
+        precise single-source claim entering the graph at the same weight.
+        """
+        cfg = self._t.get("claim_discounts") or {}
+        by_flag = cfg.get("flags") or {}
+        names = [by_flag[f] for f in (flags or []) if f in by_flag]
+        by_bound = cfg.get("bounds") or {}
+        if bound in by_bound:
+            names.append(by_bound[bound])
+        return tuple(dict.fromkeys(names))
+
+    @property
+    def corroboratable_metrics(self) -> frozenset[str]:
+        """Metrics a platform can independently confirm part of."""
+        cfg = self._t.get("partial_corroboration") or {}
+        if not cfg.get("record_in_payload"):
+            return frozenset()
+        return frozenset(cfg.get("metrics") or ())
+
+    @property
+    def scraped_source_qualities(self) -> frozenset[str]:
+        """source_quality values that mark a platform reading as a scrape."""
+        cfg = self._t.get("scraped_source_quality") or {}
+        return frozenset(str(v).lower() for v in (cfg.get("values") or ()))
+
+    @property
+    def require_consent_ref(self) -> bool:
+        return bool(self._t["consent"]["require_consent_ref"])
+
+    @property
+    def consent_scope_required(self) -> str:
+        return str(self._t["consent"]["scope_required"])
+
+
+@functools.lru_cache(maxsize=4)
+def default_rules() -> Rules:
+    return Rules.load()

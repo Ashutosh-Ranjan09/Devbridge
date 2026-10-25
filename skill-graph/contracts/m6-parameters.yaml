@@ -1,0 +1,157 @@
+# DevBridge M6 — model parameters
+# Single source of truth for the scoring engine AND the sensitivity sweep.
+# Code reads `value`; the sweep reads `sweep`. Nothing here is fitted.
+# Decisions and reasoning: M6-DECISIONS.md
+contract_version: "1.0.0"
+
+space:
+  # O2 — the filter runs on the logit of ability; display transforms back.
+  transform: logit
+  display: sigmoid
+  note: >
+    All state (mu, sigma^2) is in logit space and unbounded, so the Kalman
+    update is exact. sigmoid is monotone, so the transformed lower bound is
+    still a lower bound.
+
+prior:
+  # O6 — absent evidence, assume below median. The system must not reward silence.
+  theta_0:
+    value: 0.25
+    sweep: [0.15, 0.40]
+    rationale: >
+      A developer with no evidence is not an average developer; they are an
+      unknown one, and the displayed score should reflect that.
+  sigma_0:
+    value: 1.30           # logit-space standard deviation
+    sweep: [0.9, 2.0]
+    rationale: >
+      +/-1.3 in logit around theta_0=0.25 spans roughly 0.08..0.55 in display
+      space — wide enough that one weak event cannot manufacture a score.
+
+observation:
+  # O1 — sigma^2_obs = S0 / (reliability * relevance * strength)
+  # High reliability, high relevance, high strength => low variance => large update.
+  formula: "S0 / (reliability * relevance * strength)"
+  S0:
+    value: 0.10
+    sweep: [0.05, 0.30]
+    rationale: >
+      The only free scale constant in the observation model. Everything else in
+      the denominator arrives on the event itself.
+  context_difficulty:
+    value: 1.0
+    note: >
+      Reserved. Meaningful only for assessment evidence (M4), which is out of
+      scope. Fixed at 1.0 for every M5-sourced event.
+  sample_size:
+    note: >
+      Not a separate term. The projection already encodes substance and sample
+      size in `strength` — three repos in the worked example carry 0.60/0.55/0.50
+      by decreasing commit count and size.
+
+# O1 — event kind to observed ability, in DISPLAY space (converted to logit on use).
+observed_value:
+  platform_rating:
+    method: percentile_against_reference
+    reference_population: general_developer
+    formula: "a + b * ECDF_rated(rating)"
+    a: 0.50
+    b: 0.40
+    rationale: >
+      The reference population for algorithmic ability is developers generally,
+      not the self-selected cohort that competes. Being rated at all clears the
+      general-population floor, which is what `a` encodes. ECDF_rated is built
+      once from the Codeforces user list and stored as a lookup table — a
+      for-loop, not a training run.
+    worked_example: "max_rating 1495 (Specialist), ECDF_rated ~0.60 -> 0.74"
+  repo_artifact:
+    method: substance_band
+    bands:
+      trivial:     {observed: 0.35, when: "readme_only or commits < 10"}
+      small:       {observed: 0.50, when: "commits < 50 or size_kb < 100"}
+      substantial: {observed: 0.62, when: "commits < 120"}
+      large:       {observed: 0.66, when: "commits >= 120 and size_kb >= 1000"}
+    rationale: >
+      No public reference distribution of repository substance exists that is
+      worth trusting, so ordinal bands with stated thresholds are the honest
+      choice. Bands, not a continuum, keeps the sweep tractable.
+  claim_corroborated:
+    observed: 0.68
+    rationale: >
+      The value reflects the corroborating EVIDENCE, not the claimed proficiency
+      band. A claim that survives corroboration is evidence about ability; the
+      band only told us what the person asserted.
+  artifact_live:
+    observed: 0.58
+    rationale: "A responding deployment is weak positive evidence of shipping ability."
+  credential_verified:
+    observed: 0.70
+  cv_claim:
+    method: proficiency_band
+    bands: {familiar: 0.30, intermediate: 0.45, proficient: 0.60, expert: 0.75}
+    default: intermediate
+    rationale: >
+      Uses the `proficiency` enum already present in the Claim schema. Low
+      reliability (0.20), not a low observed value, is what keeps an
+      uncorroborated claim from moving a score.
+  claim_contradicted:
+    observed: 0.15
+    direction: negative
+    rationale: "A decisive check failing against a skill claim is strong negative evidence."
+
+decay:
+  # O6 — sigma^2(t) = sigma^2(tau) + lambda_s * dt ;  mu mean-reverts with half-life h_s
+  lambda_per_day:
+    fundamental: {value: 1.0e-4, sweep: [3.0e-5, 3.0e-4]}
+    ecosystem:   {value: 3.0e-4, sweep: [1.0e-4, 8.0e-4]}
+    framework:   {value: 7.5e-4, sweep: [3.0e-4, 2.0e-3]}
+    rationale: >
+      Three tiers set from ecosystem release cadence, not a continuum. A
+      framework goes stale faster than a fundamental. Note the value published
+      in cv-to-skill-graph.html §06 (2.1e-4, for cpp) sits inside the
+      fundamental sweep range.
+  h_ratio_k:
+    value: 0.35
+    sweep: [0.15, 0.70]
+    rationale: >
+      h_s = k / lambda_s, so mean-reversion is tied to volatility rather than
+      set independently. One swept constant instead of three.
+    derived_half_lives: "fundamental 3500d (9.6y) | ecosystem 1167d (3.2y) | framework 467d (1.3y)"
+  skill_tiers:
+    fundamental: [algorithms, problem_solving, data_structures, c, cpp, mathematics,
+                  operating_systems, networking, cryptography, concurrency]
+    ecosystem:   [python, javascript, typescript, java, go, rust, sql, git, linux, html, css]
+    framework:   [react, nextjs, express, django, flask, spring, numpy, pandas,
+                  pytorch, tensorflow, mongodb, postgresql, docker, kubernetes, tailwind]
+    default: ecosystem
+
+propagation:
+  # O5, O7
+  timing: read_time
+  depth: 1
+  source_states: direct_evidence_only
+  mechanism: >
+    A neighbour's state enters as a pseudo-observation with variance inflated by
+    1/gamma. Damping is variance inflation, exactly as in the observation model,
+    so propagation reuses the same Kalman update rather than adding a mechanism.
+  gamma_per_edge_type:
+    PREREQUISITE_OF: {value: 0.55, sweep: [0.3, 0.8]}
+    REQUIRES:        {value: 0.65, sweep: [0.4, 0.9]}
+    RELATED_TO:      {value: 0.40, sweep: [0.2, 0.6]}
+  note: >
+    One gamma per TYPE, never per edge. Per-edge gamma is an unbounded parameter
+    space that cannot be swept or defended.
+
+display:
+  # score = sigmoid(mu_x - z * sigma_x)
+  z:
+    value: 1.0
+    sweep: [0.5, 2.0]
+    rationale: >
+      Pinned by the worked /explain response: mean 0.68, sigma 0.12, score 0.56,
+      and 0.68 - 0.56 = 0.12. z = 1 exactly.
+  sigma_reported: display_band_halfwidth
+  note: >
+    The `sigma` field in the /explain response is the DISPLAY-space half-width
+    (mean - score), not the logit-space state. `sigma_logit` carries the state.
+    This is what reconciles the published numbers — see M6-DECISIONS.md O2.

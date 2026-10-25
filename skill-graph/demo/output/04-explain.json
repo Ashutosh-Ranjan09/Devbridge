@@ -1,0 +1,71 @@
+{
+  "skill": "go",
+  "score": 0.536,
+  "mean": 0.622,
+  "sigma": 0.085,
+  "sigma_logit": 0.35,
+  "tier": "ecosystem",
+  "evidence_count": 2,
+  "prior_only": false,
+  "days_since_newest_evidence": 81,
+  "half_life_days": 1167,
+  "parameter_version": "1.0.0",
+  "propagated": null,
+  "contributions": [
+    {
+      "event_id": "ev_163dd9721672",
+      "kind": "repo_artifact",
+      "occurred_at": "2026-06-10T00:00:00Z",
+      "observed": 0.66,
+      "relevance": 0.95,
+      "weight": 0.871,
+      "moved_mean_to": 0.607
+    },
+    {
+      "event_id": "ev_aa678cd68a4e",
+      "kind": "claim_corroborated",
+      "occurred_at": "2026-06-10T00:00:00Z",
+      "observed": 0.68,
+      "relevance": 1.0,
+      "weight": 0.55,
+      "moved_mean_to": 0.648
+    }
+  ],
+  "interval": [
+    0.536,
+    0.7
+  ],
+  "subject_ref": "subj_c4f80a12",
+  "as_of": "2026-08-30",
+  "basis": "direct_evidence",
+  "not_counted": [
+    {
+      "what": "awesome-go \u2014 fork, shell or not owned",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "dotfiles \u2014 fork, shell or not owned",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "thesis-notebooks \u2014 fork, shell or not owned",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "c25 \u2014 entrance_rank has no skill mapping",
+      "reason": "no_skill_mapping"
+    },
+    {
+      "what": "W1 \u2014 https://kv-demo-ak.fly.dev returns 502",
+      "reason": "not_a_capability_signal"
+    },
+    {
+      "what": "employment, education, identifier and profile claims \u2014 c01, c02, c03, c04, c05, c28, c29, c30",
+      "reason": "no_skill_mapping"
+    },
+    {
+      "what": "claims disclaimed by the document itself: cgpa, coursework",
+      "reason": "institution_disclaimed"
+    }
+  ]
+}

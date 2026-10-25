@@ -1,0 +1,37 @@
+{
+  "batch_id": "evb_08141addee61",
+  "accepted": [
+    "ev_135137e60ca5",
+    "ev_5ba702fbfd3a",
+    "ev_005e5c176916",
+    "ev_0c6adefad96b",
+    "ev_517e93a621ce",
+    "ev_5c17067cf052",
+    "ev_fc8cbb1c657a",
+    "ev_7120a08a7363",
+    "ev_b6c51a251d46",
+    "ev_ce8f17dd7f94",
+    "ev_03157a6415c0",
+    "ev_163dd9721672",
+    "ev_6dc49c0b4eae",
+    "ev_aa678cd68a4e",
+    "ev_236d1c252364",
+    "ev_3d6bac79e0ea",
+    "ev_48e9bf3b87fa",
+    "ev_e0dcf5796925",
+    "ev_fa55893055c8",
+    "ev_43e1413de142",
+    "ev_6b5654d75283"
+  ],
+  "duplicates": [],
+  "quarantined": {
+    "ev_ce8f17dd7f94": [
+      "jupyter_notebook"
+    ],
+    "ev_fa55893055c8": [
+      "haskell"
+    ]
+  },
+  "replayed": false,
+  "ontology_version": "0.1.0"
+}

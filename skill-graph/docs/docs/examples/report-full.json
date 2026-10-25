@@ -1,0 +1,403 @@
+{
+  "schema_version": "1.0.0",
+  "verification_id": "ver_01J9XQ7K2M4N",
+  "status": "completed",
+  "supersedes": null,
+  "subject": {
+    "subject_ref": "subj_7a3f9e21",
+    "tenant_id": "tnt_iitkgp_cdc",
+    "consent_ref": "consent_01J9XQ5A8B"
+  },
+  "document": {
+    "document_id": "doc_7f2c9a11",
+    "sha256": "3b1f8c0d9e7a4b62d15c8f03a7e91b4d6c2f5a8e0d3b7c91f4a6e2d8b0c5f793",
+    "pages": 1,
+    "ingest_method": "pdf_text",
+    "ocr_confidence": null,
+    "producer": "iText 2.1.7 by 1T3XT",
+    "created_at": "2025-07-04T19:47:43+05:30",
+    "modified_at": "2025-07-04T19:47:43+05:30"
+  },
+
+  "claim_graph": {
+    "graph_id": "cg_01J9XQ7K2M4N",
+    "source": {
+      "document_id": "doc_7f2c9a11",
+      "normalised_text": "R. SHARMA | 22CS10118 | B.Tech.(Hons.) COMPUTER SCIENCE AND ENGINEERING EDUCATION 2026 B.TECH IIT Kharagpur CGPA 9.34 / 10 ... [truncated in this example; the real field carries the full normalised document, and every char offset below indexes into it]"
+    },
+    "claims": [
+      {
+        "claim_id": "c01",
+        "kind": "education",
+        "interval": {
+          "start": { "year": 2022, "precision": "year" },
+          "end": { "year": 2026, "precision": "year" },
+          "ongoing": false
+        },
+        "org": "IIT Kharagpur",
+        "degree": "B.Tech (Hons.) Computer Science and Engineering",
+        "provenance": {
+          "char_start": 291, "char_end": 338, "page": 1,
+          "verbatim": "2026  B.TECH  IIT Kharagpur",
+          "recovery": "exact"
+        },
+        "resolution": {
+          "status": "resolved", "canonical_id": "aicte:1-3512",
+          "registry": "aicte", "score": 0.97, "method": "threshold"
+        },
+        "flags": ["end_in_future", "date_imprecise"]
+      },
+      {
+        "claim_id": "c02",
+        "kind": "identifier",
+        "org": "IIT Kharagpur",
+        "credential_id": "22CS10118",
+        "parsed": { "admission_year": 2022, "dept_code": "CS", "serial": 10118 },
+        "provenance": {
+          "char_start": 14, "char_end": 23, "page": 1,
+          "verbatim": "22CS10118", "recovery": "exact"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c07",
+        "kind": "project",
+        "interval": {
+          "start": { "year": 2025, "month": 3, "precision": "month" },
+          "end": { "year": 2025, "month": 4, "precision": "month" },
+          "ongoing": false
+        },
+        "title": "Automatic Timetable Management",
+        "skill_refs": ["react", "nextjs", "mongodb", "jwt"],
+        "supervisor": "D. Samanta",
+        "artefacts": [
+          { "type": "repo", "platform": "github",
+            "url": "https://github.com/r-sharma-dev/ATMA-Final", "owner": "r-sharma-dev" },
+          { "type": "deployment", "platform": "vercel",
+            "url": "https://atma-rs.vercel.app", "owner": null }
+        ],
+        "provenance": {
+          "char_start": 612, "char_end": 690, "page": 1,
+          "verbatim": "Automatic Timetable Management Application | Course Project [Mar '25 - Apr '25]",
+          "recovery": "fuzzy"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c14",
+        "kind": "profile",
+        "platform": "github",
+        "handle": "r-sharma-dev",
+        "provenance": {
+          "char_start": 655, "char_end": 690, "page": 1,
+          "verbatim": "github.com/r-sharma-dev/ATMA-Final",
+          "recovery": "exact"
+        },
+        "flags": ["derived_from_repo_url"]
+      },
+      {
+        "claim_id": "c15",
+        "kind": "profile",
+        "platform": "codeforces",
+        "handle": "RS118",
+        "provenance": {
+          "char_start": 1402, "char_end": 1415, "page": 1,
+          "verbatim": "handle: RS118", "recovery": "exact"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c18",
+        "kind": "skill",
+        "skill_refs": ["cpp"],
+        "proficiency": "proficient",
+        "stated_years": null,
+        "provenance": {
+          "char_start": 1180, "char_end": 1199, "page": 1,
+          "verbatim": "Proficient - C, C++", "recovery": "exact"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c19",
+        "kind": "skill",
+        "skill_refs": ["typescript"],
+        "proficiency": "familiar",
+        "stated_years": null,
+        "provenance": {
+          "char_start": 1244, "char_end": 1266, "page": 1,
+          "verbatim": "Familiar - TypeScript", "recovery": "exact"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c22",
+        "kind": "achievement",
+        "platform": "codeforces",
+        "metric": "max_rating",
+        "value": 1495,
+        "qualifier": "Specialist",
+        "skill_refs": ["algorithms", "cpp", "problem_solving"],
+        "provenance": {
+          "char_start": 1361, "char_end": 1401, "page": 1,
+          "verbatim": "Peak Codeforces rating 1495 (Specialist)", "recovery": "exact"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c23",
+        "kind": "achievement",
+        "platform": "codeforces",
+        "metric": "contest_rank",
+        "value": 1106,
+        "context": { "contest": "Codeforces Round 998", "division": 3 },
+        "provenance": {
+          "char_start": 1440, "char_end": 1495, "page": 1,
+          "verbatim": "Ranked 1106 globally in Codeforces Round 998 (Div. 3)",
+          "recovery": "exact"
+        },
+        "flags": []
+      },
+      {
+        "claim_id": "c24",
+        "kind": "achievement",
+        "metric": "problems_solved",
+        "value": 500,
+        "context": { "platforms": ["leetcode", "codeforces", "geeksforgeeks"], "bound": "open" },
+        "provenance": {
+          "char_start": 1512, "char_end": 1570, "page": 1,
+          "verbatim": "Solved 500+ problems across LeetCode, Codeforces, GeeksforGeeks",
+          "recovery": "fuzzy"
+        },
+        "flags": ["aggregate_across_sources"]
+      },
+      {
+        "claim_id": "c29",
+        "kind": "declaration_marker",
+        "scope": ["coursework"],
+        "asserted_by": "institution",
+        "effect": "inherit_unverified",
+        "provenance": {
+          "char_start": 1980, "char_end": 2049, "page": 1,
+          "verbatim": "*self declared by the student. CDC could not verify the relevant documents",
+          "recovery": "exact"
+        },
+        "flags": []
+      }
+    ],
+    "extraction_meta": {
+      "model_id": "claude-opus-5",
+      "prompt_version": "extract/v3",
+      "input_hash": "sha256:9c1a7e4f2b8d0c65931e7a4b28fd0c3e59a1b7d4c082f6e5a3b9d1c7e0f4a8b2",
+      "span_failures": 0,
+      "retries": 0,
+      "extracted_at": "2026-08-24T09:12:04Z",
+      "degraded": false
+    }
+  },
+
+  "evidence_bundle": {
+    "bundle_id": "eb_01J9XQ7K2M4N",
+    "graph_id": "cg_01J9XQ7K2M4N",
+    "github": {
+      "handle": "r-sharma-dev",
+      "ownership": "claimed_unverified",
+      "account_created": "2022-08-14",
+      "contribution_windows": [
+        { "start": "2025-01-01", "end": "2025-12-31", "commit_count": 388,
+          "active_days": 121, "primary_languages": ["TypeScript", "Python"],
+          "source_timestamps": "server_side" }
+      ],
+      "repos": [
+        { "name": "ATMA-Final", "exists": true, "is_fork": false, "owner_matches": true,
+          "created_at": "2025-03-09", "first_commit": "2025-03-11", "last_commit": "2025-04-27",
+          "commit_count": 142, "size_kb": 3820, "is_readme_only": false,
+          "languages": { "TypeScript": 184320, "JavaScript": 41200, "CSS": 18400 },
+          "frameworks": ["next", "react", "mongoose"] },
+        { "name": "cf-connect", "exists": true, "is_fork": false, "owner_matches": true,
+          "created_at": "2025-05-01", "first_commit": "2025-05-03", "last_commit": "2025-06-19",
+          "commit_count": 97, "size_kb": 2140, "is_readme_only": false,
+          "languages": { "TypeScript": 151000, "CSS": 9800 },
+          "frameworks": ["next", "react"] },
+        { "name": "Terminal-Chat-Room", "exists": true, "is_fork": false, "owner_matches": true,
+          "created_at": "2024-06-01", "first_commit": "2024-06-02", "last_commit": "2024-06-28",
+          "commit_count": 31, "size_kb": 240, "is_readme_only": false,
+          "languages": { "Python": 24600 }, "frameworks": [] }
+      ],
+      "org_memberships": [],
+      "first_commit_by_language": {
+        "Python": "2023-01-19", "TypeScript": "2024-11-02",
+        "JavaScript": "2023-08-08", "C++": "2022-11-30"
+      }
+    },
+    "platforms": [
+      { "platform": "codeforces", "handle": "RS118", "found": true,
+        "current_rating": 1443, "max_rating": 1495, "rank_title": "specialist",
+        "problems_solved": 412, "source_quality": "official_api",
+        "contests": [
+          { "name": "Codeforces Round 998 (Div. 3)", "rank": 1106,
+            "date": "2025-01-14", "rating_after": 1495 }
+        ] }
+    ],
+    "deployments": [
+      { "url": "https://atma-rs.vercel.app", "reachable": true, "status_code": 200,
+        "checked_at": "2026-08-24T09:13:41Z" },
+      { "url": "https://cf-connect-rs.vercel.app", "reachable": false, "status_code": 404,
+        "checked_at": "2026-08-24T09:13:42Z" }
+    ],
+    "credentials": [],
+    "registries": {
+      "IIT Kharagpur": { "status": "resolved", "canonical_id": "aicte:1-3512",
+                          "registry": "aicte", "score": 0.97, "method": "threshold" },
+      "D. Samanta": { "status": "resolved", "canonical_id": "iitkgp:cse:dsamanta",
+                       "registry": "iitkgp_faculty", "score": 0.94, "method": "threshold" }
+    },
+    "gathered_at": "2026-08-24T09:13:50Z",
+    "gaps": [
+      { "source": "github", "reason": "ownership_unverified",
+        "detail": "handle derived from repo URL; no OAuth or challenge completed" },
+      { "source": "leetcode", "reason": "no_handle_in_cv",
+        "detail": "'500+ problems' names LeetCode but supplies no handle" }
+    ]
+  },
+
+  "findings": {
+    "report_id": "fr_01J9XQ7K2M4N",
+    "graph_id": "cg_01J9XQ7K2M4N",
+    "discrepancies": [
+      {
+        "finding_id": "f01",
+        "rule_id": "W1", "rule_version": "1.0",
+        "tier": "decisive", "severity": "medium", "confidence": 1.0, "scoring": true,
+        "claim_refs": ["c08"],
+        "evidence_refs": ["deployments[1]"],
+        "params": { "url": "https://cf-connect-rs.vercel.app", "status_code": 404 },
+        "explanation": "The live URL claimed for CF-Connect returns HTTP 404.",
+        "innocent_explanation": null
+      },
+      {
+        "finding_id": "f02",
+        "rule_id": "G3", "rule_version": "1.1",
+        "tier": "attention", "severity": "low", "confidence": 0.55, "scoring": false,
+        "claim_refs": ["c14"],
+        "evidence_refs": ["github.ownership"],
+        "params": { "ownership": "claimed_unverified" },
+        "explanation": "The GitHub account was inferred from repository URLs printed on the CV; account control has not been proven.",
+        "innocent_explanation": "Most candidates never complete an ownership challenge. Corroborating evidence from this account is therefore weighted down, but contradicting evidence is not."
+      }
+    ],
+    "rule_outcomes": [
+      { "rule_id": "P1", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "P2", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "P3", "rule_version": "1.0", "status": "abstained",
+        "reason": "Claim aggregates three platforms; only Codeforces resolved (412). No LeetCode or GeeksforGeeks handle supplied." },
+      { "rule_id": "G3", "rule_version": "1.1", "status": "fired", "reason": null },
+      { "rule_id": "G4", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "G5", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "G6", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "G7", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "G9", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "G10", "rule_version": "1.0", "status": "not_applicable",
+        "reason": "No employment claimed on this CV." },
+      { "rule_id": "G11", "rule_version": "1.0", "status": "abstained",
+        "reason": "No public organisation memberships on the account." },
+      { "rule_id": "W1", "rule_version": "1.0", "status": "fired", "reason": null },
+      { "rule_id": "D5", "rule_version": "1.2", "status": "clean", "reason": null },
+      { "rule_id": "D6", "rule_version": "1.0", "status": "not_applicable",
+        "reason": "No aggregate experience total stated." },
+      { "rule_id": "D7", "rule_version": "1.3", "status": "clean", "reason": null },
+      { "rule_id": "D9", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "D10", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "D11", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "C2", "rule_version": "1.0", "status": "clean", "reason": null },
+      { "rule_id": "C3", "rule_version": "1.0", "status": "clean", "reason": null }
+    ],
+    "section_confidence": [
+      { "section": "education", "confidence": 0.94, "basis_finding_ids": [] },
+      { "section": "projects", "confidence": 0.71, "basis_finding_ids": ["f01"] },
+      { "section": "achievements", "confidence": 0.96, "basis_finding_ids": [] },
+      { "section": "skills", "confidence": 0.68, "basis_finding_ids": [] }
+    ],
+    "buckets": {
+      "verified": [
+        "Codeforces peak rating 1495 (Specialist) - matches API exactly",
+        "Codeforces Round 998 rank 1106 - matches contest history exactly",
+        "3 of 3 named repositories exist, are owned, and are not forks",
+        "ATMA commit history (11 Mar - 27 Apr 2025) falls inside the claimed window",
+        "Repository language profiles match the claimed technology stacks",
+        "All 3 repositories are substantial (142 / 97 / 31 commits)",
+        "Roll number 22CS10118 is consistent with B.Tech CSE 2022-2026",
+        "Institution resolved against AICTE registry",
+        "Named supervisor found in the institutional faculty directory",
+        "atma-rs.vercel.app is live (HTTP 200)"
+      ],
+      "contradicted": ["f01"],
+      "needs_context": ["f02"],
+      "not_evaluated": [
+        "Problem count across LeetCode and GeeksforGeeks - no handles supplied",
+        "GitHub account ownership - not proven; handle derived from repository URLs",
+        "Organisation membership - account has no public organisations"
+      ],
+      "out_of_scope": [
+        "CGPA 9.34 - self-declared; the institution states it could not verify",
+        "Coursework - carries the institution's own disclaimer (claim c29)",
+        "JEE Advanced rank - no accessible source; category-sensitive, deliberately not checked",
+        "Employment history - none claimed, and not verifiable in principle"
+      ]
+    },
+    "evaluated_at": "2026-08-24T09:13:58Z"
+  },
+
+  "narrative": {
+    "summary": "Ten checks passed against authoritative sources. The candidate's competitive-programming claims verify exactly against the Codeforces API, and all three named repositories exist, are original work, and match their claimed stacks and dates. One claimed live deployment now returns 404. GitHub account ownership was not proven, so corroborating evidence from that account is weighted down.",
+    "sections": {
+      "achievements": "Both specific Codeforces claims match the public API exactly: peak rating 1495 (Specialist) and rank 1106 in Round 998 (Div. 3) [f-none]. The '500+ problems' claim spans three platforms and could not be evaluated - Codeforces alone accounts for 412, and no LeetCode or GeeksforGeeks handle was supplied.",
+      "projects": "All three repositories exist, are owned by the named account, and are not forks. Commit dates fall inside the claimed windows and language profiles match the claimed stacks. One of two claimed live deployments returns HTTP 404 [f01]; free hosting expiring is a common and innocent cause.",
+      "education": "Roll number structure, programme duration, institution registry match, and named supervisor are all consistent. CGPA and coursework carry the institution's own disclaimer and were not assessed."
+    },
+    "cited_finding_ids": ["f01", "f02"],
+    "model_id": "claude-opus-5",
+    "prompt_version": "narrate/v2",
+    "fallback_used": false
+  },
+
+  "coverage": {
+    "rules_total": 41,
+    "rules_evaluated": 20,
+    "rules_abstained": 3,
+    "coverage": 0.87,
+    "attestation_depth": "registry_only",
+    "identity_confidence": "claimed"
+  },
+
+  "provenance": {
+    "cvv_version": "0.4.1",
+    "contract_version": "1.0.0",
+    "model_id": "claude-opus-5",
+    "prompt_versions": { "extract": "extract/v3", "narrate": "narrate/v2" },
+    "rule_versions": {
+      "D5": "1.2", "D6": "1.0", "D7": "1.3", "D9": "1.0", "D10": "1.0", "D11": "1.0",
+      "G3": "1.1", "G4": "1.0", "G5": "1.0", "G6": "1.0", "G7": "1.0", "G9": "1.0",
+      "G10": "1.0", "G11": "1.0", "P1": "1.0", "P2": "1.0", "P3": "1.0",
+      "W1": "1.0", "C2": "1.0", "C3": "1.0"
+    },
+    "sources_queried": [
+      { "source": "codeforces", "queried_at": "2026-08-24T09:13:12Z",
+        "response_hash": "sha256:1a2b3c", "ttl_days": 7 },
+      { "source": "github", "queried_at": "2026-08-24T09:13:30Z",
+        "response_hash": "sha256:4d5e6f", "ttl_days": 30 },
+      { "source": "http_probe", "queried_at": "2026-08-24T09:13:42Z",
+        "response_hash": null, "ttl_days": 7 },
+      { "source": "aicte", "queried_at": "2026-08-24T09:13:47Z",
+        "response_hash": "sha256:7a8b9c", "ttl_days": 180 }
+    ]
+  },
+
+  "valid_as_of": "2026-08-24T09:13:58Z",
+  "signature": {
+    "alg": "Ed25519",
+    "canonicalisation": "RFC8785",
+    "key_id": "devbridge-2026-08",
+    "value": "z58Dk3mQpX9rT2vL7yB4nC1wJ6hF0aS8dG5eR3tY9uI2oP4kM7xN1zQ6vB8cD0fH3jK5lA"
+  }
+}
