@@ -1,14 +1,16 @@
-# DevBridge — M5 and M6
+# DevBridge — M5, M6 and assessment
 
-Two modules, one repository. Each has its own CLAUDE.md with its guardrails; read the
+Three modules, one repository. Each has its own CLAUDE.md with its guardrails; read the
 one for the module you are working in.
 
 | | Folder | Tooling |
 |---|---|---|
 | M5 · CV verification | `cv-verification/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict`; run commands from inside the folder (`.env`, `.cache/` are relative to it) |
 | M6 · skill graph | `skill-graph/` — see its `CLAUDE.md` | stdlib + pyyaml + jsonschema · `make test` / `make all`; `PYTHONPATH=packages` |
-| The contract | `schemas/` | read by both; one copy, so a change reaches both |
-| The skill list | `schemas/skills/` | `ontology.yaml` (skills, tiers, links) and `aliases.yaml`; M5 resolves names against it, M6 scores by it |
+| Assessment | `assessment/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict` · Docker for the sandbox; settings from `assessment/.env` wherever you run it |
+| The contract | `schemas/` | read by every module; one copy, so a change reaches all of them |
+| The skill list | `schemas/skills/` | `ontology.yaml` (skills, tiers, links) and `aliases.yaml`; M5 resolves names against it, M6 scores by it, assessment tags patterns and JD skills with it |
+| Job requirements | `schemas/job-requirements.schema.json` | a confirmed job's must-haves (with bars) and nice-to-haves; assessment writes it, M6's shortlist reads it |
 | Design pages | `docs/` | shared; M6-only pages are in `skill-graph/docs/` |
 
 ## The seam
@@ -29,6 +31,24 @@ three in M5, four in M6 — and both test suites passed every one.
 - M5's report carries ten fields the schema does not define (listed in
   `cv-verification/tests/test_contract.py`). M6 tolerates them because it does not
   validate the report it reads.
-- Consent handling was removed from both modules as out of scope for this project.
+- Consent handling was removed from every module as out of scope for this project.
   `consent_ref` and `consent_scope` survive only as unused contract fields.
-- Neither module may publish an overall score, in any form.
+
+## The second seam: assessment
+
+```
+JD ─▶ assessment: skills proposed (model, grounded in the JD) ─▶ a person confirms
+   ─▶ requirements.json ─▶ M6 shortlist (must-haves filter; never ranked)
+   ─▶ assessment: a unique, equally hard task per candidate ─▶ Docker ─▶ tests passed
+   ─▶ assessment_result batch ─▶ M6 ingest (priced by m6-parameters.yaml)
+```
+
+The assessment module imports nothing from cvv or M6; it meets both through
+`schemas/`. It emits facts (level, tests passed, total); M6 decides what they are worth.
+Its model only chooses from lists and writes stories; code renders every requirement
+and every hidden test, and a pattern is used only after its tests are proven right in
+every combination.
+
+- No module may publish an overall score, rank by a combination of skills, or filter
+  candidates on the system's own judgement. A person confirms a job's requirements,
+  and a person reads the results.
