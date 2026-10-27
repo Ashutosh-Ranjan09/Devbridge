@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devbridge.dev/schemas/job-requirements/1.0.0",
+  "title": "JobRequirements",
+  "description": "A job's CONFIRMED skill requirements: written by the assessment module after a person confirmed them, read by M6 to shortlist candidates. Must-haves are filters, each with its own bar; nice-to-haves are shown, never combined into a ranking.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "confirmed_at",
+    "confirmed_by",
+    "skill_list_version",
+    "must",
+    "nice"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "confirmed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "confirmed_by": {
+      "type": "string"
+    },
+    "skill_list_version": {
+      "type": "string",
+      "description": "schemas/skills/ontology.yaml version the ids are from."
+    },
+    "must": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "skill_id",
+          "bar"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "skill_id": {
+            "type": "string"
+          },
+          "bar": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "A FILTER: a candidate qualifies when this skill's interval clears the bar \u2014 its lower bound, by default. null: required, but to be ASSESSED rather than filtered on \u2014 nobody has evidence for a skill before they are tested on it."
+          },
+          "assessable": {
+            "type": "boolean",
+            "description": "The assessment module has a pattern for this skill."
+          }
+        }
+      }
+    },
+    "nice": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "not_on_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Skills the job description names that the shared skill list does not hold. Reported so nobody assumes they were checked."
+    }
+  }
+}

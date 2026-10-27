@@ -57,8 +57,8 @@
       "properties": {
         "event_id": { "type": "string" },
         "kind": {
-          "enum": ["cv_claim","claim_corroborated","claim_contradicted","repo_artifact","platform_rating","artifact_live","credential_verified"],
-          "description": "cv_claim is self-reported and weak (reliability ~0.20). platform_rating comes from an authoritative API and is the strongest (~0.90)."
+          "enum": ["cv_claim","claim_corroborated","claim_contradicted","repo_artifact","platform_rating","artifact_live","credential_verified","assessment_result"],
+          "description": "cv_claim is self-reported and weak (reliability ~0.20). platform_rating comes from an authoritative API and is the strongest (~0.90). assessment_result is a sandboxed, auto-scored task from the assessment module: observed under a time limit, priced by M6 from the task's level and the share of hidden tests passed."
         },
         "occurred_at": {
           "type": "string", "format": "date-time",
@@ -79,7 +79,7 @@
           "required": ["module","module_version","origin"],
           "additionalProperties": false,
           "properties": {
-            "module": { "const": "m5-cv-verification" },
+            "module": { "enum": ["m5-cv-verification","assessment"], "description": "The module that produced the evidence. Widened from a const when the assessment module began feeding the graph, as M6's design anticipated." },
             "module_version": { "type": "string" },
             "origin": { "type": "string", "examples": ["codeforces_api","github_api","cv_document","issuer_api","http_probe"] },
             "verification_id": { "type": "string" },

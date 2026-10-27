@@ -23,8 +23,8 @@ def test_the_shipped_seed_is_valid():
 
 def test_the_default_ontology_is_the_shipped_seed():
     onto = default_ontology()
-    assert onto.ontology_version == "0.2.0"
-    assert len(onto) == 35 and len(onto.relations()) == 15
+    assert onto.ontology_version == "0.3.0"
+    assert len(onto) == 36 and len(onto.relations()) == 15
 
 
 def test_the_default_is_loaded_once():

@@ -17,7 +17,9 @@
 # 0.2.0 — eight skills and three edges, added from what the first real M5 report
 # quarantined: a student CV's HTML, CSS, Bash, Git, OOP, Express, Tailwind CSS and
 # Matplotlib. Tools that are not skills (VS Code, Postman, Jupyter, Office) stay out.
-ontology_version: "0.2.0"
+# 0.3.0 — rate_limiting, the first skill the assessment module has a pattern for
+# (assessment/patterns/rate_limiter). A concept, so it decays at the fundamental rate.
+ontology_version: "0.3.0"
 
 tiers:
   fundamental: >
@@ -39,6 +41,7 @@ skills:
   cryptography:      {tier: fundamental, label: Cryptography}
   networking:        {tier: fundamental, label: Networking}
   oop:               {tier: fundamental, label: Object-oriented programming}
+  rate_limiting:     {tier: fundamental, label: Rate limiting}
   # ── ecosystem ─────────────────────────────────────────────────────────────
   typescript:        {tier: ecosystem, label: TypeScript}
   javascript:        {tier: ecosystem, label: JavaScript}
