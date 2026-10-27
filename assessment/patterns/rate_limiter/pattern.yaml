@@ -1,0 +1,56 @@
+# A pattern: one reusable task for one skill. Written and reviewed by a person.
+# Every variant drawn from it is equally hard — that is what lets candidates be compared.
+id: rate_limiter
+version: 1
+skill: rate_limiting            # an id in ../../../schemas/skills/ontology.yaml
+title: Rate-limiting middleware
+level: medium
+time_limit_minutes: 40
+language: python
+core: >
+  Allow at most LIMIT requests per KEY in any sliding WINDOW; reject the rest.
+  Rejected requests do not count, and keys are limited independently.
+
+# Every value in a list is equally hard. They change the surface and the numbers,
+# never what is tested.
+parameters:
+  key_kind: [ip_address, api_key, user_email]
+  limit: [3, 5, 10, 15]
+  window: [60, 900, 3600]
+
+# How a parameter value reads in the task text.
+labels:
+  key_kind:
+    ip_address: IP address
+    api_key: API key
+    user_email: email address
+  window:
+    "60": 1 minute
+    "900": 15 minutes
+    "3600": 1 hour
+
+# Exactly one per variant. All share one rating: equal extra work. If calibration
+# shows one is harder, it is moved out of this list, never weighted.
+twists:
+  retry_after:
+    rating: 1
+    rule: >
+      When rejecting, include the header `Retry-After`: the number of whole seconds
+      until this key's next request would be allowed — the oldest request still
+      counting, plus {window}, minus `now`, **rounded up**.
+  remaining:
+    rating: 1
+    rule: >
+      Every response, allowed or rejected, includes the header
+      `X-RateLimit-Remaining`: how many more requests this key may make right now,
+      after this one — `"0"` when rejecting. Header values are strings.
+  error_payload:
+    rating: 1
+    rule: >
+      When rejecting, set `body` to
+      `{{"error": "rate_limited", "key": <the key>, "limit": {limit}, "window": {window}}}`.
+
+# Named test groups. The report and calibration speak in these names.
+tests:
+  core: [allows_up_to_limit, rejects_one_over, keys_independent, exact_boundary, window_slides]
+  twist: [twist_behaviour]

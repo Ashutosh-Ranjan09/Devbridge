@@ -1,0 +1,54 @@
+# A pattern: one reusable task for one skill. Written and reviewed by a person.
+# Every variant drawn from it is equally hard — that is what lets candidates be compared.
+id: top_k_frequent
+version: 1
+skill: algorithms               # an id in ../../../schemas/skills/ontology.yaml
+title: Top-K most frequent items
+level: medium
+time_limit_minutes: 30
+language: python
+core: >
+  Return the K most frequent items in a list, most frequent first, ties in plain
+  string order; fewer if there are fewer distinct items. Fast enough for a large input.
+
+# Every value in a list is equally hard. They change the surface and the numbers,
+# never what is tested.
+parameters:
+  item_kind: [search_query, product_id, error_code]
+  k: [3, 5, 10]
+
+# How a parameter value reads in the task text.
+labels:
+  item_kind:
+    search_query: search query
+    product_id: product ID
+    error_code: error code
+
+# Exactly one per variant. Each is one more function beside `top_k`, so one reference
+# implements them all — a twist that changed the tie rule could not be, since the
+# rules contradict. All share one rating: equal extra work. If calibration shows one
+# is harder, it is moved out of this list, never weighted.
+twists:
+  with_counts:
+    rating: 1
+    rule: >
+      Also implement `top_k_with_counts(items, k)`: the same items in the same order
+      as `top_k`, each as a tuple `(item, count)`.
+  ignore_case:
+    rating: 1
+    rule: >
+      Also implement `top_k_ignore_case(items, k)`: items that differ only in letter
+      case are the same item. Count them together and return each in lowercase; order
+      and ties follow the same rules, on the lowercase form.
+  excluding:
+    rating: 1
+    rule: >
+      Also implement `top_k_excluding(items, k, exclude)`: the same as `top_k`, but
+      any item in the set `exclude` is ignored entirely. The result still has {k}
+      items when enough other distinct items exist.
+
+# Named test groups. The report and calibration speak in these names.
+tests:
+  core: [picks_most_frequent, most_frequent_first, ties_alphabetical, fewer_than_k,
+         empty_input, input_not_modified, large_input]
+  twist: [twist_behaviour]

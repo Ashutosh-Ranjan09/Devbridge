@@ -1,0 +1,17 @@
+# How an assessment result enters the skill graph — the emitter's half of the event.
+# M6 decides what a result is WORTH (skill-graph/contracts/m6-parameters.yaml,
+# observed_value.assessment_result); this file says how much to TRUST it.
+contract_version: "1.0.0"
+
+assessment_result:
+  strength: 0.75
+  reliability_base: 0.85
+  relevance: 1.0
+  rationale: >
+    Observed directly, under a time limit, by hidden tests the candidate never saw —
+    stronger than a repository (0.70 reliability before any ownership cap) because
+    nothing about it is self-reported. Not the 0.90 of a platform rating: help from
+    another person or an AI assistant during the task is not ruled out, and the
+    module says so rather than pretending otherwise.
+  # Only outcomes the candidate caused are evidence. sandbox_unavailable is not.
+  emitted_for: [passed, tests_failed, import_error, timeout, resource_limit]
