@@ -14,6 +14,7 @@ them for the demo and for anyone who wants module 6 as one process.
     GET  /developers/{ref}/integrity
     GET  /developers/{ref}/profile
     GET  /search?skill=...
+    POST /shortlist                  a confirmed job's requirements → who qualifies
     GET  /developers/{ref}/score     410, on purpose
 """
 from __future__ import annotations
@@ -54,12 +55,16 @@ def build_routes(m6) -> list[tuple[re.Pattern[str], str, Any]]:
     def profile(m, q, _b):
         return 200, m6.profile(unquote(m.group("ref")), _as_of(q))
 
+    def shortlist(_m, q, body):
+        return 200, m6.query.shortlist(body, _as_of(q), definite=_flag(q, "definite", True))
+
     routes = [
         (re.compile(r"^/versions$"), "GET", versions),
         (re.compile(r"^/evidence/report$"), "POST", ingest_report),
         (re.compile(r"^/evidence/batch$"), "POST", ingest_batch),
         (re.compile(r"^/developers/(?P<ref>[^/]+)/integrity$"), "GET", integrity),
         (re.compile(r"^/developers/(?P<ref>[^/]+)/profile$"), "GET", profile),
+        (re.compile(r"^/shortlist$"), "POST", shortlist),
     ] + routes
     return routes
 
@@ -67,7 +72,7 @@ def build_routes(m6) -> list[tuple[re.Pattern[str], str, Any]]:
 def make_handler(m6) -> type[BaseHTTPRequestHandler]:
     routes = build_routes(m6)
     # Query handlers take (match, query); the ones above take (match, query, body).
-    arity3 = {h for _p, _m, h in routes[:5]}
+    arity3 = {h for _p, _m, h in routes[:6]}
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"

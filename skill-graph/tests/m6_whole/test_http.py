@@ -142,3 +142,16 @@ def test_concurrent_readers_and_one_writer_do_not_collide():
 
     assert not errors, f"concurrent access raised: {errors}"
     assert all(status in (200, 202) for status, _ in results)
+
+
+def test_a_confirmed_job_shortlists_over_http():
+    """POST a job's confirmed requirements, get who clears every must-have."""
+    req = {"schema_version": "1.0.0", "job_id": "job_h", "confirmed_at": "2026-08-24T00:00:00+00:00",
+           "confirmed_by": "recruiter", "skill_list_version": "0.3.0",
+           "must": [{"skill_id": "typescript", "bar": 0.0}], "nice": ["cpp"]}
+    with Server(loaded(report())) as s:
+        status, body = s.call("POST", f"/shortlist?as_of={AS}", req)
+        assert status == 200 and body["qualified"] == 1
+        assert body["candidates"][0]["subject_ref"] == GOLDEN_SUBJECT
+        bad_status, bad = s.call("POST", "/shortlist", {"job_id": "x"})
+    assert bad_status == 400 and bad["error"] == "BadRequirements"

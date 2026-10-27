@@ -12,7 +12,7 @@ with M6("evidence.db") as m6:
 ```
 make demo         # the end-to-end walkthrough
 make demo-http    # ...plus every HTTP endpoint, live
-make test         # 572 tests across every package
+make test         # 584 tests across every package
 ```
 
 ## The wiring
@@ -57,7 +57,7 @@ decisions of its own, which is the thing to prevent.
 `m6.versions()` returns every package and contract version behind an answer. A
 score without those cannot be reproduced or disputed.
 
-## Tests — 35 here, 572 across the repo
+## Tests — 36 here, 584 across the repo
 
 `test_composition.py` tests the wiring: that guarantees survive composition, that
 two subjects stay separate, that a quarantined skill is absent from the graph

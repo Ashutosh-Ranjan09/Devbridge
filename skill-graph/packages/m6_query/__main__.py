@@ -4,6 +4,7 @@
     python3 -m m6_query skills  --db evidence.db --subject subj_7a3f9e21
     python3 -m m6_query explain --db evidence.db --subject subj_7a3f9e21 --skill typescript
     python3 -m m6_query search  --db evidence.db --skill typescript --min 0.3
+    python3 -m m6_query shortlist --db evidence.db --requirements requirements.json
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ from .service import QueryService
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="m6_query", description=__doc__)
-    parser.add_argument("command", choices=("serve", "skills", "explain", "search"))
+    parser.add_argument("command", choices=("serve", "skills", "explain", "search", "shortlist"))
     parser.add_argument("--db", default="evidence.db")
     parser.add_argument("--subject")
     parser.add_argument("--skill")
@@ -29,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--as-of", default=date.today().isoformat())
     parser.add_argument("--maybe", action="store_true",
                         help="match intervals that REACH the threshold, not only clear it")
+    parser.add_argument("--requirements", help="a confirmed job, schemas/job-requirements.schema.json")
+    parser.add_argument("--json", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8200)
     args = parser.parse_args(argv)
@@ -46,6 +49,36 @@ def main(argv: list[str] | None = None) -> int:
                 httpd.serve_forever()
             except KeyboardInterrupt:
                 print("\nstopped")
+            return 0
+
+        if args.command == "shortlist":
+            if not args.requirements:
+                parser.error("shortlist needs --requirements")
+            try:
+                with open(args.requirements) as fh:
+                    found = service.shortlist(json.load(fh), as_of, definite=not args.maybe)
+            except QueryError as exc:
+                print(f"error: {exc}")
+                return 2
+            if args.json:
+                print(json.dumps(found, indent=2))
+                return 0
+            print(f"{found['job_id']} — {found['match']}, as of {as_of}")
+            print(f"{found['qualified']} of {found['considered']} candidates qualify\n")
+            musts = [m["skill_id"] for m in found["must"]]
+            for c in found["candidates"]:
+                print(f"  {c['subject_ref']}")
+                for kind, cells in (("must", c["must"]), ("nice", c["nice"])):
+                    for sk, v in cells.items():
+                        shown = "no evidence" if v is None else (
+                            f"[{v['interval'][0]:.3f}, {v['interval'][1]:.3f}]"
+                            + ("  inferred" if v["inferred"] else f"  {v['evidence_count']} direct"))
+                        print(f"      {kind}  {sk:<16} {shown}")
+            for sk in found["unknown_skills"]:
+                print(f"  unknown to this ontology: {sk}")
+            for sk in found["not_on_list"]:
+                print(f"  not on the skill list, not checked: {sk}")
+            print(f"\n  {found['note']}  Must-haves: {', '.join(musts)}.")
             return 0
 
         subject = args.subject or (service.subjects() or [None])[0]

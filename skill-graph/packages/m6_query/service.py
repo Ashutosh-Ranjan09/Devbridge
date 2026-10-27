@@ -8,14 +8,30 @@ is no such number in this system and this module does not invent one.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from m6_scoring import Propagator, ScoringEngine, edges_from_ontology
 
-from .errors import UnknownSkill, UnknownSubject
+from .errors import BadRequirements, UnknownSkill, UnknownSubject
 from .ranking import Candidate, Tier, meets_threshold, tiers
+
+
+REQUIREMENTS_SCHEMA = (Path(__file__).resolve().parents[3]
+                       / "schemas" / "job-requirements.schema.json")
+
+
+def _validate_requirements(doc: dict[str, Any]) -> None:
+    """The same contract the assessment module writes — checked, not trusted."""
+    import jsonschema
+    try:
+        jsonschema.validate(doc, json.loads(REQUIREMENTS_SCHEMA.read_text()))
+    except jsonschema.ValidationError as exc:
+        where = "/".join(str(p) for p in exc.absolute_path) or "(root)"
+        raise BadRequirements(f"requirements invalid at {where}: {exc.message}") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,6 +212,67 @@ class QueryService:
             if meets_threshold(candidate, minimum, definite=definite):
                 found.append(candidate)
         return tiers(found)
+
+    # ── a job's confirmed requirements → who qualifies ─────────────────────
+    def shortlist(self, requirements: dict[str, Any], as_of: date, *,
+                  definite: bool = True) -> dict[str, Any]:
+        """Candidates whose every must-have clears its bar. Alphabetical, never ranked.
+
+        `requirements` is ../schemas/job-requirements.schema.json — what the assessment
+        module exports once a person has confirmed a job's skills. Each must-have is a
+        FILTER: direct evidence for it, its interval clearing the bar (the lower bound by
+        default, as `search` decides for one skill). Nice-to-haves are shown beside each
+        candidate and filter nothing.
+
+        Several skills are never combined into one order. That would need a weighted sum
+        of intervals — an overall score by another name, which this system refuses. A
+        reader compares the columns; the note in the answer says so.
+        """
+        _validate_requirements(requirements)
+        musts = {m["skill_id"]: (None if m["bar"] is None else float(m["bar"])) for m in requirements["must"]}
+        # A must-have without a bar is to be ASSESSED, not filtered on: shown, filters nobody.
+        filters = {sk: bar for sk, bar in musts.items() if bar is not None}
+        nice = list(requirements["nice"])
+        known = set(getattr(self.ontology, "skill_ids", lambda: [])()) if self.ontology else None
+        unknown = sorted(s for s in [*musts, *nice] if known is not None and s not in known)
+
+        def view(v: SkillView | None) -> dict[str, Any] | None:
+            return None if v is None else {
+                "interval": [round(v.lower, 3), round(v.upper, 3)], "mean": round(v.mean, 3),
+                "evidence_count": v.evidence_count, "inferred": v.inferred}
+
+        candidates = []
+        for subject_ref in self.subjects():
+            views = {v.skill_id: v for v in self.skills(subject_ref, as_of)}
+            # A must-have needs DIRECT evidence: an interval inferred from a neighbour
+            # skill is a hint, not a demonstration, and does not qualify anyone.
+            def clears(skill: str, bar: float) -> bool:
+                v = views.get(skill)
+                return v is not None and not v.inferred and (
+                    v.lower >= bar if definite else v.upper >= bar)
+            if all(clears(sk, bar) for sk, bar in filters.items()):
+                candidates.append({
+                    "subject_ref": subject_ref,
+                    "must": {sk: view(views.get(sk)) for sk in musts},
+                    "nice": {sk: view(views.get(sk)) for sk in nice},
+                })
+        return {
+            "job_id": requirements["job_id"],
+            "as_of": as_of.isoformat(),
+            "match": ("every must-have's whole interval clears its bar" if definite
+                      else "every must-have's interval reaches its bar"),
+            "must": [{"skill_id": sk, "bar": bar, "filters": bar is not None} for sk, bar in musts.items()],
+            "nice": nice,
+            "considered": len(self.subjects()),
+            "qualified": len(candidates),
+            "candidates": sorted(candidates, key=lambda c: c["subject_ref"]),
+            "unknown_skills": unknown,
+            "not_on_list": list(requirements.get("not_on_list") or []),
+            "note": ("Alphabetical, not ranked. Combining several skills into one order "
+                     "would be an overall score; compare the intervals per skill."
+                     + ("" if filters else " No must-have has a bar, so nothing filtered: "
+                        "every candidate is listed, and the must-haves are to be assessed.")),
+        }
 
     # ── the ontology, for a client building a filter UI ─────────────────────
     def known_skills(self) -> list[dict[str, Any]]:

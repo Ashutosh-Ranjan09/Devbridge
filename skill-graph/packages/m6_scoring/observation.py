@@ -72,6 +72,8 @@ class ObservationModel:
             value = self._from_proficiency(spec, payload)
         elif spec.get("method") == "percentile_against_reference":
             value = self._from_percentile(event, spec, payload)
+        elif spec.get("method") == "score_by_level":
+            value = self._from_score(event, spec, payload)
         else:
             raise UnscoreableEvent(
                 f"{event.get('event_id')}: observed_value.{kind} declares no usable method")
@@ -116,6 +118,24 @@ class ObservationModel:
                 "instead — see projection-rules.yaml rating_reference.")
         ecdf = interpolate(anchors, float(rating))
         return float(spec["a"]) + float(spec["b"]) * ecdf
+
+    def _from_score(self, event, spec, payload) -> float:
+        """observed = floor + (ceiling[level] - floor) * passed / total.
+
+        The assessment module states the task's level and how many hidden tests
+        passed; what that is worth is decided here, from the parameter file — the same
+        boundary the projection keeps for every other kind.
+        """
+        level, passed, total = payload.get("level"), payload.get("passed"), payload.get("total")
+        ceilings = spec["ceiling"]
+        if level not in ceilings or not isinstance(passed, int) or not isinstance(total, int) \
+                or total <= 0 or not 0 <= passed <= total:
+            raise UnscoreableEvent(
+                f"{event.get('event_id')}: assessment_result needs level in {sorted(ceilings)} "
+                f"and 0 <= passed <= total > 0; got level={level!r} passed={passed!r} total={total!r}")
+        floor = float(spec["floor"]["value"])
+        ceiling = float(ceilings[level]["value"])
+        return floor + (ceiling - floor) * passed / total
 
     # ── observation variance ────────────────────────────────────────────────
     def variance(self, event: Mapping[str, Any], skill_id: str) -> float:

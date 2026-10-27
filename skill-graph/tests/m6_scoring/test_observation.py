@@ -175,3 +175,21 @@ def test_a_kind_declaring_no_usable_method_is_refused():
     exc = raises(UnscoreableEvent, ObservationModel(broken).observed,
                  event("repo_artifact", substance_band="small"))
     assert "no usable method" in str(exc)
+
+
+def test_an_assessment_is_priced_by_level_and_share_passed():
+    """floor + (ceiling[level] - floor) * passed / total, from the parameter file."""
+    m = model()
+    full = m.observed(event("assessment_result", level="medium", passed=6, total=6))
+    none = m.observed(event("assessment_result", level="medium", passed=0, total=6))
+    half = m.observed(event("assessment_result", level="medium", passed=3, total=6))
+    assert abs(full - 0.78) < 1e-9 and abs(none - 0.20) < 1e-9
+    assert abs(half - (0.20 + 0.58 / 2)) < 1e-9
+    hard = m.observed(event("assessment_result", level="hard", passed=6, total=6))
+    assert hard > full, "a harder task fully passed is stronger evidence"
+
+
+def test_an_assessment_without_its_facts_is_refused_not_guessed():
+    for payload in ({"level": "medium", "passed": 7, "total": 6}, {"level": "expert", "passed": 1, "total": 2},
+                    {"level": "medium", "passed": 1, "total": 0}, {}):
+        raises(UnscoreableEvent, model().observed, event("assessment_result", **payload))

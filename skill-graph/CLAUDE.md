@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 572 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 584 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "572 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "584 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -47,7 +47,7 @@ report --6.0--> events --6.2--> log --6.3--> states --6.4--> answers
 | | package | job |
 |---|---|---|
 | 6.0 | `m6_projection` | M5 report → `EvidenceEventBatch`. Decides what a verified artefact *is*. Deterministic. |
-| 6.1 | `m6_ontology` | skills, tiers, edges from `../schemas/skills/ontology.yaml` (35 skills, 15 edges, v0.2.0) |
+| 6.1 | `m6_ontology` | skills, tiers, edges from `../schemas/skills/ontology.yaml` (36 skills, 15 edges, v0.3.0) |
 | 6.2 | `m6_ingestor` | schema validation, idempotency, quarantine, append-only SQLite log |
 | 6.3 | `m6_scoring` | observation model, Kalman update, decay, propagation, recovery gate |
 | 6.4 | `m6_query` | skills, explain, tiered search, HTTP |
@@ -87,7 +87,9 @@ prior            μ0 = logit(0.25) = −1.0986,  σ0² = 1.69          # below m
 observed value   per kind from m6-parameters.yaml observed_value   # display space, clamp [0.01,0.99]
                  platform_rating = 0.50 + 0.40·ECDF(max_rating); repo bands 0.35/0.50/0.62/0.66;
                  claim_corroborated 0.68; artifact_live 0.58; credential 0.70;
-                 cv_claim by proficiency 0.30/0.45/0.60/0.75; claim_contradicted 0.15
+                 cv_claim by proficiency 0.30/0.45/0.60/0.75; claim_contradicted 0.15;
+                 assessment_result = 0.20 + (ceiling[level] − 0.20)·passed/total,
+                   ceilings easy 0.65 · medium 0.78 · hard 0.88
 obs variance     σ²obs = S0 / (reliability × relevance × strength),  S0 = 0.10
 update           k = σ²/(σ²+σ²obs);  μ += k(logit(obs) − μ);  σ² ×= (1 − k)
 decay (Δt days)  σ² += λ_tier·Δt;   μ += (μ0 − μ)(1 − e^(−Δt·λ/k_h)),  k_h = 0.35
@@ -140,9 +142,14 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   README's numbers) will tell you which published numbers went stale.
 - SQLite is kept to SQL that Postgres also accepts, because Postgres is the agreed target. One re-entrant lock serialises
   all DB access, and the whole ingest decision is held exclusively, as the concurrency tests require.
-- **No `m5-` assumptions in M6 code.** M4 (assessments) will feed this graph later. When it does, the change is
-  additive: add `assessment_result` to the `kind` enum, widen `source.module` from `const` to an enum,
-  and add priors plus an observed-value rule (`context_difficulty` is already reserved). Don't pre-build it.
+- **Two producers feed the graph:** M5's reports, through 6.0, and the assessment module
+  (`../assessment`), which sends `assessment_result` batches straight to 6.2. `source.module` is
+  `m5-cv-verification` or `assessment`. The assessment event carries FACTS (level, tests passed,
+  total); `observed_value.assessment_result` prices them here. Keep M6 free of either producer's
+  internals — they meet it only through `../schemas/`.
+- **`m6_query shortlist`** (and `POST /shortlist` on the combined server) reads a confirmed job's
+  `../schemas/job-requirements.schema.json`: every must-have is a filter needing DIRECT evidence
+  that clears its bar; nice-to-haves are shown; candidates are alphabetical, never ranked.
 - Design artifacts: publish each revision as a **new** artifact. Never overwrite one, because the revision history matters.
 
 ## Known gaps / gotchas

@@ -26,3 +26,9 @@ class AggregateRefused(QueryError):
     rather than quietly unimplemented, so the reason is discoverable.
     """
     status = 400
+
+
+class BadRequirements(QueryError):
+    """Job requirements that do not match schemas/job-requirements.schema.json."""
+    status = 400
+

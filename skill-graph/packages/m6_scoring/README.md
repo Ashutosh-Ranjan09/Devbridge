@@ -117,7 +117,7 @@ block naming the source, edge type and γ — not to clamp the number. Clamping
 would be lying about the model rather than improving it. A test pins this as
 documented behaviour so nobody "fixes" it by accident.
 
-## Tests — 131 in this package
+## Tests — 133 in this package
 
 | file | covers |
 |---|---|

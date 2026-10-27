@@ -98,6 +98,30 @@ observed_value:
     observed: 0.15
     direction: negative
     rationale: "A decisive check failing against a skill claim is strong negative evidence."
+  assessment_result:
+    # A sandboxed task from the assessment module, scored by hidden tests only.
+    method: score_by_level
+    floor:
+      value: 0.20
+      sweep: [0.10, 0.30]
+    ceiling:
+      easy:
+        value: 0.65
+        sweep: [0.55, 0.75]
+      medium:
+        value: 0.78
+        sweep: [0.70, 0.85]
+      hard:
+        value: 0.88
+        sweep: [0.80, 0.93]
+    rationale: >
+      observed = floor + (ceiling[level] - floor) x passed / total. Every test passed on
+      a medium task observes 0.78 — a little above a Codeforces Specialist's 0.739,
+      because it is the skill itself, measured directly, not a proxy for it. Nothing
+      passed observes the floor, below the prior's 0.25: a task the candidate could not
+      do is evidence against the skill. Constants are documented priors for the sweep,
+      not fitted; pass rates per pattern (assessment's calibration report) are the
+      data to revisit them with.
 
 decay:
   # O6 — sigma^2(t) = sigma^2(tau) + lambda_s * dt ;  mu mean-reverts with half-life h_s
