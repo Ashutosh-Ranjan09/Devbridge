@@ -36,6 +36,11 @@ enum Outcome {
   HIRE
 }
 
+enum Mark {
+  VERIFIED
+  UNVERIFIED
+}
+
 model User {
   id           String       @id @default(cuid())
   email        String       @unique
@@ -48,6 +53,7 @@ model User {
   memberships  Membership[]
   jobsCreated  Job[]
   decisions    Decision[]
+  reviews      ItemReview[]
 }
 
 /// A login. The cookie holds a random token; only its SHA-256 is stored, so a copy
@@ -102,6 +108,7 @@ model Verification {
   createdAt   DateTime  @default(now())
   /// Set once M6 has accepted the report.
   sentToM6At  DateTime?
+  reviews     ItemReview[]
 
   @@index([candidateId])
 }
@@ -160,4 +167,24 @@ model Decision {
   outcome       Outcome
   reason        String
   createdAt     DateTime    @default(now())
+}
+
+/// An admin checked one line of an M5 report by hand. The report is not changed: this
+/// is a person's verdict beside it, shown as theirs. Never updated; marking again adds
+/// a row, and the newest row per line is the current mark.
+model ItemReview {
+  /// Newest is the highest id, even within one millisecond.
+  id             Int          @id @default(autoincrement())
+  verificationId String
+  verification   Verification @relation(fields: [verificationId], references: [id])
+  /// "verified:3" (the line's place in its bucket) or "contradicted:f01" (the finding's
+  /// id). A report is immutable under its verification_id, so a place never moves.
+  itemKey        String
+  mark           Mark
+  note           String
+  reviewedById   String
+  reviewedBy     User         @relation(fields: [reviewedById], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([verificationId, itemKey])
 }

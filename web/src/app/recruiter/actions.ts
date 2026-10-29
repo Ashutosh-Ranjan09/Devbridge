@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import * as z from "zod";
 
 import { db } from "@/lib/db";
-import { BarSchema, DecisionSchema, type FormState, NewJobSchema } from "@/lib/definitions";
+import { BarSchema, DecisionSchema, type FormState, NewJobSchema, typed } from "@/lib/definitions";
 import { myApplication, myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
 import type { Job, Task } from "@/lib/types";
@@ -20,12 +20,6 @@ const jobPath = (id: string) => `/recruiter/jobs/${encodeURIComponent(id)}`;
 function refused(e: unknown, form?: FormData): FormState {
   if (e instanceof ServiceError) return { message: e.message, values: form ? typed(form) : undefined };
   throw e;
-}
-
-function typed(form: FormData): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of form) if (typeof v === "string") out[k] = v;
-  return out;
 }
 
 export async function createJob(_: FormState, form: FormData): Promise<FormState> {

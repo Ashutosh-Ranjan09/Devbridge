@@ -8,6 +8,7 @@ import { ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { db } from "@/lib/db";
 import { myApplication, requireRecruiter } from "@/lib/recruiter";
+import { marksFor } from "@/lib/review";
 import { call, ServiceError } from "@/lib/services";
 import type { FullResult, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
 
@@ -34,10 +35,11 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
   ]);
 
   const quiet = <T,>(p: Promise<T>) => p.catch((e: unknown) => (e instanceof ServiceError ? e : Promise.reject(e)));
-  const [requirements, profile, report, tasks] = await Promise.all([
+  const [requirements, profile, report, marks, tasks] = await Promise.all([
     quiet(call<Requirements>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/requirements`)),
     quiet(call<Profile>("m6", `/developers/${encodeURIComponent(ref)}/profile`)),
     latest ? quiet(call<Report | Running>("m5", `/v1/verifications/${encodeURIComponent(latest.id)}`)) : null,
+    latest ? marksFor(latest.id) : undefined,
     Promise.all(assessments.map(async (a) => {
       const task = await call<Task>("assess", `/v1/sessions/${encodeURIComponent(a.id)}`).catch(() => null);
       // The full view: this is the person reading results, for their own job.
@@ -120,7 +122,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
           : report instanceof ServiceError ? <Card><p>{report.message}</p></Card>
           : report.status === "running" ? <Card><p>Still being checked.</p></Card>
           : report.status === "failed" ? <Card><p>Could not be checked: {report.failure}</p></Card>
-          : <ReportView report={report} />}
+          : <ReportView report={report} marks={marks} />}
       </div>
 
       <Card>

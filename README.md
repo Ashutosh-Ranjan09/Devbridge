@@ -50,7 +50,8 @@ One command starts all four with one key per module per run, passed through the
 environment and never printed; logs go to `.run/`, and Ctrl-C stops everything.
 Candidates check a CV, see their skills and take assessments; recruiters confirm a job's
 skills, read each applicant's evidence and decide, with a reason the candidate reads;
-admins see the system's state. See [`web/CLAUDE.md`](web/CLAUDE.md).
+admins see the system's state, and can mark any line of a candidate's CV report verified
+or unverified, with a note. See [`web/CLAUDE.md`](web/CLAUDE.md).
 
 ## From a job description to a task
 
@@ -69,7 +70,7 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 611 |
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 589, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 94; `-m docker` 10, `-m slow` 1 more |
-| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 44 |
+| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 50 |
 
 ## Personal data
 

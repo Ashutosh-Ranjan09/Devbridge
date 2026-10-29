@@ -3,6 +3,7 @@ import Link from "next/link";
 const LINKS = [
   ["/admin", "System"],
   ["/admin/accounts", "Accounts"],
+  ["/admin/candidates", "Candidates"],
   ["/admin/catalogue", "Checks & tasks"],
   ["/admin/quarantine", "Quarantine"],
 ] as const;

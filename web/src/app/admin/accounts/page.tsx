@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { Card, Loading, Page } from "@/components/ui";
@@ -34,7 +35,11 @@ async function Accounts() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-t border-line">
-                <td className="py-1 pr-3">{u.name}</td>
+                <td className="py-1 pr-3">
+                  {u.candidate
+                    ? <Link href={`/admin/candidates/${u.id}`} className="text-accent hover:underline">{u.name}</Link>
+                    : u.name}
+                </td>
                 <td className="pr-3">{u.email}</td>
                 <td className="pr-3">{u.role.toLowerCase()}</td>
                 <td className="pr-3">

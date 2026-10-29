@@ -32,6 +32,14 @@ export type FormState =
   | { errors?: Record<string, string[] | undefined>; message?: string; values?: Record<string, string> }
   | undefined;
 
+/** What was typed, for a refused action to hand back: React resets a form after its
+ * action runs, and a field with no value passed back comes back empty. */
+export function typed(form: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of form) if (typeof v === "string") out[k] = v;
+  return out;
+}
+
 // ── candidate ───────────────────────────────────────────────────────────────
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;
@@ -77,4 +85,12 @@ export const DecisionSchema = z.object({
   outcome: z.enum(["ADVANCE", "REJECT", "HIRE"], { error: "Choose an outcome." }),
   // A person decides, and says why in words another person can read and dispute.
   reason: z.string().trim().min(10, { error: "Say why, in at least 10 characters." }).max(2000),
+});
+
+// ── admin ───────────────────────────────────────────────────────────────────
+
+export const MarkSchema = z.object({
+  mark: z.enum(["VERIFIED", "UNVERIFIED"], { error: "Choose verified or unverified." }),
+  // What the admin looked at, so whoever reads the mark can weigh it and dispute it.
+  note: z.string().trim().min(10, { error: "Say what you checked, in at least 10 characters." }).max(1000),
 });

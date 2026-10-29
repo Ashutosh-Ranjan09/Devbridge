@@ -46,19 +46,21 @@ src/lib/services.ts     call() to M5 · M6 · assessment (JSON or multipart); he
 src/lib/types.ts        the fields of each module's answers that pages read
 src/lib/candidate.ts    requireCandidate(); myVerification() / myAssessment(): theirs, or 404
 src/lib/recruiter.ts    requireRecruiter(); myJob() / myApplication(): their organisation's, or 404
+src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest admin mark on each
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
 src/app/(auth)/         login, signup, and their server actions
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
                         assessments (practice, task, editor, result) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
-src/app/admin/          system (modules, counts) · accounts · catalogue (M5's checks, the tasks) ·
-                        quarantine (skills M6 holds because the list lacks them)
+src/app/admin/          system (modules, counts) · accounts · candidates (each one's CV reports,
+                        every line markable) · catalogue (M5's checks, the tasks) ·
+                        quarantine (skills M6 holds because the list lacks them) · actions.ts
 src/app/not-found.tsx   one page for "does not exist" and "is not yours"
 src/app/error.tsx       an unexpected failure: a retry button and the server log's digest
 src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown · musts
                         (an applicant's must-haves, as M6's shortlist answered) · action-button ·
-                        candidate, recruiter (the client components: forms, refresh, countdown, editor)
+                        candidate, recruiter, admin (the client components: forms, refresh, countdown, editor)
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
@@ -105,6 +107,14 @@ tests/                  Vitest: actions against a temporary database; service ca
     back comes back empty — a candidate's code after a 503, a job's other edits after one
     bad bar. A `<select>` also needs a `key` from that value; React applies its default
     only when it mounts.
+14. **An admin's mark sits beside M5's line, never in place of it.** `ItemReview` holds
+    a person's verdict on one line of a report (verified or unverified, a note of at
+    least 10 characters saying what they checked, who, when), like a `Decision`: a
+    person's judgement, not a copy of the report. M5's buckets and wording are unchanged
+    and the mark is labelled as an admin's; the candidate and recruiters see "an admin",
+    the admin area the name. Rows are never updated: marking again adds one, and the
+    newest is current. The action checks the key against the report from M5, so only a
+    real line can be marked. A mark does not reach M6 and does not change any skill.
 
 ## Known limits, stated
 
@@ -120,6 +130,10 @@ tests/                  Vitest: actions against a temporary database; service ca
 - Blanking a bar that is already set keeps the old one: `jd.edit` reads "none" as "unchanged".
   Drop the skill and add it again to remove a bar.
 - The recruiter sees a candidate's latest CV report only.
+- A line is keyed by its place in its bucket (findings by their id). That holds because
+  M5 never changes a stored report; a re-check is a new verification with its own marks.
+- An admin's mark is not evidence for M6: making it count needs a new event kind in the
+  contract and M6 deciding what a human check is worth (with W2's queue).
 - Not built: adding context to a "needs
   context" finding (M5's attestation is out of scope); the CLI's "also checked, nothing
   raised" lines, which M5 computes for the CLI and does not put in the report.
