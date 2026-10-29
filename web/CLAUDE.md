@@ -43,13 +43,17 @@ src/lib/definitions.ts  Zod schemas for every form
 src/lib/services.ts     call() to M5 · M6 · assessment (JSON or multipart); health()
 src/lib/types.ts        the fields of each module's answers that pages read
 src/lib/candidate.ts    requireCandidate(); myVerification() / myAssessment(): theirs, or 404
+src/lib/recruiter.ts    requireRecruiter(); myJob() / myApplication(): their organisation's, or 404
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
 src/app/(auth)/         login, signup, and their server actions
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
-                        assessments (practice, task, editor, result) · actions.ts
-src/app/{recruiter,admin}/   one area per role
-src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown ·
-                        candidate (the client components: forms, refresh, countdown, editor)
+                        assessments (practice, task, editor, result) · jobs (apply, decisions) · actions.ts
+src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, confirm, open, applicants) ·
+                        jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
+src/app/admin/          the admin area
+src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown · musts
+                        (an applicant's must-haves, as M6's shortlist answered) · action-button ·
+                        candidate, recruiter (the client components: forms, refresh, countdown, editor)
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
@@ -86,6 +90,16 @@ tests/                  Vitest: actions against a temporary database; service ca
     or a result exactly as the module returned it; M6's ingest is idempotent, so a retry
     is safe, and `sentToM6At` is set only once M6 has accepted it. A module being down
     delays the evidence (`after()`, retried from the skills page), never a page.
+12. **A recruiter reaches a candidate only through an application** to their organisation's
+    job (`myApplication`). Applicants are listed by name; whether someone clears a bar is
+    M6's `clears`, shown as it came; filtering to those who clear every bar is a link the
+    recruiter clicks, never the default. A decision needs an outcome and a reason, is made
+    once, records who made it, and the candidate reads it.
+13. **A refused action returns what was typed** (`values`), and the form uses it as its
+    defaults: React 19 resets a form after its action runs, so a field with nothing passed
+    back comes back empty — a candidate's code after a 503, a job's other edits after one
+    bad bar. A `<select>` also needs a `key` from that value; React applies its default
+    only when it mounts.
 
 ## Known limits, stated
 
@@ -98,6 +112,9 @@ tests/                  Vitest: actions against a temporary database; service ca
 - Every session read calls `connection()`: Next 16 prefetches linked pages by
   prerendering them, and a session (its expiry check reads the clock) must not be
   decided there. Prefetches stop at the static shell.
-- Not built: jobs and applying (with the recruiter pages); adding context to a "needs
+- Blanking a bar that is already set keeps the old one: `jd.edit` reads "none" as "unchanged".
+  Drop the skill and add it again to remove a bar.
+- The recruiter sees a candidate's latest CV report only.
+- Not built: adding context to a "needs
   context" finding (M5's attestation is out of scope); the CLI's "also checked, nothing
   raised" lines, which M5 computes for the CLI and does not put in the report.

@@ -32,7 +32,7 @@ export function ReportView({ report }: { report: Report }) {
         )}
         {report.narrative && (
           <div className="mt-4">
-            <p>{report.narrative.summary}</p>
+            <p className="whitespace-pre-line">{report.narrative.summary}</p>
             <p className="mt-1 text-xs text-muted">
               {report.narrative.fallback_used
                 ? `Written from the findings by code: the model's summary was rejected (${report.narrative.rejected_because}).`

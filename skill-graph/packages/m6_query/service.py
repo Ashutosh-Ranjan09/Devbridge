@@ -215,7 +215,7 @@ class QueryService:
 
     # ── a job's confirmed requirements → who qualifies ─────────────────────
     def shortlist(self, requirements: dict[str, Any], as_of: date, *,
-                  definite: bool = True) -> dict[str, Any]:
+                  definite: bool = True, subjects: list[str] | None = None) -> dict[str, Any]:
         """Candidates whose every must-have clears its bar. Alphabetical, never ranked.
 
         `requirements` is ../schemas/job-requirements.schema.json — what the assessment
@@ -227,6 +227,17 @@ class QueryService:
         Several skills are never combined into one order. That would need a weighted sum
         of intervals — an overall score by another name, which this system refuses. A
         reader compares the columns; the note in the answer says so.
+
+        `subjects` narrows who is considered: a job's applicants, say. Then every one of
+        them is answered for, so a reader sees why someone did not qualify rather than
+        only that they are missing: the qualified under `candidates`, the rest under
+        `others` with the same columns, and anyone with no evidence on record under
+        `no_evidence`. Without it the answer lists the qualified only, as before; the
+        whole population's near-misses are nobody's business.
+
+        Each entry's `clears` says, per must-have, whether its bar is cleared: true,
+        false, or null for one without a bar (assessed, not filtered). It is the filter's
+        own decision, written down so no client re-derives it.
         """
         _validate_requirements(requirements)
         musts = {m["skill_id"]: (None if m["bar"] is None else float(m["bar"])) for m in requirements["must"]}
@@ -241,8 +252,16 @@ class QueryService:
                 "interval": [round(v.lower, 3), round(v.upper, 3)], "mean": round(v.mean, 3),
                 "evidence_count": v.evidence_count, "inferred": v.inferred}
 
-        candidates = []
-        for subject_ref in self.subjects():
+        on_record = self.subjects()
+        if subjects is None:
+            considered, no_evidence = on_record, []
+        else:
+            asked, have = sorted(set(subjects)), set(on_record)
+            considered = [s for s in asked if s in have]
+            no_evidence = [s for s in asked if s not in have]
+
+        candidates, others = [], []
+        for subject_ref in considered:
             views = {v.skill_id: v for v in self.skills(subject_ref, as_of)}
             # A must-have needs DIRECT evidence: an interval inferred from a neighbour
             # skill is a hint, not a demonstration, and does not qualify anyone.
@@ -250,20 +269,22 @@ class QueryService:
                 v = views.get(skill)
                 return v is not None and not v.inferred and (
                     v.lower >= bar if definite else v.upper >= bar)
-            if all(clears(sk, bar) for sk, bar in filters.items()):
-                candidates.append({
-                    "subject_ref": subject_ref,
-                    "must": {sk: view(views.get(sk)) for sk in musts},
-                    "nice": {sk: view(views.get(sk)) for sk in nice},
-                })
-        return {
+            cleared = {sk: None if bar is None else clears(sk, bar) for sk, bar in musts.items()}
+            entry = {
+                "subject_ref": subject_ref,
+                "must": {sk: view(views.get(sk)) for sk in musts},
+                "nice": {sk: view(views.get(sk)) for sk in nice},
+                "clears": cleared,
+            }
+            (candidates if False not in cleared.values() else others).append(entry)
+        answer = {
             "job_id": requirements["job_id"],
             "as_of": as_of.isoformat(),
             "match": ("every must-have's whole interval clears its bar" if definite
                       else "every must-have's interval reaches its bar"),
             "must": [{"skill_id": sk, "bar": bar, "filters": bar is not None} for sk, bar in musts.items()],
             "nice": nice,
-            "considered": len(self.subjects()),
+            "considered": len(considered),
             "qualified": len(candidates),
             "candidates": sorted(candidates, key=lambda c: c["subject_ref"]),
             "unknown_skills": unknown,
@@ -273,6 +294,10 @@ class QueryService:
                      + ("" if filters else " No must-have has a bar, so nothing filtered: "
                         "every candidate is listed, and the must-haves are to be assessed.")),
         }
+        if subjects is not None:
+            answer["others"] = sorted(others, key=lambda c: c["subject_ref"])
+            answer["no_evidence"] = no_evidence
+        return answer
 
     # ── the ontology, for a client building a filter UI ─────────────────────
     def known_skills(self) -> list[dict[str, Any]]:

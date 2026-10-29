@@ -59,6 +59,19 @@ def task(client: TestClient) -> str:
     return str(r.json()["tasks"][0]["session_id"])
 
 
+def test_a_store_opened_on_one_thread_closes_on_another(tmp_path) -> None:
+    """What FastAPI does with a request's Store: setup and teardown on different worker
+    threads. sqlite3's default refuses the close, and the request became a 500."""
+    import threading
+
+    opened: list[Store] = []
+    t = threading.Thread(target=lambda: opened.append(Store(tmp_path / "assess.db")))
+    t.start()
+    t.join()
+    opened[0].jobs()
+    opened[0].db.close()
+
+
 class TestTheKey:
     def test_every_endpoint_but_health_needs_it(self, client) -> None:
         assert client.get("/v1/patterns").status_code == 401

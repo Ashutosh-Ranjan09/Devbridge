@@ -64,7 +64,12 @@ class Store:
         self.path = Path(path) if path is not None else settings.db_path
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(str(self.path))
+        # check_same_thread=False: the HTTP API opens one Store per request, and FastAPI
+        # may run that dependency's setup and its teardown on different worker threads.
+        # sqlite3 refused the close, and the request failed with a 500 after its answer
+        # was ready. One Store is still used by one thread at a time; never share one
+        # between requests.
+        self.db = sqlite3.connect(str(self.path), check_same_thread=False)
         self.db.executescript(SCHEMA)
 
     @contextmanager

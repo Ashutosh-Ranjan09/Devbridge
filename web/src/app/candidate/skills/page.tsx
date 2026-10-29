@@ -53,7 +53,7 @@ async function Skills() {
         ) : (
           <ul className="space-y-3">
             {skills.map((s) => (
-              <li key={s.skill_id} className="flex flex-wrap items-center justify-between gap-2">
+              <li key={s.skill_id} className="grid gap-1 sm:grid-cols-[10rem_auto_1fr] sm:items-center sm:gap-4">
                 <Link href={`/candidate/skills/${encodeURIComponent(s.skill_id)}`} className="text-accent underline">
                   {s.skill_id}
                 </Link>

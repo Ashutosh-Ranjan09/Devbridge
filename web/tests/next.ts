@@ -24,6 +24,10 @@ vi.mock("next/server", async (original) => ({
   connection: async () => {}, // every test is a request
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: () => {}, // re-renders a page for the browser; there is none here
+}));
+
 export class NotFound extends Error {}
 
 vi.mock("next/navigation", () => ({

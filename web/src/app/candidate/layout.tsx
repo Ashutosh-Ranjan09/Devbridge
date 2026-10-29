@@ -5,6 +5,7 @@ const LINKS = [
   ["/candidate/cv", "CV"],
   ["/candidate/skills", "Skills"],
   ["/candidate/assessments", "Assessments"],
+  ["/candidate/jobs", "Jobs"],
 ] as const;
 
 export default function CandidateLayout({ children }: LayoutProps<"/candidate">) {

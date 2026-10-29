@@ -49,3 +49,32 @@ export const CvSchema = z.object({
 export const SubmissionSchema = z.object({
   code: z.string().min(1, { error: "Write some code first." }).max(200_000, { error: "At most 200,000 characters." }),
 });
+
+// ── recruiter ───────────────────────────────────────────────────────────────
+
+export const NewJobSchema = z.object({
+  title: z.string().trim().min(3, { error: "Give the job a title." }).max(120),
+  text: z.string().trim().min(50, { error: "Paste the whole job description (at least 50 characters)." }).max(50_000),
+  orgId: z.string().min(1, { error: "Choose an organisation." }),
+  model: z.literal("on").optional(), // a checkbox: present when ticked
+});
+
+/** A bar as typed: blank is "no bar"; otherwise a number from 0 to 1. */
+export const BarSchema = z
+  .string()
+  .trim()
+  .transform((s, ctx) => {
+    if (s === "") return null;
+    const n = Number(s);
+    if (!Number.isFinite(n) || n < 0 || n > 1) {
+      ctx.addIssue({ code: "custom", message: "A bar is a number from 0 to 1, or blank." });
+      return z.NEVER;
+    }
+    return n;
+  });
+
+export const DecisionSchema = z.object({
+  outcome: z.enum(["ADVANCE", "REJECT", "HIRE"], { error: "Choose an outcome." }),
+  // A person decides, and says why in words another person can read and dispute.
+  reason: z.string().trim().min(10, { error: "Say why, in at least 10 characters." }).max(2000),
+});

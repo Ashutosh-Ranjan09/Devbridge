@@ -13,7 +13,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-93 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+94 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).
@@ -57,7 +57,9 @@ module's.
 
 Run from anywhere: settings come from `assessment/.env` (prefix `ASSESS_`), the same
 Claude Code wrapper cvv uses. Sessions, jobs and results live in `.data/assess.db`,
-which git ignores — they name candidates.
+which git ignores — they name candidates. One `Store` per HTTP request, opened with
+`check_same_thread=False`: FastAPI may run a dependency's setup and teardown on different
+threads. Never share one Store between requests.
 
 ## Guardrails — do not weaken these
 

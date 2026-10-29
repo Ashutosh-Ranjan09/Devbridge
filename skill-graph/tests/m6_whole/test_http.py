@@ -154,4 +154,7 @@ def test_a_confirmed_job_shortlists_over_http():
         assert status == 200 and body["qualified"] == 1
         assert body["candidates"][0]["subject_ref"] == GOLDEN_SUBJECT
         bad_status, bad = s.call("POST", "/shortlist", {"job_id": "x"})
+        _, applicants = s.call("POST", f"/shortlist?as_of={AS}&subject={GOLDEN_SUBJECT}&subject=subj_nobody", req)
     assert bad_status == 400 and bad["error"] == "BadRequirements"
+    assert [c["subject_ref"] for c in applicants["candidates"]] == [GOLDEN_SUBJECT]
+    assert applicants["no_evidence"] == ["subj_nobody"] and applicants["others"] == []

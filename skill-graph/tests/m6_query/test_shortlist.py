@@ -85,3 +85,38 @@ def test_with_nothing_to_filter_on_everyone_is_listed_and_told_why():
     found = population().shortlist(doc, AS_OF)
     assert found["qualified"] == found["considered"] > 0
     assert "nothing filtered" in found["note"]
+
+
+def test_applicants_are_each_answered_for_qualified_or_not():
+    """A job's applicants: everyone asked about appears once, in `candidates` or
+    `others`, so a reader sees why someone did not qualify, not only that they are gone."""
+    asked = ["subj_weak", "subj_strong", "subj_thin"]
+    found = population().shortlist(requirements([("typescript", 0.0), ("cpp", 0.99)]), AS_OF, subjects=asked)
+    listed = [c["subject_ref"] for c in found["candidates"]] + [c["subject_ref"] for c in found["others"]]
+    assert sorted(listed) == sorted(asked) and found["considered"] == 3
+    assert found["qualified"] == 0, "nobody's interval clears 0.99"
+    assert [c["subject_ref"] for c in found["others"]] == sorted(asked), "alphabetical, never ranked"
+
+
+def test_clears_is_the_filter_s_own_decision_per_must_have():
+    doc = requirements([("typescript", 0.0), ("cpp", 0.99)])
+    doc["must"].append({"skill_id": "rate_limiting", "bar": None})
+    found = population().shortlist(doc, AS_OF, subjects=["subj_strong"])
+    assert found["others"][0]["clears"] == {"typescript": True, "cpp": False, "rate_limiting": None}
+    passed = population().shortlist(requirements([("typescript", 0.0)]), AS_OF, subjects=["subj_strong"])
+    assert passed["candidates"][0]["clears"] == {"typescript": True}
+
+
+def test_an_applicant_with_no_evidence_is_said_not_dropped():
+    """No evidence is not a low score, and must not read as one: it has its own list."""
+    found = population().shortlist(requirements([("typescript", 0.0)]), AS_OF,
+                                   subjects=["subj_strong", "subj_nobody"])
+    assert found["no_evidence"] == ["subj_nobody"]
+    assert "subj_nobody" not in [c["subject_ref"] for c in found["candidates"] + found["others"]]
+
+
+def test_without_subjects_the_near_misses_of_everyone_are_not_listed():
+    """Asked about the whole population, the answer is who qualifies, as before."""
+    found = population().shortlist(requirements([("typescript", 0.0), ("cpp", 0.99)]), AS_OF)
+    assert "others" not in found and "no_evidence" not in found
+    assert found["considered"] == 4

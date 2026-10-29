@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 584 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 588 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "584 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "588 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -150,6 +150,10 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
 - **`m6_query shortlist`** (and `POST /shortlist` on the combined server) reads a confirmed job's
   `../schemas/job-requirements.schema.json`: every must-have is a filter needing DIRECT evidence
   that clears its bar; nice-to-haves are shown; candidates are alphabetical, never ranked.
+  `POST /shortlist?subject=…` (repeatable) answers for those people only, a job's applicants:
+  the qualified in `candidates`, the rest in `others`, none on record in `no_evidence`. Every
+  entry carries `clears` per must-have (true, false, or null for an unbarred one), so the web
+  layer shows M6's own decision and never re-derives it. Without `subject`, only the qualified.
 - Design artifacts: publish each revision as a **new** artifact. Never overwrite one, because the revision history matters.
 
 ## Known gaps / gotchas

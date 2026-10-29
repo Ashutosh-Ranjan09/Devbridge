@@ -118,6 +118,7 @@ describe("assessments", () => {
     });
     const state = await submitSolution("as_1", undefined, form({ code: "x = 1" }));
     expect(state?.message).toMatch(/still open/);
+    expect(state?.values?.code).toBe("x = 1"); // the editor shows the candidate's code again, not the starter
     expect(sent.map((s) => s.url)).toEqual(["http://assess.test/v1/sessions/as_1/submit"]);
   });
 

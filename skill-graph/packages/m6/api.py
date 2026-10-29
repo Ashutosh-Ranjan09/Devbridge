@@ -14,7 +14,8 @@ them for the demo and for anyone who wants module 6 as one process.
     GET  /developers/{ref}/integrity
     GET  /developers/{ref}/profile
     GET  /search?skill=...
-    POST /shortlist                  a confirmed job's requirements → who qualifies
+    POST /shortlist[?subject=…]      a confirmed job's requirements → who qualifies;
+                                     `subject` (repeatable) answers for those people only
     GET  /developers/{ref}/score     410, on purpose
 """
 from __future__ import annotations
@@ -56,7 +57,8 @@ def build_routes(m6) -> list[tuple[re.Pattern[str], str, Any]]:
         return 200, m6.profile(unquote(m.group("ref")), _as_of(q))
 
     def shortlist(_m, q, body):
-        return 200, m6.query.shortlist(body, _as_of(q), definite=_flag(q, "definite", True))
+        return 200, m6.query.shortlist(body, _as_of(q), definite=_flag(q, "definite", True),
+                                       subjects=q.get("subject"))
 
     routes = [
         (re.compile(r"^/versions$"), "GET", versions),

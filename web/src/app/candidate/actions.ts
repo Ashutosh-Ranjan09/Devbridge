@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as z from "zod";
 
@@ -58,7 +59,10 @@ export async function submitSolution(id: string, _: FormState, form: FormData): 
   const me = await requireCandidate();
   await myAssessment(me.id, id);
   const parsed = SubmissionSchema.safeParse({ code: form.get("code") });
-  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors };
+  // The code goes back with every refusal: React resets the form after the action, and
+  // a candidate whose submission the sandbox could not run must not lose their work.
+  const code = String(form.get("code") ?? "");
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values: { code } };
   try {
     await call<CandidateResult>("assess", `/v1/sessions/${encodeURIComponent(id)}/submit`, {
       body: { code: parsed.data.code },
@@ -67,11 +71,33 @@ export async function submitSolution(id: string, _: FormState, form: FormData): 
   } catch (e) {
     // 503: the sandbox could not run, nothing was measured, the session is still open.
     // 409: already submitted, or past the deadline. The module's message says which.
-    if (e instanceof ServiceError) return { message: e.message };
+    if (e instanceof ServiceError) return { message: e.message, values: { code } };
     throw e;
+  }
+  // A job's task, once submitted, is the recruiter's to read.
+  const row = await db.assessment.findUniqueOrThrow({ where: { id } });
+  if (row.applicationId) {
+    await db.application.updateMany({
+      where: { id: row.applicationId, status: "ASSESSMENT_SENT" },
+      data: { status: "SUBMITTED" },
+    });
   }
   // The result is stored by the assessment module either way; if M6 is down, the
   // skills page tries again later.
   await forwardAssessment(id).catch(() => {});
   redirect(`/candidate/assessments/${id}`);
+}
+
+export async function applyToJob(jobId: string): Promise<FormState> {
+  const me = await requireCandidate();
+  // Only an open job, which only a confirmed job can be.
+  const job = await db.job.findFirst({ where: { id: jobId, open: true } });
+  if (!job) return { message: "This job is not open." };
+  await db.application.upsert({
+    where: { jobId_candidateId: { jobId, candidateId: me.id } },
+    create: { jobId, candidateId: me.id },
+    update: {},
+  });
+  revalidatePath("/candidate/jobs");
+  return undefined;
 }

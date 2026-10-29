@@ -87,7 +87,7 @@ export function Editor({ sessionId, starter }: { sessionId: string; starter: str
   return (
     <form action={action} className="space-y-3">
       <textarea
-        ref={area} name="code" defaultValue={starter} onInput={save} onKeyDown={tab}
+        ref={area} name="code" defaultValue={state?.values?.code ?? starter} onInput={save} onKeyDown={tab}
         spellCheck={false} autoCapitalize="off" autoComplete="off" rows={24}
         className="w-full rounded-md border border-line bg-background p-3 font-mono text-sm"
       />

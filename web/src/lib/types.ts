@@ -109,3 +109,56 @@ export type CandidateResult = {
   time_used_seconds: number;
   note: string | null;
 };
+
+// ── assessment: jobs ───────────────────────────────────────────────────────
+
+export type JobSkill = {
+  skill_id: string | null; // null: named in the JD, not on the shared list
+  surface: string;
+  quote: string;
+  priority: "must" | "nice";
+  bar: number | null;
+  needs_review: boolean;
+  assessable: boolean;
+};
+
+export type Job = {
+  job_id: string;
+  text: string;
+  status: "proposed" | "confirmed";
+  skills: JobSkill[];
+  extracted_by: string;
+  dropped_unquoted: number;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+};
+
+/** schemas/job-requirements.schema.json, passed to M6 unchanged. */
+export type Requirements = { job_id: string; must: { skill_id: string; bar: number | null }[]; nice: string[] };
+
+/** The full view of a result, for the person reading it: each failure's detail. */
+export type FullResult = Omit<CandidateResult, "tests"> & {
+  tests: { name: string; group: "core" | "twist"; passed: boolean; detail: string | null }[];
+};
+
+// ── M6: POST /shortlist?subject=… ──────────────────────────────────────────
+
+export type SkillColumn = { interval: [number, number]; mean: number; evidence_count: number; inferred: boolean } | null;
+
+export type ShortlistEntry = {
+  subject_ref: string;
+  must: Record<string, SkillColumn>;
+  nice: Record<string, SkillColumn>;
+  clears: Record<string, boolean | null>; // M6's own filter decision per must-have
+};
+
+export type Shortlist = {
+  match: string;
+  must: { skill_id: string; bar: number | null; filters: boolean }[];
+  nice: string[];
+  candidates: ShortlistEntry[]; // clear every bar
+  others: ShortlistEntry[]; // asked about, do not
+  no_evidence: string[];
+  unknown_skills: string[];
+  note: string;
+};
