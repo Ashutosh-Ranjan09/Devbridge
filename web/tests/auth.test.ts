@@ -9,6 +9,7 @@ const { currentUser, requireRole } = await import("@/lib/auth");
 const { SESSION_COOKIE } = await import("@/lib/cookie");
 const { db } = await import("@/lib/db");
 const { hashToken } = await import("@/lib/session");
+const { MAX_FAILURES, WINDOW_MS, recordFailure } = await import("@/lib/limits");
 
 const PASSWORD = "correct horse battery";
 const candidate = (email = "asha@example.com") =>
@@ -82,6 +83,49 @@ describe("logging in", () => {
     expect(wrong?.message).toBe("Email or password is wrong.");
     expect(unknown?.message).toBe(wrong?.message);
     expect(jar.has(SESSION_COOKIE)).toBe(false);
+  });
+});
+
+describe("too many wrong attempts", () => {
+  const attempt = (email: string, password: string) => login(undefined, form({ email, password }));
+  const wrongTimes = async (email: string, n = MAX_FAILURES) => {
+    for (let i = 0; i < n; i++) await attempt(email, "not it at all");
+  };
+
+  beforeEach(async () => {
+    await redirectOf(signup(undefined, candidate()));
+    jar.clear();
+  });
+
+  it("five wrong passwords lock the email, even against the right one", async () => {
+    await wrongTimes("asha@example.com");
+    const state = await attempt("asha@example.com", PASSWORD);
+    expect(state?.message).toBe("Too many wrong attempts for this email. Try again in 15 minutes.");
+    expect(state?.values).toEqual({ email: "asha@example.com" });
+    expect(jar.has(SESSION_COOKIE)).toBe(false);
+  });
+
+  it("an email with no account locks the same way, so the lock says nothing about accounts", async () => {
+    await wrongTimes("asha@example.com");
+    await wrongTimes("nobody@example.com");
+    const a = await attempt("asha@example.com", PASSWORD);
+    const b = await attempt("nobody@example.com", PASSWORD);
+    expect(b?.message).toBe(a?.message);
+  });
+
+  it("attempts older than the window no longer count", async () => {
+    const long = new Date(Date.now() - WINDOW_MS - 1000);
+    for (let i = 0; i < MAX_FAILURES; i++) await recordFailure("asha@example.com", long);
+    expect(await redirectOf(attempt("asha@example.com", PASSWORD))).toBe("/candidate");
+  });
+
+  it("a successful login clears the count", async () => {
+    await wrongTimes("asha@example.com", MAX_FAILURES - 1);
+    await redirectOf(attempt("asha@example.com", PASSWORD));
+    jar.clear();
+    await wrongTimes("asha@example.com", MAX_FAILURES - 1);
+    expect(await redirectOf(attempt("asha@example.com", PASSWORD))).toBe("/candidate");
+    expect(await db.loginFailure.count()).toBe(0);
   });
 });
 

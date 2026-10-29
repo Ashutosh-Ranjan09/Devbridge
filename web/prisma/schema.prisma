@@ -191,3 +191,13 @@ model ItemReview {
 
   @@index([verificationId, itemKey])
 }
+
+/// A failed login, by the email typed (whether or not it has an account, so the limit
+/// says nothing about which emails do). Cleared by a successful login.
+model LoginFailure {
+  id    Int      @id @default(autoincrement())
+  email String
+  at    DateTime @default(now())
+
+  @@index([email, at])
+}

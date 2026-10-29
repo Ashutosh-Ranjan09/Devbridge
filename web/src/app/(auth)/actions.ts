@@ -9,6 +9,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { HOME } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { type FormState, LoginSchema, SignupSchema } from "@/lib/definitions";
+import { clearFailures, lockedFor, recordFailure } from "@/lib/limits";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, deleteSession } from "@/lib/session";
 
@@ -65,11 +66,25 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   if (!parsed.success) {
     return { errors: z.flattenError(parsed.error).fieldErrors, values: kept(form) };
   }
-  const user = await db.user.findUnique({ where: { email: parsed.data.email } });
+  const { email, password } = parsed.data;
+  // Before the password is compared: a locked email gets the same answer whether or not
+  // it has an account, and whether or not the password is right.
+  const wait = await lockedFor(email);
+  if (wait) {
+    return {
+      message: `Too many wrong attempts for this email. Try again in ${wait} minute${wait === 1 ? "" : "s"}.`,
+      values: kept(form),
+    };
+  }
+  const user = await db.user.findUnique({ where: { email } });
   // Always a bcrypt comparison, and one message for both failures: neither the timing
   // nor the wording says whether the email has an account.
-  const ok = await verifyPassword(parsed.data.password, user?.passwordHash);
-  if (!user || !ok) return { message: "Email or password is wrong.", values: kept(form) };
+  const ok = await verifyPassword(password, user?.passwordHash);
+  if (!user || !ok) {
+    await recordFailure(email);
+    return { message: "Email or password is wrong.", values: kept(form) };
+  }
+  await clearFailures(email);
   await createSession(user.id);
   redirect(HOME[user.role]);
 }

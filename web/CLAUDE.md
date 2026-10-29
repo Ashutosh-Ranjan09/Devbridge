@@ -47,6 +47,7 @@ src/lib/types.ts        the fields of each module's answers that pages read
 src/lib/candidate.ts    requireCandidate(); myVerification() / myAssessment(): theirs, or 404
 src/lib/recruiter.ts    requireRecruiter(); myJob() / myApplication(): their organisation's, or 404
 src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest admin mark on each
+src/lib/limits.ts       failed logins per email: lockedFor() · recordFailure() · clearFailures()
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
 src/app/(auth)/         login, signup, and their server actions
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
@@ -87,7 +88,9 @@ tests/                  Vitest: actions against a temporary database; service ca
 8. **Passwords and sessions:** bcrypt cost 12; one message for a wrong email and a wrong
    password, with a comparison either way; the session table stores the token's
    SHA-256, never the token; the cookie is httpOnly, SameSite=Lax, Secure in production.
-   Admins are made with `create-admin`, never by signing up.
+   Admins are made with `create-admin`, never by signing up. Five wrong attempts for one
+   email in 15 minutes lock that email (`lib/limits.ts`), checked before the password and
+   counted for any email typed, so the lock says nothing about which emails have accounts.
 9. **Text from a module or a CV is shown as text.** React escapes it; Markdown (task
    stories and requirements) only through react-markdown, which renders no raw HTML —
    never add `rehype-raw`, never `dangerouslySetInnerHTML`. A CV can carry anything.
@@ -118,7 +121,10 @@ tests/                  Vitest: actions against a temporary database; service ca
 
 ## Known limits, stated
 
-- No rate limit on login, no email verification, no password reset.
+- No email verification, no password reset.
+- The login limit is per email, not per address: behind no proxy there is no address to
+  trust. So someone who knows an email can lock its owner out for 15 minutes. Two
+  attempts at the same instant can both pass the check, overshooting the limit by one.
 - `create-admin` shows the password as it is typed (it stays out of shell history).
 - A session is not rotated on use; it lasts seven days or until logout.
 - A running verification is polled every 4 s by re-rendering the page.

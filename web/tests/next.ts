@@ -59,6 +59,7 @@ export function form(fields: Record<string, string>): FormData {
 /** Every table emptied, children first. One list, so a new table is added in one place. */
 export async function resetDb(): Promise<void> {
   const { db } = await import("@/lib/db");
+  await db.loginFailure.deleteMany();
   await db.itemReview.deleteMany();
   await db.decision.deleteMany();
   await db.assessment.deleteMany();
