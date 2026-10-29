@@ -31,3 +31,21 @@ export const SignupSchema = z.discriminatedUnion("role", [
 export type FormState =
   | { errors?: Record<string, string[] | undefined>; message?: string; values?: Record<string, string> }
   | undefined;
+
+// ── candidate ───────────────────────────────────────────────────────────────
+
+export const MAX_CV_BYTES = 5 * 1024 * 1024;
+
+/** What M5 reads: PDF (a scan is read by OCR) or Word. Checked here so a wrong file is
+ * refused before it is sent anywhere. */
+export const CvSchema = z.object({
+  cv: z
+    .instanceof(File, { error: "Choose a file." })
+    .refine((f) => f.size > 0, { error: "Choose a file." })
+    .refine((f) => f.size <= MAX_CV_BYTES, { error: "At most 5 MB." })
+    .refine((f) => /\.(pdf|docx)$/i.test(f.name), { error: "A .pdf or .docx file." }),
+});
+
+export const SubmissionSchema = z.object({
+  code: z.string().min(1, { error: "Write some code first." }).max(200_000, { error: "At most 200,000 characters." }),
+});

@@ -223,6 +223,20 @@ class TestTheRequestBody:
         assert r.status_code == 202
         assert started == [{"offline": True, "want_narrative": False, "subject": None}]
 
+    def test_multipart_subject_reaches_the_pipeline(
+        self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
+    ) -> None:
+        """An upload names its subject too. Without it the report was filed under the
+        file's hash, and the caller's candidate never saw their own evidence in M6."""
+        r = client.post(
+            "/v1/verifications",
+            headers=auth,
+            files={"document": ("cv.pdf", b"%PDF-", "application/pdf")},
+            data={"subject": '{"subject_ref": "subject:3f9a"}'},
+        )
+        assert r.status_code == 202
+        assert started[0]["subject"].subject_ref == "subject:3f9a"
+
     def test_malformed_options_are_a_422_that_says_so(
         self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
     ) -> None:

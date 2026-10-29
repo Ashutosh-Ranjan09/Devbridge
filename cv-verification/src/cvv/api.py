@@ -305,8 +305,8 @@ def _fire_webhooks(verification_id: str) -> None:
 
 async def _incoming(http: Request) -> tuple[VerificationRequest, UploadFile | None]:
     """The spec's body, "multipart or JSON". In multipart, `document` is the file and
-    `options` / `external_signals` / `document_url` are form fields, the first two
-    JSON-encoded. Anything malformed is a 422 that says which field.
+    `options` / `external_signals` / `subject` / `document_url` are form fields, all but
+    the last JSON-encoded. Anything malformed is a 422 that says which field.
 
     A dependency rather than parameters because FastAPI cannot take a file and a JSON
     model in one signature: the first version declared both, so a JSON body never
@@ -319,10 +319,10 @@ async def _incoming(http: Request) -> tuple[VerificationRequest, UploadFile | No
             upload = form.get("document")
             fields: dict[str, Any] = {
                 k: v
-                for k in ("options", "external_signals", "document_url")
+                for k in ("options", "external_signals", "subject", "document_url")
                 if isinstance(v := form.get(k), str)
             }
-            for k in ("options", "external_signals"):
+            for k in ("options", "external_signals", "subject"):
                 if k in fields:
                     fields[k] = json.loads(fields[k])
             return (

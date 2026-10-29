@@ -55,18 +55,20 @@ export function errorOf(payload: unknown, status: number): { code: string; messa
 export async function call<T>(
   service: Service,
   path: string,
-  options: { method?: string; body?: unknown; timeoutMs?: number } = {},
+  // `body` is sent as JSON; `form` as multipart (fetch writes its boundary header).
+  options: { method?: string; body?: unknown; form?: FormData; timeoutMs?: number } = {},
 ): Promise<T> {
   const { url, key } = SERVICES[service];
   const headers: Record<string, string> = {};
   if (key) headers.Authorization = `Bearer ${key}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  const sends = options.body !== undefined || options.form !== undefined;
   let response: Response;
   try {
     response = await fetch(url + path, {
-      method: options.method ?? (options.body === undefined ? "GET" : "POST"),
+      method: options.method ?? (sends ? "POST" : "GET"),
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.form ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       cache: "no-store",
       signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
     });

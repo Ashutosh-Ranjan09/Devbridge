@@ -37,7 +37,7 @@ because the reasoning is worth more than the conclusion.
 | | |
 |---|---|
 | source | 33 modules, 11,468 lines |
-| tests | 23 files, **610 passing** (620 with Postgres, 5 live) |
+| tests | 23 files, **611 passing** (621 with Postgres, 5 live) |
 | quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |

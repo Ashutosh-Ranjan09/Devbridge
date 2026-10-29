@@ -10,7 +10,7 @@ renders behind `<Suspense>`.
 
 | | |
 |---|---|
-| Stack | Next.js 16 (App Router, Cache Components) · React 19 · TypeScript · Tailwind 4 · Prisma 7 + SQLite (better-sqlite3 adapter) · Zod 4 · bcryptjs · Vitest |
+| Stack | Next.js 16 (App Router, Cache Components) · React 19 · TypeScript · Tailwind 4 · Prisma 7 + SQLite (better-sqlite3 adapter) · Zod 4 · bcryptjs · react-markdown · Vitest |
 | Data | `.data/web.db` (gitignored): users, sessions, organisations, and links to module ids |
 | Checks | `npm run check` — `next typegen`, `tsc`, ESLint, Vitest |
 
@@ -40,9 +40,16 @@ src/lib/session.ts      create · read · delete a database session
 src/lib/auth.ts         currentUser() and requireRole(): the only cookie → person path
 src/lib/password.ts     bcrypt, cost 12
 src/lib/definitions.ts  Zod schemas for every form
-src/lib/services.ts     call() to M5 · M6 · assessment; health()
+src/lib/services.ts     call() to M5 · M6 · assessment (JSON or multipart); health()
+src/lib/types.ts        the fields of each module's answers that pages read
+src/lib/candidate.ts    requireCandidate(); myVerification() / myAssessment(): theirs, or 404
+src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
 src/app/(auth)/         login, signup, and their server actions
-src/app/{candidate,recruiter,admin}/   one area per role
+src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
+                        assessments (practice, task, editor, result) · actions.ts
+src/app/{recruiter,admin}/   one area per role
+src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown ·
+                        candidate (the client components: forms, refresh, countdown, editor)
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
@@ -70,9 +77,27 @@ tests/                  Vitest: actions against a temporary database; service ca
    password, with a comparison either way; the session table stores the token's
    SHA-256, never the token; the cookie is httpOnly, SameSite=Lax, Secure in production.
    Admins are made with `create-admin`, never by signing up.
+9. **Text from a module or a CV is shown as text.** React escapes it; Markdown (task
+   stories and requirements) only through react-markdown, which renders no raw HTML —
+   never add `rehype-raw`, never `dangerouslySetInnerHTML`. A CV can carry anything.
+10. **Another user's id is a 404, the same as an id that does not exist** (`myVerification`,
+    `myAssessment`), so ids cannot be probed. Load a row through its owner, never by id alone.
+11. **Evidence reaches M6 unchanged and at least once.** `lib/sync.ts` forwards a report
+    or a result exactly as the module returned it; M6's ingest is idempotent, so a retry
+    is safe, and `sentToM6At` is set only once M6 has accepted it. A module being down
+    delays the evidence (`after()`, retried from the skills page), never a page.
 
 ## Known limits, stated
 
 - No rate limit on login, no email verification, no password reset.
 - `create-admin` shows the password as it is typed (it stays out of shell history).
 - A session is not rotated on use; it lasts seven days or until logout.
+- A running verification is polled every 4 s by re-rendering the page.
+- M5 without `CVV_DATABASE_URL` keeps reports in memory: after a restart, a report page
+  says M5 does not know the verification.
+- Every session read calls `connection()`: Next 16 prefetches linked pages by
+  prerendering them, and a session (its expiry check reads the clock) must not be
+  decided there. Prefetches stop at the static shell.
+- Not built: jobs and applying (with the recruiter pages); adding context to a "needs
+  context" finding (M5's attestation is out of scope); the CLI's "also checked, nothing
+  raised" lines, which M5 computes for the CLI and does not put in the report.

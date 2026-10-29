@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { form, jar, redirectOf } from "./next";
+import { form, jar, redirectOf, resetDb } from "./next";
 
 const { login, logout, signup } = await import("@/app/(auth)/actions");
 const { currentUser, requireRole } = await import("@/lib/auth");
@@ -19,11 +19,7 @@ const recruiter = (extra: Record<string, string> = {}) =>
 
 beforeEach(async () => {
   jar.clear();
-  await db.session.deleteMany();
-  await db.membership.deleteMany();
-  await db.organisation.deleteMany();
-  await db.candidate.deleteMany();
-  await db.user.deleteMany();
+  await resetDb();
 });
 
 describe("signing up", () => {

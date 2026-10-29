@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 import { SESSION_COOKIE } from "./cookie";
 import { db } from "./db";
@@ -30,6 +31,10 @@ export async function createSession(userId: string): Promise<void> {
 
 /** The user id behind this request's cookie, or null. An expired session is removed. */
 export async function sessionUserId(): Promise<string | null> {
+  // A session is decided at request time, never in a prerender: Next 16 prefetches
+  // linked pages by prerendering them, and refuses the `new Date()` below there.
+  // Prefetches stop here, at the static shell, which is right for signed-in content.
+  await connection();
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await db.session.findUnique({ where: { tokenHash: hashToken(token) } });
