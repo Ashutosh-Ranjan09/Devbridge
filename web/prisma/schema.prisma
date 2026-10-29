@@ -1,0 +1,163 @@
+// The web layer's own data: who people are, and which module ids are theirs.
+//
+// Never a copy of a report, a score, a job's skills or a result — each is fetched from
+// the module that owns it (M5, M6, assessment), so there is one source of truth.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum OrgKind {
+  ENTERPRISE
+  CLIENT
+}
+
+enum ApplicationStatus {
+  APPLIED
+  ASSESSMENT_SENT
+  SUBMITTED
+  DECIDED
+}
+
+enum Outcome {
+  ADVANCE
+  REJECT
+  HIRE
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  role         Role
+  createdAt    DateTime     @default(now())
+  sessions     Session[]
+  candidate    Candidate?
+  memberships  Membership[]
+  jobsCreated  Job[]
+  decisions    Decision[]
+}
+
+/// A login. The cookie holds a random token; only its SHA-256 is stored, so a copy
+/// of this database cannot be used to sign in as anyone.
+model Session {
+  tokenHash String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Organisation {
+  id      String       @id @default(cuid())
+  name    String
+  kind    OrgKind
+  members Membership[]
+  jobs    Job[]
+}
+
+model Membership {
+  userId String
+  orgId  String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org    Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@id([userId, orgId])
+}
+
+model Candidate {
+  userId           String         @id
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Pseudonymous: the only identity M5, M6 and assessment ever see. Never a name or
+  /// email (the contract's rule), so only this table knows who a subject is.
+  subjectRef       String         @unique
+  githubHandle     String?
+  codeforcesHandle String?
+  leetcodeHandle   String?
+  verifications    Verification[]
+  applications     Application[]
+  assessments      Assessment[]
+}
+
+model Verification {
+  /// M5's verification_id.
+  id          String    @id
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [userId])
+  fileName    String
+  createdAt   DateTime  @default(now())
+  /// Set once M6 has accepted the report.
+  sentToM6At  DateTime?
+
+  @@index([candidateId])
+}
+
+model Job {
+  /// assessment's job_id; the skills and their status live there.
+  id           String        @id
+  title        String
+  orgId        String
+  org          Organisation  @relation(fields: [orgId], references: [id])
+  createdById  String
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  /// Listed for candidates; only a confirmed job is opened.
+  open         Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  applications Application[]
+
+  @@index([orgId])
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  jobId       String
+  job         Job               @relation(fields: [jobId], references: [id])
+  candidateId String
+  candidate   Candidate         @relation(fields: [candidateId], references: [userId])
+  status      ApplicationStatus @default(APPLIED)
+  createdAt   DateTime          @default(now())
+  assessments Assessment[]
+  decision    Decision?
+
+  @@unique([jobId, candidateId])
+}
+
+model Assessment {
+  /// assessment's session_id.
+  id            String       @id
+  candidateId   String
+  candidate     Candidate    @relation(fields: [candidateId], references: [userId])
+  /// Null: practice, not for a job.
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
+  createdAt     DateTime     @default(now())
+  sentToM6At    DateTime?
+
+  @@index([candidateId])
+}
+
+/// A person decided: who, what, why and when. Never the system.
+model Decision {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+  decidedById   String
+  decidedBy     User        @relation(fields: [decidedById], references: [id])
+  outcome       Outcome
+  reason        String
+  createdAt     DateTime    @default(now())
+}

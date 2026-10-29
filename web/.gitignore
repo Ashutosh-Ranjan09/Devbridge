@@ -1,0 +1,13 @@
+/node_modules
+/.next/
+/coverage
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+
+# The Prisma client is generated on install (postinstall).
+/src/generated/
+
+# Secrets, and the database — it holds names, emails and password hashes. Local only.
+.env
+/.data/

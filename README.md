@@ -1,12 +1,14 @@
 # DevBridge — verified skills from a CV
 
-Three modules of the DevBridge platform, in one repository. A B.Tech project.
+Three modules of the DevBridge platform and the website in front of them, in one
+repository. A B.Tech project.
 
 | | Module | What it does |
 |---|---|---|
 | [`cv-verification/`](cv-verification/) | **M5 · CV Verification Engine** | checks a CV against the systems it names — GitHub, Codeforces, LeetCode, CodeChef, live deployments — and reports evidence, with provenance. No score, no verdict |
 | [`skill-graph/`](skill-graph/) | **M6 · Verified Skill Graph** | turns that report into a per-skill estimate of ability, as an interval, that decays as evidence ages and can be explained event by event. No overall score |
 | [`assessment/`](assessment/) | **Assessment** | turns a job description into confirmed skill requirements, shortlists candidates through the skill graph, and gives each a unique, equally hard coding task, run in a sandbox and scored by hidden tests. The result goes back into the skill graph |
+| [`web/`](web/) | **Web** | the website: candidates, recruiters and admins sign in; it calls the three modules over HTTP and keeps only accounts and links to their ids |
 | [`schemas/`](schemas/) | the contract | `verification-report.schema.json` (M5's output, M6's input), `evidence-event.schema.json` (M6's events), reference payloads, `skills/` — the one skill list every module uses — and `job-requirements.schema.json` |
 | [`docs/`](docs/) | design pages | the check catalogue, the integration spec, the CV-to-skill-graph shapes, the platform plan |
 
@@ -52,10 +54,11 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 610 |
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 584, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 93; `-m docker` 10, `-m slow` 1 more |
+| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 21 |
 
 ## Personal data
 
 `cv-verification/docs/` holds real CVs, and a verification report names a real person.
 Reports, caches (`cv-verification/.cache/`), run output (`cv-verification/out/`) and
-M6's `evidence.db`, and the assessment module's `.data/` (jobs, sessions, submitted code)
-stay on this machine; all but the CVs are ignored by git.
+M6's `evidence.db`, the assessment module's `.data/` (jobs, sessions, submitted code) and
+the web layer's `.data/` (accounts, password hashes) stay on this machine; all but the CVs are ignored by git.

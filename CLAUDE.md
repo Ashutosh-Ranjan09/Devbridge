@@ -1,13 +1,14 @@
-# DevBridge — M5, M6 and assessment
+# DevBridge — M5, M6, assessment and web
 
-Three modules, one repository. Each has its own CLAUDE.md with its guardrails; read the
-one for the module you are working in.
+Three modules and a web layer, one repository. Each has its own CLAUDE.md with its
+guardrails; read the one for the folder you are working in.
 
 | | Folder | Tooling |
 |---|---|---|
 | M5 · CV verification | `cv-verification/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict`; run commands from inside the folder (`.env`, `.cache/` are relative to it) |
 | M6 · skill graph | `skill-graph/` — see its `CLAUDE.md` | stdlib + pyyaml + jsonschema · `make test` / `make all`; `PYTHONPATH=packages` |
 | Assessment | `assessment/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict` · Docker for the sandbox; settings from `assessment/.env` wherever you run it |
+| Web | `web/` — see its `CLAUDE.md` | Next.js 16 · TypeScript · Prisma 7 + SQLite · Vitest · `npm run check`; the only part a browser talks to, and it reaches the modules over HTTP |
 | The contract | `schemas/` | read by every module; one copy, so a change reaches all of them |
 | The skill list | `schemas/skills/` | `ontology.yaml` (skills, tiers, links) and `aliases.yaml`; M5 resolves names against it, M6 scores by it, assessment tags patterns and JD skills with it |
 | Job requirements | `schemas/job-requirements.schema.json` | a confirmed job's must-haves (with bars) and nice-to-haves; assessment writes it, M6's shortlist reads it |

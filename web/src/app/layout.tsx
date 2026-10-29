@@ -1,0 +1,49 @@
+import "./globals.css";
+
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
+
+import { logout } from "@/app/(auth)/actions";
+import { currentUser, HOME } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "DevBridge",
+  description: "Developer CVs checked against evidence, skills from that evidence, and fair coding tasks.",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html lang="en" className="h-full antialiased">
+      <body className="flex min-h-full flex-col">
+        <header className="border-b border-line bg-panel">
+          <nav className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
+            <Link href="/" className="font-semibold">DevBridge</Link>
+            {/* The session is read per request, so it streams in; the rest of the
+                header is part of the static shell. */}
+            <Suspense fallback={null}>
+              <Account />
+            </Suspense>
+          </nav>
+        </header>
+        {children}
+      </body>
+    </html>
+  );
+}
+
+async function Account() {
+  const user = await currentUser();
+  if (!user) {
+    return <Link href="/login" className="text-sm text-accent underline">Log in</Link>;
+  }
+  return (
+    <div className="flex items-center gap-4 text-sm">
+      <Link href={HOME[user.role]}>{user.name}</Link>
+      <span className="text-muted">{user.role.toLowerCase()}</span>
+      <form action={logout}>
+        <button type="submit" className="text-accent underline">Log out</button>
+      </form>
+    </div>
+  );
+}
