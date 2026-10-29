@@ -35,6 +35,7 @@ from cvv.models import (
     EvidenceBundle,
     Gap,
     GapReason,
+    Handles,
     Platform,
     PlatformEvidence,
 )
@@ -179,7 +180,7 @@ class Account:
         return self.login is None and bool(self.undecided)
 
 
-def github_account(graph: ClaimGraph) -> Account:
+def github_account(graph: ClaimGraph, typed: str | None = None) -> Account:
     """The account the CV's GitHub claims are about.
 
     Version 1 took `sorted(owners)[0]`. A CV linking its own `ar009/cf-connect` and
@@ -197,6 +198,9 @@ def github_account(graph: ClaimGraph) -> Account:
 
     Repositories under any other owner are not set aside. They are checked as what
     they are — the named account's possible contributions to someone else's code.
+
+    `typed` is a username the candidate typed on upload. It counts as stated only when
+    the CV states none, so it can settle a tie but never replace the CV's own answer.
     """
     casing: dict[str, str] = {}  # lowercased login -> the document's own casing
     linked: dict[str, list[str]] = {}  # lowercased owner -> repository names, as linked
@@ -226,6 +230,10 @@ def github_account(graph: ClaimGraph) -> Account:
         if key not in stated:
             stated.append(key)
 
+    if not stated and typed:
+        casing.setdefault(typed.lower(), typed)
+        stated = [typed.lower()]
+
     candidates = stated or list(linked)
     if not candidates:
         return Account(login=None)
@@ -248,15 +256,38 @@ def github_account(graph: ClaimGraph) -> Account:
     )
 
 
-def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
-    """Everything the CV named, or a typed gap saying why not."""
+def typed_handles(graph: ClaimGraph, typed: Handles | None) -> dict[str, str]:
+    """The typed handles actually used: those for a platform the CV names no handle on.
+
+    The CV wins because it is what is being checked: a typed handle that replaced the
+    CV's would let a candidate swap in a better account than the one their CV names.
+    """
+    if typed is None:
+        return {}
+    from cvv.extract import platform_handles
+
+    in_cv = {p.value for p in platform_handles(graph)}
+    if github_account(graph).login:
+        in_cv.add("github")
+    return {k: v for k, v in typed.model_dump().items() if v and k not in in_cv}
+
+
+def gather(
+    graph: ClaimGraph, *, bundle_id: str = "eb_001", typed: Handles | None = None
+) -> EvidenceBundle:
+    """Everything the CV named, or a typed gap saying why not. `typed`: handles the
+    candidate typed on upload, used only where the CV names none (`typed_handles`)."""
     began = time.monotonic()
     from cvv.extract import platform_handles  # local import: gather is imported by tests
 
     platforms: list[PlatformEvidence] = []
     gaps: list[Gap] = []
 
+    used = typed_handles(graph, typed)
     handles = platform_handles(graph)
+    for platform in (Platform.CODEFORCES, Platform.LEETCODE, Platform.CODECHEF):
+        if platform.value in used:
+            handles[platform] = used[platform.value]
     if Platform.CODEFORCES in handles:
         result = gather_codeforces(handles[Platform.CODEFORCES])
         (gaps if isinstance(result, Gap) else platforms).append(result)  # type: ignore[arg-type]
@@ -296,7 +327,7 @@ def gather(graph: ClaimGraph, *, bundle_id: str = "eb_001") -> EvidenceBundle:
         )
 
     github = None
-    account = github_account(graph)
+    account = github_account(graph, typed=used.get("github"))
     if account.login:
         gh = gather_github(account.login, account.own, elsewhere=account.elsewhere)
         if isinstance(gh, Gap):

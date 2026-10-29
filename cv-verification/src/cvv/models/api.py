@@ -71,12 +71,29 @@ class Subject(Model):
     consent_ref: str | None = None
 
 
+# A platform username: letters, digits, `_ . -`, at most 39 characters (GitHub's limit,
+# the longest of the four). Anything else is refused before it reaches a URL.
+HANDLE = r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,38}$"
+
+
+class Handles(Model):
+    """Handles the candidate typed on upload. They fill in what the CV leaves out; a
+    handle the CV states wins. Typed, not proven: ownership stays claimed_unverified,
+    exactly as for a handle read from the CV. Every field is optional."""
+
+    github: str | None = Field(default=None, pattern=HANDLE)
+    codeforces: str | None = Field(default=None, pattern=HANDLE)
+    leetcode: str | None = Field(default=None, pattern=HANDLE)
+    codechef: str | None = Field(default=None, pattern=HANDLE)
+
+
 class VerificationRequest(Model):
     """The JSON body. A multipart upload carries the file instead of `document_url`."""
 
     document_url: Url | None = None
     subject: Subject | None = None
     external_signals: ExternalSignals | None = None
+    handles: Handles | None = None
     options: VerificationOptions = Field(default_factory=VerificationOptions)
 
 
@@ -95,6 +112,10 @@ class ReportProvenance(Model):
     prompt_versions: dict[str, str] = Field(default_factory=dict)
     rule_versions: dict[str, str]
     sources_queried: list[dict[str, object]] = Field(default_factory=list)
+    # Not in the contract: handles the candidate typed on upload that were used, because
+    # the CV names none for that platform. Without it a reader cannot tell an account
+    # the candidate typed from one the CV names.
+    typed_handles: dict[str, str] = Field(default_factory=dict)
 
 
 class SkillDecision(Model):

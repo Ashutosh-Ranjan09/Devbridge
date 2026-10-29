@@ -51,6 +51,7 @@ KNOWN_EXTENSIONS = {
     "Narrative.rejected_because",       # why the model's prose was not used
     "VerificationReport.failure",       # why a verification failed; no contract field
     "VerificationReport.skill_resolution",  # which shared skill each name means, for M6
+    "ReportProvenance.typed_handles",   # accounts the candidate typed, not the CV
 }
 
 
@@ -208,8 +209,10 @@ class TestWhatWeEmit:
         report = verification_report(
             verification_id="vr_t", document=document, graph=graph, bundle=evidence,
             findings=assemble(graph, evidence, report_id="fr_t", document=document),
+            typed_handles={"leetcode": "asha_r"},
         )
         payload = json.loads(report.model_dump_json())
+        assert payload["provenance"]["typed_handles"] == {"leetcode": "asha_r"}
         allowed = {name.split(".")[1] for name in KNOWN_EXTENSIONS}
         errors = list(
             jsonschema.Draft202012Validator(json.loads(REPORT_SCHEMA.read_text()))

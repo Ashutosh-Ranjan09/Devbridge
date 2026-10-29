@@ -17,7 +17,9 @@ export default function CvPage() {
             live links. It takes about a minute. Text that is hidden in the file is never read by a model,
             and is reported.
           </p>
-          <UploadCv />
+          <Suspense fallback={<Loading />}>
+            <Upload />
+          </Suspense>
         </Card>
         <Suspense fallback={<Loading />}>
           <History />
@@ -25,6 +27,13 @@ export default function CvPage() {
       </div>
     </Page>
   );
+}
+
+async function Upload() {
+  const me = await requireCandidate();
+  const c = await db.candidate.findUniqueOrThrow({ where: { userId: me.id } });
+  const saved = { github: c.githubHandle, codeforces: c.codeforcesHandle, leetcode: c.leetcodeHandle, codechef: c.codechefHandle };
+  return <UploadCv saved={Object.fromEntries(Object.entries(saved).filter(([, v]) => v !== null)) as Record<string, string>} />;
 }
 
 async function History() {

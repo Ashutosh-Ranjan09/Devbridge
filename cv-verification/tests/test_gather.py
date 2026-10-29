@@ -8,13 +8,14 @@ repositories are checked how, and how a URL that never answered is recorded.
 from __future__ import annotations
 
 import datetime
+from collections.abc import Callable
 
 import pytest
 
 from cvv import gather as gather_module
 from cvv.extract import _artefact
-from cvv.gather import github_account
-from cvv.models import ClaimKind, DeploymentEvidence, Gap, GapReason
+from cvv.gather import github_account, typed_handles
+from cvv.models import ClaimKind, DeploymentEvidence, Gap, GapReason, Handles
 from tests.cvdata import CC_RATING, CF_RANK, CF_RATING, DOCUMENT, make_claim, make_graph
 
 
@@ -171,3 +172,78 @@ class TestGather:
         gap = next(g for g in bundle.gaps if g.source == "deployments")
         assert gap.reason is GapReason.UNREACHABLE
         assert "either side's network" in (gap.detail or "")
+
+
+class TestTypedHandles:
+    """Handles the candidate typed on upload fill in what the CV leaves out. The CV's
+    own handle wins: it is what is being checked, and a typed handle that replaced it
+    would let a candidate swap in a better account than the one their CV names."""
+
+    @pytest.fixture
+    def platforms(
+        self, monkeypatch: pytest.MonkeyPatch, offline: list[tuple[str, list[str], list[tuple[str, str]]]]
+    ) -> list[tuple[str, str]]:
+        asked: list[tuple[str, str]] = []
+
+        def connector(name: str) -> Callable[[str], Gap]:
+            def fetch(handle: str) -> Gap:
+                asked.append((name, handle))
+                return Gap(source=name, reason=GapReason.UNREACHABLE, detail="offline")
+            return fetch
+
+        for name in ("codeforces", "leetcode"):
+            monkeypatch.setattr(gather_module, f"gather_{name}", connector(name))
+        return asked
+
+    def test_a_typed_handle_is_fetched_when_the_cv_names_none(
+        self, platforms: list[tuple[str, str]]
+    ) -> None:
+        graph = make_graph([], DOCUMENT)
+        bundle = gather_module.gather(graph, typed=Handles(leetcode="asha_r"))
+        assert platforms == [("leetcode", "asha_r")]
+        assert typed_handles(graph, Handles(leetcode="asha_r")) == {"leetcode": "asha_r"}
+        assert not any(g.reason is GapReason.NO_HANDLE_IN_CV and g.source == "leetcode"
+                       for g in bundle.gaps)
+
+    def test_the_cvs_own_handle_wins(self, platforms: list[tuple[str, str]]) -> None:
+        doc = DOCUMENT + " Codeforces: ar009"
+        cf = make_claim("Codeforces: ar009", doc, claim_id="ccf", kind=ClaimKind.PROFILE,
+                        platform="codeforces", handle="ar009")
+        graph = make_graph([cf], doc)
+        typed = Handles(codeforces="someone_better")
+        gather_module.gather(graph, typed=typed)
+        assert platforms == [("codeforces", "ar009")]
+        assert typed_handles(graph, typed) == {}
+
+    def test_a_typed_github_username_settles_a_tie(
+        self, offline: list[tuple[str, list[str], list[tuple[str, str]]]]
+    ) -> None:
+        graph = make_graph(
+            [
+                project(CF_RANK, "cproj01", "https://github.com/ar009/cf-connect"),
+                project(CF_RATING, "cproj02", "https://github.com/apache/kafka"),
+            ],
+            DOCUMENT,
+        )
+        gather_module.gather(graph, typed=Handles(github="ar009"))
+        assert offline == [("ar009", ["cf-connect"], [("apache", "kafka")])]
+
+    def test_a_typed_github_username_never_replaces_the_cvs_account(
+        self, offline: list[tuple[str, list[str], list[tuple[str, str]]]]
+    ) -> None:
+        graph = make_graph(
+            [
+                project(CF_RANK, "cproj01", "https://github.com/ar009/cf-connect"),
+                project(CF_RATING, "cproj02", "https://github.com/ar009/atma"),
+            ],
+            DOCUMENT,
+        )
+        typed = Handles(github="someone_else")
+        gather_module.gather(graph, typed=typed)
+        assert [owner for owner, _, _ in offline] == ["ar009"]
+        assert typed_handles(graph, typed) == {}
+
+    def test_a_handle_that_is_not_a_username_is_refused(self) -> None:
+        """Before it reaches a URL: `/` or `?` in a handle would change what is fetched."""
+        with pytest.raises(ValueError):
+            Handles(codeforces="ar009/../../admin")

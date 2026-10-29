@@ -5,14 +5,30 @@ import { useActionState, useEffect, useRef, useState } from "react";
 
 import { startPractice, submitSolution, uploadCv } from "@/app/candidate/actions";
 
-import { Button } from "./ui";
+import { Button, Field } from "./ui";
 
-export function UploadCv() {
+const PLATFORMS = [["github", "GitHub"], ["codeforces", "Codeforces"], ["leetcode", "LeetCode"], ["codechef", "CodeChef"]] as const;
+
+/** `saved`: the handles typed last time. A refused upload shows what was typed instead;
+ * the file itself must be chosen again (a browser never refills a file input). */
+export function UploadCv({ saved }: { saved: Record<string, string> }) {
   const [state, action, pending] = useActionState(uploadCv, undefined);
+  const value = (k: string) => state?.values?.[k] ?? saved[k];
   return (
     <form action={action} className="space-y-3">
       <input type="file" name="cv" accept=".pdf,.docx" className="block w-full text-sm" />
       {state?.errors?.cv?.map((e) => <p key={e} className="text-sm text-danger">{e}</p>)}
+      <fieldset>
+        <legend className="text-sm font-medium">Your usernames, if the CV leaves any out (optional)</legend>
+        <p className="mb-2 text-xs text-muted">
+          Leave a box empty if you have no account there. A username the CV itself states is the one checked.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {PLATFORMS.map(([name, label]) => (
+            <Field key={name} label={label} name={name} defaultValue={value(name)} errors={state?.errors?.[name]} />
+          ))}
+        </div>
+      </fieldset>
       {state?.message && <p className="text-sm text-danger">{state.message}</p>}
       <Button pending={pending}>Check this CV</Button>
     </form>

@@ -12,7 +12,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 **31 of the 43 catalogued checks are built — every one in scope — and the pipeline
 runs end to end** on `docs/CV-SDE-AR.pdf`: 30 registered rules plus the narrative
-(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 611 tests, ~11,400 lines across 33
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 618 tests, ~11,400 lines across 33
 modules, ruff and `mypy --strict` clean.
 
 The other twelve are not pending. **C1–C4 are out of scope** for this project — a
@@ -109,13 +109,13 @@ quarantined, every one. Three things the first real handoff taught:
 **We are ahead of the contract, and it is written down rather than silent.** 25 of the
 27 definitions in `verification-report.schema.json` set `additionalProperties: false`,
 so a field added here is a field that makes our output INVALID for a consumer
-validating against the schema. Ten exist —`ExtractionMeta.filtered`,
+validating against the schema. Eleven exist —`ExtractionMeta.filtered`,
 `RepoEvidence.authored_files/authored_bytes/homepage`,
 `GitHubEvidence.public_repos/public_repo_count`, `RuleOutcome.note`,
 `Narrative.rejected_because`, `VerificationReport.failure`,
-`VerificationReport.skill_resolution` — each load-bearing, and each
-added unilaterally. The eighth was there all along and listed nowhere: `Narrative` was
-not among the models the test compared. M6 tolerates all ten, because it does not
+`VerificationReport.skill_resolution`, `ReportProvenance.typed_handles` — each
+load-bearing, and each added unilaterally. The eighth was there all along and listed
+nowhere: `Narrative` was not among the models the test compared. M6 tolerates all eleven, because it does not
 validate the report it reads. The integration spec predicted exactly this:
 *"one person adds a field locally, the other never sees it, and integration breaks in
 week 7."*
@@ -123,7 +123,7 @@ week 7."*
 `tests/test_contract.py` now holds them as a NAMED list and fails on anything else, and
 it round-trips the three reference payloads — the phase 0 guarantee, which was lost in
 the clean-slate rebuild and restored only after roughly twenty model changes had gone
-unchecked. Resolving the ten needs a contract version bump, which the spec says takes
+unchecked. Resolving the eleven needs a contract version bump, which the spec says takes
 both owners.
 
 **Which skill a name means is resolved here, against one shared list.** M6 scores
@@ -258,6 +258,17 @@ It does not see an education or employment section left out.
 Both rules need the file, which a claim graph does not carry, so they read
 `Context.reading` — internal, never serialised, because the contract's `document`
 object is closed — and abstain on /v1/evaluate, which holds only a claim graph.
+
+**Handles the candidate types on upload fill in what the CV leaves out, never replace
+it.** `POST /v1/verifications` takes an optional `handles` object (`github`, `codeforces`,
+`leetcode`, `codechef`; a username pattern, nothing else). `gather.typed_handles` keeps one
+only for a platform the CV names no handle on — and for GitHub only when the CV settles no
+account, so a typed username can break a tie but never replace the CV's. The CV wins
+because it is what is being checked: otherwise a candidate could swap in a better account
+than the one their CV names. A typed handle is as unproven as one read from the CV
+(`claimed_unverified`), and the report lists the ones used in
+`provenance.typed_handles`, so a reader can tell an account the candidate typed from one
+the CV names.
 
 Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `filters` ·
 `dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` · `skills` ·

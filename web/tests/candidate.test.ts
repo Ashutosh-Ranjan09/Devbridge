@@ -79,6 +79,37 @@ describe("uploading a CV", () => {
     expect(await db.verification.count()).toBe(0);
   });
 
+  it("typed usernames go to M5 and are kept for next time; empty boxes send nothing", async () => {
+    modules({ "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_1", status: "queued" }] });
+    const f = new FormData();
+    f.set("cv", PDF());
+    f.set("leetcode", " asha_r ");
+    f.set("github", "");
+    await redirectOf(uploadCv(undefined, f));
+    expect(JSON.parse(String((sent[0].body as FormData).get("handles")))).toEqual({ leetcode: "asha_r" });
+    expect(await db.candidate.findUniqueOrThrow({ where: { userId: asha } })).toMatchObject({
+      leetcodeHandle: "asha_r", githubHandle: null, codeforcesHandle: null, codechefHandle: null,
+    });
+
+    modules({ "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_2", status: "queued" }] });
+    const g = new FormData();
+    g.set("cv", PDF());
+    await redirectOf(uploadCv(undefined, g));
+    expect((sent[1].body as FormData).has("handles")).toBe(false);
+    expect((await db.candidate.findUniqueOrThrow({ where: { userId: asha } })).leetcodeHandle).toBeNull(); // emptied, so cleared
+  });
+
+  it("a link instead of a username is refused before anything is sent, and what was typed comes back", async () => {
+    modules({});
+    const f = new FormData();
+    f.set("cv", PDF());
+    f.set("codeforces", "https://codeforces.com/profile/asha");
+    const state = await uploadCv(undefined, f);
+    expect(state?.errors?.codeforces).toBeDefined();
+    expect(state?.values?.codeforces).toBe("https://codeforces.com/profile/asha");
+    expect(sent).toEqual([]);
+  });
+
   it("another candidate's report is a 404, the same as one that does not exist", async () => {
     const ravi = await candidate("ravi@example.com", "subject:bbbb");
     await db.verification.create({ data: { id: "vr_ravi", candidateId: ravi, fileName: "r.pdf" } });

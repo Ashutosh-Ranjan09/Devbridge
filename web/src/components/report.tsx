@@ -22,6 +22,7 @@ export function ReportView({ report, marks, review, mine = false }: {
   const claims = new Map(report.claim_graph.claims.map((c) => [c.claim_id, c]));
   const { buckets } = report.findings;
   const c = report.coverage;
+  const typedHandles = Object.entries(report.provenance?.typed_handles ?? {});
   return (
     <div className="space-y-4">
       <Card>
@@ -33,6 +34,15 @@ export function ReportView({ report, marks, review, mine = false }: {
         <p className="mt-1 text-sm text-muted">
           Coverage describes the verification, not {mine ? "you" : "the candidate"}.
         </p>
+        {typedHandles.length > 0 && (
+          <p className="mt-2 text-sm">
+            Accounts {mine ? "you" : "the candidate"} typed on upload, because the CV names none:{" "}
+            {typedHandles.map(([platform, handle], i) => (
+              <span key={platform}>{i > 0 && ", "}{platform} <code>{handle}</code></span>
+            ))}
+            .
+          </p>
+        )}
         {report.status === "completed_degraded" && (
           <p className="mt-2 text-sm">Some sources did not answer, so running it again may check more.</p>
         )}

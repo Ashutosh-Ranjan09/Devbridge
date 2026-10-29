@@ -41,6 +41,8 @@ export type Report = {
   };
   narrative: { summary: string; model_id: string; fallback_used: boolean; rejected_because: string | null } | null;
   coverage: { rules_total: number; rules_evaluated: number; rules_abstained: number; coverage: number };
+  /** typed_handles: usernames the candidate typed that M5 used, because the CV names none. */
+  provenance?: { typed_handles?: Record<string, string> };
   valid_as_of: string;
 };
 

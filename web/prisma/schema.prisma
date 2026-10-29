@@ -91,9 +91,12 @@ model Candidate {
   /// Pseudonymous: the only identity M5, M6 and assessment ever see. Never a name or
   /// email (the contract's rule), so only this table knows who a subject is.
   subjectRef       String         @unique
+  /// Handles the candidate typed on upload, kept to fill the form next time. Sent to
+  /// M5 with each CV, which uses one only where the CV names none for that platform.
   githubHandle     String?
   codeforcesHandle String?
   leetcodeHandle   String?
+  codechefHandle   String?
   verifications    Verification[]
   applications     Application[]
   assessments      Assessment[]

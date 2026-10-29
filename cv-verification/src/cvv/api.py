@@ -41,7 +41,7 @@ from starlette.datastructures import UploadFile as StarletteUpload
 from cvv import __version__
 from cvv.config import settings
 from cvv.extract import extract
-from cvv.gather import gather
+from cvv.gather import gather, typed_handles
 from cvv.ids import stable_id
 from cvv.ingest import document_info, read, reading
 from cvv.logs import configure, get
@@ -53,6 +53,7 @@ from cvv.models import (
     FindingsReport,
     Gap,
     GapReason,
+    Handles,
     Narrative,
     ProvenanceView,
     ReportProvenance,
@@ -145,6 +146,7 @@ def run_verification(
     offline: bool,
     want_narrative: bool,
     subject: Subject | None = None,
+    handles: Handles | None = None,
 ) -> None:
     """The whole pipeline, and never an exception.
 
@@ -167,7 +169,7 @@ def run_verification(
         bundle = (
             _offline_bundle(graph, f"eb_{doc.document_id[4:]}")
             if offline
-            else gather(graph, bundle_id=f"eb_{doc.document_id[4:]}")
+            else gather(graph, bundle_id=f"eb_{doc.document_id[4:]}", typed=handles)
         )
         findings = assemble(
             graph,
@@ -185,6 +187,7 @@ def run_verification(
             subject=subject,
             narrative=_narrative(findings) if want_narrative else None,
             skill_resolution=resolve_skills(graph, bundle, default_provider()),
+            typed_handles={} if offline else typed_handles(graph, handles),
         )
         log.info(
             "verification.completed",
@@ -305,8 +308,8 @@ def _fire_webhooks(verification_id: str) -> None:
 
 async def _incoming(http: Request) -> tuple[VerificationRequest, UploadFile | None]:
     """The spec's body, "multipart or JSON". In multipart, `document` is the file and
-    `options` / `external_signals` / `subject` / `document_url` are form fields, all but
-    the last JSON-encoded. Anything malformed is a 422 that says which field.
+    `options` / `external_signals` / `subject` / `handles` / `document_url` are form
+    fields, all but the last JSON-encoded. Anything malformed is a 422 that says which field.
 
     A dependency rather than parameters because FastAPI cannot take a file and a JSON
     model in one signature: the first version declared both, so a JSON body never
@@ -319,10 +322,10 @@ async def _incoming(http: Request) -> tuple[VerificationRequest, UploadFile | No
             upload = form.get("document")
             fields: dict[str, Any] = {
                 k: v
-                for k in ("options", "external_signals", "subject", "document_url")
+                for k in ("options", "external_signals", "subject", "handles", "document_url")
                 if isinstance(v := form.get(k), str)
             }
-            for k in ("options", "external_signals", "subject"):
+            for k in ("options", "external_signals", "subject", "handles"):
                 if k in fields:
                     fields[k] = json.loads(fields[k])
             return (
@@ -386,6 +389,7 @@ def create_verification(
         offline=request.options.offline,
         want_narrative=request.options.narrative,
         subject=request.subject,
+        handles=request.handles,
     )
     return VerificationAccepted(
         verification_id=verification_id, status="queued", estimated_seconds=30

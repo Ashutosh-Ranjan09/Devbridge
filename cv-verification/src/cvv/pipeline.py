@@ -84,12 +84,16 @@ def verification_report(
     subject: Subject | None = None,
     narrative: Narrative | None = None,
     skill_resolution: dict[str, SkillDecision] | None = None,
+    typed_handles: dict[str, str] | None = None,
 ) -> VerificationReport:
     """The contract's VerificationReport, from the stages that produced it.
 
     Built here and only here, so the CLI's file and the API's response are the same
     object — the one M6 reads. Nothing is computed that the stages did not already
     compute: status, coverage and provenance are read off them.
+
+    `typed_handles` (gather.typed_handles) go into `provenance.typed_handles`, so a
+    reader can tell an account the candidate typed from one the CV names.
     """
     prompts = {"extract": graph.extraction_meta.prompt_version}
     if narrative is not None:
@@ -110,6 +114,7 @@ def verification_report(
             model_id=graph.extraction_meta.model_id,
             prompt_versions=prompts,
             rule_versions={rule.rule_id: rule.rule_version for rule in REGISTRY},
+            typed_handles=dict(sorted((typed_handles or {}).items())),
         ),
         valid_as_of=findings.evaluated_at,
         skill_resolution=skill_resolution or {},

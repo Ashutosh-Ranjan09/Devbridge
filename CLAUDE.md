@@ -29,7 +29,7 @@ A change to either side of the seam is proven by running a real report through b
 not by either module's tests alone. The first real handoff broke at seven points —
 three in M5, four in M6 — and both test suites passed every one.
 
-- M5's report carries ten fields the schema does not define (listed in
+- M5's report carries eleven fields the schema does not define (listed in
   `cv-verification/tests/test_contract.py`). M6 tolerates them because it does not
   validate the report it reads.
 - Consent handling was removed from every module as out of scope for this project.

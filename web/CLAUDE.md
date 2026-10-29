@@ -130,6 +130,9 @@ tests/                  Vitest: actions against a temporary database; service ca
 - Blanking a bar that is already set keeps the old one: `jd.edit` reads "none" as "unchanged".
   Drop the skill and add it again to remove a bar.
 - The recruiter sees a candidate's latest CV report only.
+- Usernames typed on upload are kept on `Candidate` to fill the form next time, and an
+  emptied box clears one. M5 decides whether each is used (only where the CV names none);
+  the report says which were.
 - A line is keyed by its place in its bucket (findings by their id). That holds because
   M5 never changes a stored report; a re-check is a new verification with its own marks.
 - An admin's mark is not evidence for M6: making it count needs a new event kind in the

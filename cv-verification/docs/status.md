@@ -13,14 +13,14 @@
 | | Today | Notes |
 |---|---|---|
 | **Checks** | **31 / 31 in scope** | 30 rules + the narrative (C5). 43 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human. D13 and D14 added 29 Oct: hidden text, extraction coverage |
-| **Tests** | **611** passing · 621 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Tests** | **618** passing · 628 with Postgres | 0 failing; 5 live tests deselected by default |
 | **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
 | **Size** | 33 modules · 11,468 lines · 23 test files · 6,577 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | **Documents measured** | 3 | only the student CV since October |
-| **Contract** | 10 fields ahead of the schema | awaiting a decision |
+| **Contract** | 11 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 82, since 4 Sep | **no remote** |
+| **Commits** | 83, since 4 Sep | **no remote** |
 
 ---
 
@@ -42,7 +42,7 @@
 ```
 ruff check src tests                  PASS
 mypy --strict                         33 files, no issues
-pytest                                611 passed · 10 skipped (Postgres-only) · 0 failed
+pytest                                618 passed · 10 skipped (Postgres-only) · 0 failed
 cvv evaluate docs/CV-SDE-AR.pdf       18/18 detection · 0 collateral
 ```
 
@@ -93,9 +93,10 @@ our output invalid for a consumer validating against that schema:
 `ExtractionMeta.filtered` · `RepoEvidence.authored_files` · `RepoEvidence.authored_bytes`
 · `RepoEvidence.homepage` · `GitHubEvidence.public_repos` ·
 `GitHubEvidence.public_repo_count` · `RuleOutcome.note` · `Narrative.rejected_because` ·
-`VerificationReport.failure` · `VerificationReport.skill_resolution`
+`VerificationReport.failure` · `VerificationReport.skill_resolution` ·
+`ReportProvenance.typed_handles`
 
-M6 reads all ten without complaint, because it does not validate the report.
+M6 reads all eleven without complaint, because it does not validate the report.
 
 **Recommended:** generate `../schemas/` from the models at version `2.0.0` and retire
 the extension list — M6 reads the same folder, so one change reaches both.
@@ -112,7 +113,7 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 82 commits, now all three modules and the web layer, exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 83 commits, now all three modules and the web layer, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
 | 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |

@@ -37,7 +37,7 @@ because the reasoning is worth more than the conclusion.
 | | |
 |---|---|
 | source | 33 modules, 11,468 lines |
-| tests | 23 files, **611 passing** (621 with Postgres, 5 live) |
+| tests | 23 files, **618 passing** (628 with Postgres, 5 live) |
 | quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
@@ -1112,11 +1112,11 @@ pushes, and people whose real work is private.
 
 ## 19. Known issues and open decisions
 
-### Open: ten fields ahead of the contract
+### Open: eleven fields ahead of the contract
 
 25 of the 27 definitions in `verification-report.schema.json` set
 `additionalProperties: false`, so a field added here makes our output **invalid** for a
-consumer validating against the schema. Ten exist, each load-bearing:
+consumer validating against the schema. Eleven exist, each load-bearing:
 
 | Field | Needed by |
 |---|---|
@@ -1128,6 +1128,7 @@ consumer validating against the schema. Ten exist, each load-bearing:
 | `Narrative.rejected_because` | why the model's prose was not used — an extension that was never listed, because `Narrative` was not compared |
 | `VerificationReport.failure` | why a verification failed; the contract has no field for it |
 | `VerificationReport.skill_resolution` | which shared skill each name means, for M6 — §14 |
+| `ReportProvenance.typed_handles` | which accounts the candidate typed on upload rather than the CV naming them |
 
 `tests/test_contract.py` holds them as a **named list** and fails on anything else — and
 also fails if an entry stops being an extension, so the list cannot rot. The integration

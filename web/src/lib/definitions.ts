@@ -54,6 +54,22 @@ export const CvSchema = z.object({
     .refine((f) => /\.(pdf|docx)$/i.test(f.name), { error: "A .pdf or .docx file." }),
 });
 
+/** M5's own rule for a username (cvv.models.api.HANDLE), checked here so a wrong one
+ * is said beside its field. Every field is optional: blank is "I have no account". */
+const handle = z
+  .string()
+  .trim()
+  .refine((s) => s === "" || /^[A-Za-z0-9][A-Za-z0-9_.-]{0,38}$/.test(s), {
+    error: "A username only: letters, digits, _ . - (no link).",
+  })
+  .transform((s) => s || null);
+
+export const HANDLE_FIELDS = ["github", "codeforces", "leetcode", "codechef"] as const;
+export const HandlesSchema = z.object(Object.fromEntries(HANDLE_FIELDS.map((k) => [k, handle])) as Record<
+  (typeof HANDLE_FIELDS)[number],
+  typeof handle
+>);
+
 export const SubmissionSchema = z.object({
   code: z.string().min(1, { error: "Write some code first." }).max(200_000, { error: "At most 200,000 characters." }),
 });

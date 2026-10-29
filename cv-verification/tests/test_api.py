@@ -209,7 +209,7 @@ class TestTheRequestBody:
         )
         assert r.status_code == 202
         assert fetched == ["https://example.com/cv.pdf"]
-        assert started == [{"offline": True, "want_narrative": True, "subject": None}]
+        assert started == [{"offline": True, "want_narrative": True, "subject": None, "handles": None}]
 
     def test_multipart_options_reach_the_pipeline(
         self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
@@ -221,7 +221,7 @@ class TestTheRequestBody:
             data={"options": '{"offline": true, "narrative": false}'},
         )
         assert r.status_code == 202
-        assert started == [{"offline": True, "want_narrative": False, "subject": None}]
+        assert started == [{"offline": True, "want_narrative": False, "subject": None, "handles": None}]
 
     def test_multipart_subject_reaches_the_pipeline(
         self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
@@ -236,6 +236,32 @@ class TestTheRequestBody:
         )
         assert r.status_code == 202
         assert started[0]["subject"].subject_ref == "subject:3f9a"
+
+    def test_multipart_handles_reach_the_pipeline(
+        self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
+    ) -> None:
+        """Handles the candidate typed on upload; every one is optional."""
+        r = client.post(
+            "/v1/verifications",
+            headers=auth,
+            files={"document": ("cv.pdf", b"%PDF-", "application/pdf")},
+            data={"handles": '{"leetcode": "asha_r"}'},
+        )
+        assert r.status_code == 202
+        assert started[0]["handles"].model_dump() == {
+            "github": None, "codeforces": None, "leetcode": "asha_r", "codechef": None
+        }
+
+    def test_a_malformed_handle_is_a_422(
+        self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]
+    ) -> None:
+        r = client.post(
+            "/v1/verifications",
+            headers=auth,
+            files={"document": ("cv.pdf", b"%PDF-", "application/pdf")},
+            data={"handles": '{"github": "a b"}'},
+        )
+        assert r.status_code == 422 and started == []
 
     def test_malformed_options_are_a_422_that_says_so(
         self, client: TestClient, auth: dict[str, str], started: list[dict[str, Any]]

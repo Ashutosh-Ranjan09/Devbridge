@@ -258,7 +258,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 611 tests, no server needed
+uv run pytest                                   # 618 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy

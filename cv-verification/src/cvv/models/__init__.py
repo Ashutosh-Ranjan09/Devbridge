@@ -3,6 +3,7 @@
 from cvv.models.api import (
     ApiError,
     ExternalSignals,
+    Handles,
     Narrative,
     ProvenanceView,
     ReportProvenance,
@@ -110,6 +111,7 @@ __all__ = [
     "Gap",
     "GapReason",
     "GitHubEvidence",
+    "Handles",
     "HiddenText",
     "Id",
     "IngestMethod",

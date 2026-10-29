@@ -6,7 +6,7 @@ import * as z from "zod";
 
 import { requireCandidate, myAssessment } from "@/lib/candidate";
 import { db } from "@/lib/db";
-import { CvSchema, type FormState, SubmissionSchema } from "@/lib/definitions";
+import { CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, SubmissionSchema, typed } from "@/lib/definitions";
 import { call, ServiceError } from "@/lib/services";
 import { forwardAssessment } from "@/lib/sync";
 import type { CandidateResult, Task } from "@/lib/types";
@@ -17,8 +17,18 @@ import type { CandidateResult, Task } from "@/lib/types";
 export async function uploadCv(_: FormState, form: FormData): Promise<FormState> {
   const me = await requireCandidate();
   const parsed = CvSchema.safeParse({ cv: form.get("cv") });
-  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors };
+  const typedHandles = HandlesSchema.safeParse(Object.fromEntries(HANDLE_FIELDS.map((k) => [k, form.get(k) ?? ""])));
+  if (!parsed.success || !typedHandles.success) {
+    return {
+      errors: {
+        ...(parsed.success ? {} : z.flattenError(parsed.error).fieldErrors),
+        ...(typedHandles.success ? {} : z.flattenError(typedHandles.error).fieldErrors),
+      },
+      values: typed(form),
+    };
+  }
   const { cv } = parsed.data;
+  const handles = Object.fromEntries(Object.entries(typedHandles.data).filter(([, v]) => v !== null));
 
   const upload = new FormData();
   upload.set("document", cv, cv.name);
@@ -26,14 +36,23 @@ export async function uploadCv(_: FormState, form: FormData): Promise<FormState>
   // filed under this reference.
   upload.set("subject", JSON.stringify({ subject_ref: me.subjectRef }));
   upload.set("options", JSON.stringify({ narrative: true }));
+  // Usernames the candidate typed; M5 uses each only where the CV names none.
+  if (Object.keys(handles).length) upload.set("handles", JSON.stringify(handles));
   let id: string;
   try {
     ({ verification_id: id } = await call<{ verification_id: string }>("m5", "/v1/verifications", { form: upload }));
   } catch (e) {
-    if (e instanceof ServiceError) return { message: e.message };
+    if (e instanceof ServiceError) return { message: e.message, values: typed(form) };
     throw e;
   }
-  await db.verification.create({ data: { id, candidateId: me.id, fileName: cv.name } });
+  const h = typedHandles.data;
+  await db.$transaction([
+    db.verification.create({ data: { id, candidateId: me.id, fileName: cv.name } }),
+    db.candidate.update({
+      where: { userId: me.id },
+      data: { githubHandle: h.github, codeforcesHandle: h.codeforces, leetcodeHandle: h.leetcode, codechefHandle: h.codechef },
+    }),
+  ]);
   redirect(`/candidate/cv/${id}`);
 }
 
