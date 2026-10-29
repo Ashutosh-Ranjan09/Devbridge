@@ -178,6 +178,10 @@ def edit(
         if sid not in rows:
             raise JobError(f"{sid} is not in {job.job_id}")
         del rows[sid]
+    for sid, bar in (must or {}).items():
+        # model_copy below does not re-validate, so a bar out of range would be stored.
+        if bar is not None and not 0.0 <= bar <= 1.0:
+            raise JobError(f"{sid}: a bar is between 0 and 1, not {bar}")
     for sid, priority in [*((s, Priority.MUST) for s in (must or {})), *((s, Priority.NICE) for s in nice or [])]:
         if not skills.knows(sid):
             raise JobError(f"{sid!r} is not on the shared skill list")

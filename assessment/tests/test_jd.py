@@ -116,6 +116,12 @@ class TestConfirmation:
         with pytest.raises(JobError, match="not on the shared skill list"):
             edit(extract(JD, None), must={"fortran77": 0.5})
 
+    def test_a_bar_outside_0_to_1_is_refused(self) -> None:
+        """`assess jd edit --must python:5` once stored a bar of 5.0: the edit is a
+        model_copy, which does not re-validate."""
+        with pytest.raises(JobError, match="between 0 and 1"):
+            edit(extract(JD, None), must={"python": 5.0})
+
     def test_confirming_needs_a_must_have_and_a_name(self) -> None:
         job = edit(extract(JD, None), nice=["python", "sql"])
         job = edit(job, drop=[s.skill_id for s in job.skills if s.skill_id and s.priority is Priority.MUST])

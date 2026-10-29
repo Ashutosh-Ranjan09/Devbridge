@@ -66,6 +66,24 @@ def sandbox_build() -> None:
     raise typer.Exit(subprocess.call(["docker", "build", "-t", settings.sandbox_image, str(ROOT / "sandbox")]))
 
 
+@app.command()
+def serve(
+    host: Annotated[str, typer.Option(help="Bind address.")] = "127.0.0.1",
+    # 8070: cvv serves on 8080 and the Claude Code wrapper listens on 8000.
+    port: Annotated[int, typer.Option(help="Port.")] = 8070,
+) -> None:
+    """Run the HTTP surface the web layer calls. Localhost unless told otherwise."""
+    import uvicorn
+
+    from assess.api import API_KEY
+    from assess.api import app as api
+
+    if settings.api_key is None:
+        typer.secho("ASSESS_API_KEY is unset, so one was generated for this run:", fg="yellow", err=True)
+        typer.secho(f"    {API_KEY}", fg="yellow", bold=True, err=True)
+    uvicorn.run(api, host=host, port=port)
+
+
 def _write_task(folder: Path, title: str, session_id: str, deadline: str, variant_story: str,
                 variant_requirements: str, starter: str) -> None:
     folder.mkdir(parents=True, exist_ok=True)

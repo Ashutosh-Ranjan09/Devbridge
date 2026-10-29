@@ -11,8 +11,9 @@ passed, and why not. A person decides what it means.
 
 Built end to end: JD intake (extract · edit · confirm · export), pattern library with
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
-calibration — and in M6, the shortlist and the `assessment_result` event kind.
-74 tests, plus 9 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
+`assessment_result` event kind.
+93 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).
@@ -28,7 +29,31 @@ assess start PATTERN --candidate REF          one task from a named pattern
 assess submit SESSION solution.py             sandbox → report
 assess report SESSION [--json] · events SESSION --out batch.json → M6 ingest
 assess patterns · validate PATTERN · calibrate PATTERN · sandbox build
+assess serve [--port 8070]                    the same commands over HTTP, for web/
 ```
+
+### HTTP (`assess serve`, `src/assess/api.py`)
+
+The CLI's commands as endpoints: parse, call, return — no rule of its own. Bearer key
+from `ASSESS_API_KEY` (generated and printed when unset); `/healthz` is open. Errors are
+flat `{"error", "detail"}`, like M6's: 404 unknown id, 409 the module's own refusal
+(the message says why), 422 a malformed body, 503 the sandbox could not run.
+
+| | |
+|---|---|
+| `GET /healthz` | Docker present, sandbox image built |
+| `GET /v1/patterns` | id, skill, level, variants, twists |
+| `POST /v1/jobs` `{text, model}` · `GET /v1/jobs[/{id}]` | propose skills from a JD (synchronous, up to the model's timeout) |
+| `PATCH /v1/jobs/{id}` `{must:{id:bar}, nice, drop}` · `POST …/confirm` `{by}` | a person's edits, then the lock; bars checked 0–1 |
+| `GET /v1/jobs/{id}/requirements` | the body for M6's `POST /shortlist` |
+| `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id}` | issue tasks; asking again returns the same ones |
+| `GET /v1/sessions/{id}` | the task — never the hidden tests, seed or parameters |
+| `POST /v1/sessions/{id}/submit` `{code}` | sandbox run, synchronous; returns the candidate view |
+| `GET /v1/sessions/{id}/result[?view=full]` | `candidate` by default: test names and passed, no failure detail (it quotes the hidden tests); `full` for the person reading results |
+| `GET /v1/sessions/{id}/events` | the batch for M6's `POST /evidence/batch` |
+
+Who may ask for `view=full` is the web layer's decision; what each view holds is this
+module's.
 
 Run from anywhere: settings come from `assessment/.env` (prefix `ASSESS_`), the same
 Claude Code wrapper cvv uses. Sessions, jobs and results live in `.data/assess.db`,

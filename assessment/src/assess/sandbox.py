@@ -46,6 +46,14 @@ class Run:
     note: str | None = None
 
 
+def docker_error(stderr: str) -> str:
+    """Docker's own reason a run did not start. Its last line is a usage hint ("Run
+    'docker run --help' for more information"); the reason is the line before it."""
+    lines = [ln.strip() for ln in stderr.splitlines()
+             if ln.strip() and not ln.strip().startswith("Run 'docker")]
+    return (lines[-1] if lines else "docker could not start the run")[:300]
+
+
 def run_candidate(pattern: Pattern, params: dict[str, Scalar], solution_source: str) -> Run:
     image = settings.sandbox_image
     if shutil.which("docker") is None:
@@ -91,7 +99,7 @@ def run_candidate(pattern: Pattern, params: dict[str, Scalar], solution_source: 
         rows = junit.read(out / result_name)
 
     if proc.returncode in DOCKER_FAILED:
-        return Run(Outcome.SANDBOX_UNAVAILABLE, [], info, (proc.stderr.strip().splitlines() or ["?"])[-1][:300])
+        return Run(Outcome.SANDBOX_UNAVAILABLE, [], info, docker_error(proc.stderr))
     if proc.returncode == 137:
         return Run(Outcome.RESOURCE_LIMIT, rows, info, "killed: memory limit (256 MB)")
     if not rows:

@@ -12,6 +12,8 @@ dependencies = [
     "pytest>=8.3",       # runs hidden tests: locally for trusted code, in the sandbox for candidates
     "pytest-timeout>=2.3",
     "jsonschema>=4.23",  # every event batch is checked against the shared schema before it leaves
+    "fastapi>=0.115",    # the HTTP surface (assess serve)
+    "uvicorn>=0.32",
 ]
 
 [project.scripts]

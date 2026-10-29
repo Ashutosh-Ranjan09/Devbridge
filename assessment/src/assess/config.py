@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     seed: int = 7
     request_timeout: float = 180.0
 
+    # Bearer key for `assess serve`. Unset: one is generated and printed at startup.
+    api_key: str | None = None
+
     sandbox_image: str = "assess-python:3.12"
     # Whole-container wall clock. Each test has its own 2 s limit inside it, so one
     # infinite loop fails one test rather than the run.

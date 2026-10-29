@@ -76,7 +76,8 @@ assessment/                      Python 3.12 · uv · pydantic · typer · httpx
 │   ├── jd.py                    extract · edit · confirm · export requirements
 │   ├── events.py                result → EvidenceEventBatch for M6
 │   ├── calibration.py           pass rates per test and per twist; drift flags
-│   └── cli.py                   `assess …`
+│   ├── cli.py                   `assess …`
+│   └── api.py                   the same over HTTP (`assess serve`), for web/
 ├── patterns/rate_limiter/       pattern.yaml · starter.py · requirements.md · story.md ·
 │                                tests_hidden.py · reference.py · mutants/
 ├── patterns/top_k_frequent/     the same files: a DSA problem, skill `algorithms`
@@ -267,9 +268,8 @@ person's edit to the pattern, which bumps its version. Versions are never mixed.
 **All twelve phases are built** (26 October 2026). The record below is where the build
 differs from the design above, and why.
 
-Later, not in this plan: an HTTP API and a web page for candidates and recruiters; a
-second pattern (paginated API client, or transaction rollback) to prove the format
-generalises.
+Since: the second pattern (`top_k_frequent`), and an HTTP API for the web layer
+(29 October). Later: the web pages themselves, in `../web/`.
 
 ## 14. What this module does not do
 
@@ -293,6 +293,11 @@ stop a candidate using an AI assistant · invent a constraint or a test.
 | validation's per-test limit 5 s | 2 s, the sandbox's own (`sandbox.PER_TEST_SECONDS`) | validation runs on the full CPU; a trusted solution needing more than 2 s there fails in the sandbox anyway. It also halves the DSA pattern's validation, where the quadratic mutant times out in every combination |
 | test ids per pattern | `validation._case_id` builds them from the pattern's own parameters | it had rate_limiter's three parameter names written in; the second pattern was the first to need anything else |
 | twists as alternative rules | twists as extra functions in the DSA pattern | one reference implements every twist; two tie orders contradict, so the tie order is fixed in the core |
+| an HTTP API, later | `assess serve`: the CLI's commands as endpoints, no rule of its own | the web layer needs one; keeping every rule in the functions it calls means CLI and API cannot disagree |
+| — | a result has two views: candidate (test names, passed) and full (with each failure's detail) | the detail quotes the hidden test's input and expected answer; a candidate who saw it could fit a retry to the tests |
+| — | a new store per HTTP request | FastAPI runs sync handlers on a thread pool; an sqlite3 connection refuses use from another thread |
+| — | a bar must be within 0–1, checked in `jd.edit` (and in the API's body) | `jd.edit` uses `model_copy`, which does not re-validate: `--must x:5` stored 5.0 |
+| — | a sandbox failure's note is Docker's reason | the note kept Docker's last stderr line, its usage hint, instead of the line before it ("No such image: …") |
 
 Measured on the reference pattern: 108 combinations, 648 cases, the reference passes all,
 8 mutants each caught in every combination it applies to, in 7 s. In the sandbox: the
@@ -307,4 +312,12 @@ cases, the reference passes all, 11 mutants each caught in every combination, in
 sandbox the reference passes 8/8 in under a second, the large input included; the
 quadratic mutant fails exactly `large_input`. A result fed to M6 gave `algorithms
 [0.665, 0.809]`.
+
+Over HTTP (29 October), with real servers: a JD by rules, `rate_limiting` added as a
+must-have, confirmed; one task issued (`python`, `sql` reported not assessable); the
+reference submitted through Docker, 6/6; a second submission 409; the events batch
+accepted by M6's `POST /evidence/batch`, giving `rate_limiting [0.665, 0.809]`; M6's
+shortlist on the exported requirements: 0 qualified, since nothing yet evidences
+`python` or `sql`. With an image that does not exist: `/healthz` degraded, submit 503
+("No such image: …"), the session still open, no result.
 

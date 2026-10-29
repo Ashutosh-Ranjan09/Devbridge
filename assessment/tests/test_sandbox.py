@@ -14,7 +14,7 @@ import pytest
 from assess import junit, scoring
 from assess.models import Outcome, SandboxInfo, Session
 from assess.patterns import load
-from assess.sandbox import Run, run_candidate
+from assess.sandbox import Run, docker_error, run_candidate
 from assess.scoring import build_result, render, score
 from assess.variants import generate
 
@@ -70,6 +70,12 @@ class TestScoring:
         r = build_result(pattern, v, session, Run(Outcome.PASSED, rows(), INFO), NOW)
         assert r.time_used_seconds == 31 * 60
 
+    def test_an_unavailable_sandbox_says_docker_s_reason_not_its_usage_hint(self) -> None:
+        stderr = ("docker: Error response from daemon: No such image: assess-python:3.12\n\n"
+                  "Run 'docker run --help' for more information\n")
+        assert docker_error(stderr) == "docker: Error response from daemon: No such image: assess-python:3.12"
+        assert docker_error("") == "docker could not start the run"
+
     def test_the_report_has_no_verdict(self, pattern, session) -> None:
         v = generate(pattern, 1)
         text = render(build_result(pattern, v, session, Run(Outcome.PASSED, rows(), INFO), NOW))
@@ -94,6 +100,13 @@ class TestRealSandbox:
         run = run_candidate(pattern, variant.params, (pattern.directory / "mutants/fixed_window.py").read_text())
         assert run.outcome is Outcome.TESTS_FAILED
         assert {r.test for r in run.rows if not r.passed} == {"exact_boundary"}
+
+    def test_a_missing_image_is_unavailable_and_says_so(self, pattern, variant, monkeypatch) -> None:
+        from assess.config import settings
+
+        monkeypatch.setattr(settings, "sandbox_image", "assess-no-such-image:0")
+        run = run_candidate(pattern, variant.params, "x = 1")
+        assert run.outcome is Outcome.SANDBOX_UNAVAILABLE and "No such image" in (run.note or "")
 
     def test_code_that_does_not_import(self, pattern, variant) -> None:
         assert run_candidate(pattern, variant.params, "class RateLimiter(:\n").outcome is Outcome.IMPORT_ERROR
