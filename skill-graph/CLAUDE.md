@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 588 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 589 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "588 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "589 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -31,7 +31,7 @@ make serve / make api       # ingestor :8100 / query API :8200 on evidence.db
 make clean
 ```
 
-Combined single-process server (adds `POST /evidence/report`, `/versions`, `/integrity`,
+Combined single-process server (adds `POST /evidence/report`, `/versions`, `/quarantine`, `/integrity`,
 `/profile`): `from m6 import M6; from m6.api import serve; serve(M6("evidence.db"), port=8300).serve_forever()`.
 
 ## Architecture

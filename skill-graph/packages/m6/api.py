@@ -8,6 +8,7 @@ them for the demo and for anyone who wants module 6 as one process.
     POST /evidence/batch             an already-projected batch
     GET  /health
     GET  /versions                   every contract version behind an answer
+    GET  /quarantine                 skills named in evidence that the ontology does not know
     GET  /skills                     the ontology
     GET  /developers/{ref}/skills
     GET  /developers/{ref}/skills/{skill}/explain
@@ -44,6 +45,13 @@ def build_routes(m6) -> list[tuple[re.Pattern[str], str, Any]]:
     def versions(_m, _q, _b):
         return 200, m6.versions()
 
+    def quarantine(_m, _q, _b):
+        # The ingestor's own server has this; the combined one did not, so an operator
+        # of the one-process deployment could not see what the ontology is missing.
+        held = m6.log.quarantined()
+        return 200, {"count": len(held), "quarantined": held,
+                     "ontology_version": m6.ontology.ontology_version}
+
     def ingest_report(_m, _q, body):
         return 202, m6.ingest_report(body).to_dict()
 
@@ -62,6 +70,7 @@ def build_routes(m6) -> list[tuple[re.Pattern[str], str, Any]]:
 
     routes = [
         (re.compile(r"^/versions$"), "GET", versions),
+        (re.compile(r"^/quarantine$"), "GET", quarantine),
         (re.compile(r"^/evidence/report$"), "POST", ingest_report),
         (re.compile(r"^/evidence/batch$"), "POST", ingest_batch),
         (re.compile(r"^/developers/(?P<ref>[^/]+)/integrity$"), "GET", integrity),
@@ -73,8 +82,10 @@ def build_routes(m6) -> list[tuple[re.Pattern[str], str, Any]]:
 
 def make_handler(m6) -> type[BaseHTTPRequestHandler]:
     routes = build_routes(m6)
-    # Query handlers take (match, query); the ones above take (match, query, body).
-    arity3 = {h for _p, _m, h in routes[:6]}
+    # Query handlers take (match, query); this module's own take (match, query, body).
+    # Read from each handler, not from its position: counting the first N routes broke
+    # silently the first time a route was added.
+    arity3 = {h for _p, _m, h in routes if h.__code__.co_argcount == 3}
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"

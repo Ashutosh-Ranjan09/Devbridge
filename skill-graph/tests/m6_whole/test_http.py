@@ -82,6 +82,15 @@ def test_the_query_endpoints_still_work_in_the_combined_process():
             assert s.call("GET", path)[0] == 200, path
 
 
+def test_the_quarantine_is_visible_in_the_combined_process():
+    """What the ontology is missing, for the operator who grows it."""
+    with Server(loaded(report())) as s:
+        status, body = s.call("GET", "/quarantine")
+    assert status == 200
+    assert body["count"] == len(body["quarantined"]) and body["ontology_version"]
+    assert all(isinstance(skills, list) for skills in body["quarantined"].values())
+
+
 def test_the_integrity_endpoint_reports_findings():
     with Server() as s:
         status, body = s.call("GET", f"/developers/{GOLDEN_SUBJECT}/integrity?as_of={AS}")

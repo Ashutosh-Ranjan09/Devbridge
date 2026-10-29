@@ -162,3 +162,11 @@ export type Shortlist = {
   unknown_skills: string[];
   note: string;
 };
+
+// ── admin ───────────────────────────────────────────────────────────────────
+
+/** M5's GET /v1/rules: the live catalogue of checks. */
+export type Rule = { rule_id: string; version: string; tier: "decisive" | "attention" | "evidence_only"; scoring: boolean; summary: string };
+
+/** M6's GET /quarantine: event id → skill names the ontology does not know. */
+export type Quarantine = { count: number; quarantined: Record<string, string[]>; ontology_version: string };

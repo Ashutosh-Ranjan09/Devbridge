@@ -37,6 +37,21 @@ M5 reports what the evidence says, and which listed skill each name means; M6 de
 what it is worth for each skill. That line is deliberate: M5 once projected its own
 events and M6 quarantined every one.
 
+## The website
+
+```bash
+cp web/.env.example web/.env         # once; then (cd web && npm install)
+scripts/dev.sh                       # M5 :8080 · M6 :8300 · assessment :8070 · web :3000
+scripts/dev.sh prod                  # the same with a production build of the web
+(cd web && npm run create-admin -- EMAIL "NAME")   # an admin, for /admin
+```
+
+One command starts all four with one key per module per run, passed through the
+environment and never printed; logs go to `.run/`, and Ctrl-C stops everything.
+Candidates check a CV, see their skills and take assessments; recruiters confirm a job's
+skills, read each applicant's evidence and decide, with a reason the candidate reads;
+admins see the system's state. See [`web/CLAUDE.md`](web/CLAUDE.md).
+
 ## From a job description to a task
 
 ```bash
@@ -52,7 +67,7 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | | Setup | Tests |
 |---|---|---|
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 611 |
-| M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 588, or `make all` for every gate |
+| M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 589, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 94; `-m docker` 10, `-m slow` 1 more |
 | Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 44 |
 

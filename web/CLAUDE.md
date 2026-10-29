@@ -23,7 +23,9 @@ npm run dev                       # http://localhost:3000
 npm run check · npm run build
 ```
 
-The modules, each in its own terminal (any that is down shows as such on `/admin`):
+All four at once, with one key per module shared through the environment:
+`../scripts/dev.sh` (or `../scripts/dev.sh prod`). Or each module in its own terminal
+(any that is down shows as such on `/admin`):
 
 ```
 cd cv-verification && uv run cvv serve                       # :8080, prints its key
@@ -50,7 +52,10 @@ src/app/candidate/      overview · cv (upload, report) · skills (profile, expl
                         assessments (practice, task, editor, result) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
-src/app/admin/          the admin area
+src/app/admin/          system (modules, counts) · accounts · catalogue (M5's checks, the tasks) ·
+                        quarantine (skills M6 holds because the list lacks them)
+src/app/not-found.tsx   one page for "does not exist" and "is not yours"
+src/app/error.tsx       an unexpected failure: a retry button and the server log's digest
 src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown · musts
                         (an applicant's must-haves, as M6's shortlist answered) · action-button ·
                         candidate, recruiter (the client components: forms, refresh, countdown, editor)

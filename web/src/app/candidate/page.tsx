@@ -17,9 +17,10 @@ export default function CandidateHome() {
 
 async function Overview() {
   const me = await requireCandidate();
-  const [cvs, tasks] = await Promise.all([
+  const [cvs, tasks, applications] = await Promise.all([
     db.verification.count({ where: { candidateId: me.id } }),
     db.assessment.count({ where: { candidateId: me.id } }),
+    db.application.count({ where: { candidateId: me.id } }),
   ]);
   return (
     <div className="space-y-4">
@@ -29,10 +30,11 @@ async function Overview() {
           The modules know you only as <code>{me.subjectRef}</code>, never by name or email.
         </p>
       </Card>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Step href="/candidate/cv" title="1. Your CV" text={`${cvs} checked. Upload one to have its claims checked against the systems it names.`} />
         <Step href="/candidate/skills" title="2. Your skills" text="Measured from that evidence, as ranges, never one score." />
         <Step href="/candidate/assessments" title="3. Assessments" text={`${tasks} taken. A coding task in a sandbox adds direct evidence.`} />
+        <Step href="/candidate/jobs" title="4. Jobs" text={`${applications} application(s). A person reads your evidence and decides, and says why.`} />
       </div>
     </div>
   );
