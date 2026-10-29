@@ -95,7 +95,7 @@ footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font
 <header class="mast">
   <p class="eyebrow">DevBridge M5 — Consolidated Plan · Supersedes earlier drafts</p>
   <h1>Verification Check Catalogue</h1>
-  <p class="deck">Every check the CV verification system performs, classified by who does it — a language model, deterministic code, or a person. Forty-one checks, five of which involve an LLM.</p>
+  <p class="deck">Every check the CV verification system performs, classified by who does it — a language model, deterministic code, or a person. Forty-three checks, five of which involve an LLM.</p>
   <div class="meta">
     <span><b>Module</b> M5 — cv-verification</span>
     <span><b>Team</b> 2</span>
@@ -137,7 +137,7 @@ footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font
     <div class="card l">
       <div class="k">LLM</div>
       <div class="n">5</div>
-      <div class="u">of 41 checks</div>
+      <div class="u">of 43 checks</div>
       <div class="d">Translation only. Unstructured text into typed data, and computed findings back into prose. Never produces a number that enters a finding.</div>
       <ul>
         <li>CV text → typed claims</li>
@@ -149,8 +149,8 @@ footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font
     </div>
     <div class="card m">
       <div class="k">Machine</div>
-      <div class="n">30</div>
-      <div class="u">of 41 checks</div>
+      <div class="n">32</div>
+      <div class="u">of 43 checks</div>
       <div class="d">Every check with an API behind it, plus all arithmetic, interval logic, registry lookup, and structural parsing. Deterministic, reproducible, auditable.</div>
       <ul>
         <li>All platform &amp; repository queries</li>
@@ -162,7 +162,7 @@ footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font
     <div class="card h">
       <div class="k">Human</div>
       <div class="n">6</div>
-      <div class="u">of 41 checks</div>
+      <div class="u">of 43 checks</div>
       <div class="d">Everything requiring context the system does not have, plus every consequential decision. The machine gathers and presents; the person judges.</div>
       <ul>
         <li>Interpreting attention signals</li>
@@ -193,7 +193,7 @@ footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font
 
 <section>
   <h2><span class="num">03</span>The catalogue</h2>
-  <p class="lede">Forty-one checks across six evidence groups. <span class="tag t-llm">llm</span> <span class="tag t-det">machine</span> <span class="tag t-hum">human</span> marks who performs it; the tier marks what it licenses.</p>
+  <p class="lede">Forty-three checks across six evidence groups — D13 and D14 added in October, against a CV that addresses the model reading it. <span class="tag t-llm">llm</span> <span class="tag t-det">machine</span> <span class="tag t-hum">human</span> marks who performs it; the tier marks what it licenses.</p>
 
   <h4>A · Document-intrinsic — always available, no external calls</h4>
   <div class="scroller">
@@ -212,6 +212,8 @@ footer{margin-top:50px; padding-top:20px; border-top:1px solid var(--rule); font
       <tr><td>D10</td><td class="w">Internal contradiction</td><td>Same role given different dates in different sections</td><td><span class="tag t-det">mach</span></td><td>decisive</td></tr>
       <tr><td>D11</td><td class="w">Timeline gap</td><td>Unexplained gap over threshold</td><td><span class="tag t-det">mach</span></td><td>attention · non-scoring</td></tr>
       <tr><td>D12</td><td class="w">Title progression</td><td>Seniority trajectory vs. tenure</td><td><span class="tag t-det">mach</span></td><td>attention · non-scoring</td></tr>
+      <tr><td>D13</td><td class="w">Hidden text</td><td>Text with no visible ink on the rendered page, or below 4 pt; kept out of what the model reads</td><td><span class="tag t-det">mach</span></td><td>attention · non-scoring</td></tr>
+      <tr><td>D14</td><td class="w">Extraction coverage</td><td>A line naming a checked platform or repository that no kept claim covers</td><td><span class="tag t-det">mach</span></td><td>attention · non-scoring</td></tr>
     </tbody>
   </table>
   </div>

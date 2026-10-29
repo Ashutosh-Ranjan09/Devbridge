@@ -50,6 +50,11 @@ PLATFORM_MENTION = re.compile(
     re.I,
 )
 
+# A repository link. A URL's grammar is declared by the internet rather than by a
+# CV, which is why it is a pattern and not a model pass (guardrail 10). Here, not in
+# extract, because a rule reads it too and rules import only pure modules.
+GITHUB_REPO = re.compile(r"github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)/([\w.-]+)")
+
 # Lower is more specific. A specific claim wins a span it shares with a vaguer one.
 _PRIORITY: dict[ClaimKind, int] = {
     ClaimKind.IDENTIFIER: 0,

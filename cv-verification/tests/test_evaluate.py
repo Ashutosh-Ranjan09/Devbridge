@@ -82,6 +82,22 @@ class TestWhatItMeasures:
         applied = [o for o in outcomes if o.skipped is None]
         assert all("P2" not in o.collateral for o in applied)
 
+    def test_a_rule_firing_on_the_baseline_is_caught_only_by_a_different_finding(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """P2 already fires here. A mutation that changes nothing must not count as
+        P2 noticing it — firing again is what P2 would have done anyway."""
+        from cvv import evaluate
+        from cvv.evaluate import Mutation
+
+        graph, b = self.graph_and_bundle()
+        monkeypatch.setattr(evaluate, "CATALOGUE", [
+            Mutation("nothing", "P2", "changes nothing", lambda g, bb: (g, bb)),
+            CATALOGUE[1],  # rank-inflated: the rank P2 reads really moves
+        ])
+        _, outcomes = run(graph, b)
+        assert [o.caught for o in outcomes] == [False, True]
+
 
 class TestTheReport:
     def test_it_states_what_the_baseline_excused(self) -> None:

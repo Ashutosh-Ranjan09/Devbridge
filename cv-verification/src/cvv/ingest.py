@@ -12,13 +12,13 @@ import datetime
 import hashlib
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pymupdf
 
-from cvv.models import DocumentInfo, IngestMethod
+from cvv.models import DocumentInfo, HiddenText, IngestMethod, Reading
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,9 @@ class Document:
     created_at: str | None = None
     modified_at: str | None = None
     ocr_confidence: float | None = None
+    # Text the file carries and a reader cannot see — not in `text`, so no model is
+    # shown it and no claim grounds in it. D13 reports it.
+    hidden: tuple[HiddenText, ...] = ()
 
 
 def _digest(path: Path) -> str:
@@ -81,6 +84,13 @@ def normalise(raw: str) -> tuple[str, list[int]]:
         imap.pop()
 
     return "".join(out), imap
+
+
+def input_hash(text: str) -> str:
+    """`ExtractionMeta.input_hash`: which text a claim graph's offsets index into. A
+    reading of the same file carries the same value, so a rule can tell the two
+    belong together."""
+    return "sha256:" + hashlib.sha256(text.encode()).hexdigest()[:32]
 
 
 @dataclass(frozen=True)
@@ -145,6 +155,32 @@ def section_text(doc: Document, keywords: tuple[str, ...]) -> tuple[str, int]:
     return doc.text[start:end], start
 
 
+def line_spans(doc: Document) -> list[tuple[int, int]]:
+    """Every non-empty raw line, as normalised offsets [start, end).
+
+    The same way back through the index map that `sections` and `line_at` take: the
+    line structure exists only in `raw`, because normalisation collapses newlines.
+    """
+    out: list[tuple[int, int]] = []
+    offset = 0
+    for line in doc.raw.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped:
+            first = offset + line.index(stripped)
+            start = bisect.bisect_left(doc.index_map, first)
+            end = min(bisect.bisect_left(doc.index_map, first + len(stripped)), len(doc.text))
+            if end > start:
+                out.append((start, end))
+        offset += len(line)
+    return out
+
+
+def reading(doc: Document) -> Reading:
+    """What the rules may know about the file beyond its claims: what was hidden in
+    it, and where its lines fall."""
+    return Reading(input_hash=input_hash(doc.text), hidden=list(doc.hidden), lines=line_spans(doc))
+
+
 def line_at(doc: Document, offset: int) -> tuple[int, int]:
     """The normalised span of the raw line containing `offset`.
 
@@ -200,13 +236,84 @@ def pdf_date(value: str | None) -> str | None:
     return moment.isoformat()
 
 
+# --------------------------------------------------------------------------- #
+# Hidden text
+# --------------------------------------------------------------------------- #
+
+# A PDF span is INVISIBLE when its box on the rendered page holds no ink: the
+# lightest and darkest pixels inside it differ by less than this share of the grey
+# scale. Measured on the four PDFs in docs/ and tests/fixtures/, 2,857 spans: the
+# faintest visible text, a light-grey dash, sits at 0.32, while white on white, text
+# under a white box, the invisible text mode and #f7f7f7 on white sit at 0.03 or
+# below. Measured on the render rather than inferred from colour, because colour
+# gets a dark sidebar wrong: white text on it is visible, and is kept.
+INK_CONTRAST = 0.15
+# Below this a span is TINY — set too small for anyone to read. The smallest real
+# text in the same four documents is a 6 pt footnote.
+MIN_POINTS = 4.0
+# Coarse on purpose: the question is whether ink exists, not what it says.
+INK_DPI = 96
+
+
+def _ink(pix: Any, bbox: tuple[float, float, float, float], scale: float) -> float:
+    """Contrast inside a box on a greyscale render: 0 is flat, 1 is black on white."""
+    x0, y0, x1, y1 = bbox
+    left, right = max(int(x0 * scale), 0), min(int(x1 * scale) + 1, pix.width)
+    top, bottom = max(int(y0 * scale), 0), min(int(y1 * scale) + 1, pix.height)
+    samples, stride = pix.samples, pix.stride
+    lo, hi = 255, 0
+    for y in range(top, bottom):
+        row = samples[y * stride + left : y * stride + right]
+        if row:
+            lo, hi = min(lo, min(row)), max(hi, max(row))
+    return (hi - lo) / 255 if hi >= lo else 0.0
+
+
+def _visible_page(page: Any, number: int) -> tuple[str, list[HiddenText]]:
+    """The page's text with its hidden spans left out — otherwise exactly
+    `page.get_text()`.
+
+    Rebuilt span by span, which is what `get_text()` does too: on all 41 pages of the
+    PDFs in docs/ the two strings are identical when nothing is hidden, and a test
+    holds that, because every character offset in the system indexes into this.
+    """
+    pix = page.get_pixmap(dpi=INK_DPI, colorspace=pymupdf.csGRAY)
+    scale = INK_DPI / 72
+    out: list[str] = []
+    hidden: list[HiddenText] = []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):  # an image block has none
+            kept: list[str] = []
+            for span in line["spans"]:
+                text = span["text"]
+                reason: Literal["invisible", "tiny"] | None = None
+                if text.strip():  # whitespace has no ink to find
+                    if _ink(pix, span["bbox"], scale) < INK_CONTRAST:
+                        reason = "invisible"
+                    elif span["size"] < MIN_POINTS:
+                        reason = "tiny"
+                if reason:
+                    hidden.append(HiddenText(page=number, reason=reason, text=text,
+                                             size=round(float(span["size"]), 1)))
+                else:
+                    kept.append(text)
+            out.append("".join(kept) + "\n")
+    return "".join(out), hidden
+
+
 def read_pdf(path: Path) -> Document:
     """PyMuPDF, one page at a time so page boundaries stay visible."""
     # pymupdf.open IS Document.__init__ and ships no type information, so mypy
     # resolves it against OUR Document and calls it neither callable nor iterable.
     # Scoped to this one line rather than relaxing the setting for the module.
     pdf: Any = pymupdf.open(path)  # type: ignore[no-untyped-call]
-    raw = "\n".join(page.get_text() for page in pdf)
+    pages: list[str] = []
+    hidden: list[HiddenText] = []
+    for number, page in enumerate(pdf, start=1):
+        visible, found = _visible_page(page, number)
+        pages.append(visible)
+        hidden.extend(found)
+    raw = "\n".join(pages)
     text, imap = normalise(raw)
     meta = pdf.metadata or {}
 
@@ -222,7 +329,59 @@ def read_pdf(path: Path) -> Document:
         producer=meta.get("producer") or None,
         created_at=pdf_date(meta.get("creationDate")),
         modified_at=pdf_date(meta.get("modDate")),
+        hidden=tuple(hidden),
     )
+
+
+_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_UNSHADED = {None, "auto", "FFFFFF"}
+
+
+def _fill(element: Any, path: str) -> bool:
+    """Does this element set a background fill other than white?"""
+    return any(
+        shd.get(f"{{{_W}}}fill") not in _UNSHADED
+        for shd in element.xpath(path)
+    )
+
+
+def _docx_hidden(run: Any, paragraph: Any, backed: bool) -> Literal["invisible", "tiny"] | None:
+    """Why a Word run cannot be seen, or None.
+
+    Word does not render here, so this reads formatting, and stays on the side of
+    saying nothing. A run marked hidden is invisible; one set below MIN_POINTS is tiny;
+    white text is invisible only where nothing behind it — the run, its paragraph,
+    its cell, a table style, the page — could be a colour it shows against.
+    """
+    styles = [s.font for s in (run.style, paragraph.style) if s is not None]
+    if run.font.hidden or any(f.hidden for f in styles):
+        return "invisible"
+    size = run.font.size or next((f.size for f in styles if f.size), None)
+    if size is not None and size.pt < MIN_POINTS:
+        return "tiny"
+    color = run.font.color
+    white = color.type is not None and (
+        str(color.rgb) == "FFFFFF" or (color.theme_color is not None and color.theme_color.name in ("BACKGROUND_1", "LIGHT_1"))
+    )
+    if white and not backed and not _fill(run._r, "./w:rPr/w:shd") and not run._r.xpath("./w:rPr/w:highlight"):
+        return "invisible"
+    return None
+
+
+def _visible_paragraph(paragraph: Any, backed: bool, hidden: list[HiddenText]) -> str:
+    """`paragraph.text` with hidden runs left out: runs and the runs inside
+    hyperlinks, in order — the same elements python-docx joins for `.text`."""
+    out: list[str] = []
+    for item in paragraph.iter_inner_content():
+        for run in item.runs if hasattr(item, "runs") else [item]:
+            reason = _docx_hidden(run, paragraph, backed or _fill(paragraph._p, "./w:pPr/w:shd"))
+            if reason and run.text.strip():
+                size = run.font.size
+                hidden.append(HiddenText(page=1, reason=reason, text=run.text,
+                                         size=round(size.pt, 1) if size else None))
+            else:
+                out.append(run.text)
+    return "".join(out)
 
 
 def read_docx(path: Path) -> Document:
@@ -244,16 +403,27 @@ def read_docx(path: Path) -> Document:
 
     file = docx.Document(str(path))
     lines: list[str] = []
+    hidden: list[HiddenText] = []
+    # A page colour makes white text possibly visible anywhere in the document.
+    paged = any(b.get(f"{{{_W}}}color") not in _UNSHADED for b in file.element.xpath("./w:background"))
 
     for child in file.element.body.iterchildren():
         tag = child.tag.split("}")[-1]
         if tag == "p":
-            lines.append(Paragraph(child, file).text)
+            lines.append(_visible_paragraph(Paragraph(child, file), paged, hidden))
         elif tag == "tbl":
+            # A table style can shade its cells, and is not resolved here.
+            styled = bool(child.xpath("./w:tblPr/w:tblStyle"))
             for row in Table(child, file).rows:
                 # Tab-joined, not newline-joined: a table row is one line of a CV,
                 # and splitting it would break `line_at` provenance for skills.
-                cells = [c.text.strip().replace("\n", " ") for c in row.cells]
+                cells = [
+                    "\n".join(
+                        _visible_paragraph(p, paged or styled or _fill(c._tc, "./w:tcPr/w:shd"), hidden)
+                        for p in c.paragraphs
+                    ).strip().replace("\n", " ")
+                    for c in row.cells
+                ]
                 lines.append("\t".join(c for c in cells if c))
 
     raw = "\n".join(lines)
@@ -271,6 +441,8 @@ def read_docx(path: Path) -> Document:
         producer=core.author or None,
         created_at=core.created.isoformat() if core.created else None,
         modified_at=core.modified.isoformat() if core.modified else None,
+        # A merged cell is visited once per column it spans; report each run once.
+        hidden=tuple({(h.reason, h.text): h for h in hidden}.values()),
     )
 
 
@@ -363,7 +535,9 @@ def read(path: Path) -> Document:
         # produce a report full of abstentions with no reason a reader could act on —
         # "nothing was claimed" reads as a clean CV rather than as an unread file.
         if len(document.text) < TEXT_LAYER_FLOOR * document.pages:
-            return read_scanned_pdf(path)
+            # OCR reads only what is visible; what was hidden in the text layer is
+            # still worth reporting.
+            return replace(read_scanned_pdf(path), hidden=document.hidden)
         return document
     if suffix == ".docx":
         return read_docx(path)

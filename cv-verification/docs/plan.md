@@ -25,10 +25,10 @@ before seeing one is guesswork.
 **Where the build actually is.** Phases 0-5 are done for everything reachable.
 Phase 2 reads PDF, DOCX and scanned PDF; phase 4 has the five buckets, the narrative
 renderer and the manual-check worksheet; phase 5 is the mutation harness, reporting
-17/17 detection and 0 collateral on the reference CV. The HTTP surface and Postgres
+18/18 detection and 0 collateral on the reference CV. The HTTP surface and Postgres
 persistence are built too (`cvv serve`, `CVV_DATABASE_URL`).
 
-Every check in scope is built — 29 of the 41. C1-C4 are out of scope for this project;
+Every check in scope is built — 31 of the 43. C1-C4 are out of scope for this project;
 W2 and H1-H6 are human by design; G12 is EXCLUDED — see `CLAUDE.md`, which carries the
 current table. P5 reads CodeChef's public profile page, since no API exists. What phase
 5 still lacks is the gold set, so extraction accuracy is unmeasured.
@@ -70,7 +70,7 @@ extracted at all, and whether `num_ctx` reaches Ollama through pydantic-ai. (Res
 pydantic-ai was never adopted; `providers.py` calls Ollama's HTTP API and sets `num_ctx`
 on every call.)
 
-## The catalogue — 41 checks
+## The catalogue — 43 checks
 
 `tier` decides the report bucket mechanically. **decisive** = authoritative source plus
 deterministic comparison, stated as fact. **attention** = reliable signal with innocent
@@ -95,10 +95,19 @@ The floor. These run on a CV that names nothing.
 | D10 | Internal contradiction | decisive | same role, different dates in two sections |
 | D11 | Timeline gap | attention · **non-scoring** | an 18-month gap |
 | D12 | Title progression | attention · **non-scoring** | Junior to VP in 18 months |
+| D13 | Hidden text | attention · **non-scoring** | text with no ink on the rendered page, or below 4 pt |
+| D14 | Extraction coverage | attention · **non-scoring** | a Codeforces line no claim was kept from |
 
 **D11 and D12 are `scoring: false` and it is enforced in code.** Gaps and fast promotions
 encode career-shape bias — a gap can be illness, caregiving or a visa. They are displayed;
 they never move a number.
+
+**D13 and D14 were added on 29 October, after the catalogue was drawn up, for a threat
+it did not name: a CV that addresses the model reading it.** Hidden text is kept out of
+what the model reads and reported; a line a decisive check would have read, and no
+claim covers, is reported for a person. Both describe the document or the extraction,
+not the candidate, so neither is scoring. The design is in `CLAUDE.md` beside the
+ingest notes, and guardrail 12 says how either may quote the CV.
 
 ### G · GitHub — one connector, eleven checks
 

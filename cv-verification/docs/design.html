@@ -192,10 +192,10 @@ pre.data .ok{color:var(--verified);font-weight:500}
     <p class="thesis">Verifies developer CVs against the systems the candidate names — GitHub, Codeforces, LeetCode, CodeChef, live deployments — extracting typed claims with verbatim spans and running 28 deterministic checks.</p>
     <p class="refusal">It produces <strong>no score</strong> and <strong>no verdict</strong>. It reports evidence and says explicitly what it could not check. A person decides what any of it means.</p>
     <div class="figures">
-      <div class="fig"><span class="n">29<span style="color:var(--faint);font-size:18px">/29</span></span><span class="l">checks built, every one in scope</span></div>
-      <div class="fig"><span class="n">579</span><span class="l">tests passing</span></div>
+      <div class="fig"><span class="n">31<span style="color:var(--faint);font-size:18px">/31</span></span><span class="l">checks built, every one in scope</span></div>
+      <div class="fig"><span class="n">610</span><span class="l">tests passing</span></div>
       <div class="fig"><span class="n">10,984</span><span class="l">lines across 33 modules</span></div>
-      <div class="fig"><span class="n">17/17</span><span class="l">mutation detection, 0 collateral</span></div>
+      <div class="fig"><span class="n">18/18</span><span class="l">mutation detection, 0 collateral</span></div>
     </div>
   </div>
 </header>
@@ -237,7 +237,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <div class="tw"><table>
 <thead><tr><th>Group</th><th>Built</th><th>Not built</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><strong>D</strong> document-intrinsic</td><td class="mono">D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 — <strong>11/11</strong></td><td>—</td><td>complete</td></tr>
+<tr><td><strong>D</strong> document-intrinsic</td><td class="mono">D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 D13 D14 — <strong>13/13</strong></td><td>—</td><td>complete</td></tr>
 <tr><td><strong>G</strong> GitHub</td><td class="mono">G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — <strong>10/10</strong></td><td>—</td><td>complete</td></tr>
 <tr><td><strong>P</strong> platforms</td><td class="mono">P1 P2 P3 P4 P5 P6 — <strong>6/6</strong></td><td>—</td><td>complete; P5 is scraped, so attention-only</td></tr>
 <tr><td><strong>W</strong> deployments</td><td class="mono">W1 — <strong>1/2</strong></td><td class="mono">W2</td><td>human by design — a reviewer opens the link</td></tr>
@@ -250,6 +250,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <div class="tw"><table>
 <thead><tr><th>Document</th><th class="num">Claims</th><th class="num">Coverage</th><th class="num">Detection</th><th class="num">Collateral</th></tr></thead>
 <tbody>
+<tr><td>student CV — IIT Kharagpur, 29 Oct (21 Oct baseline, with D14's mutation)</td><td class="num">19</td><td class="num">57%</td><td class="num"><strong>18/18</strong></td><td class="num">0</td></tr>
 <tr><td>student CV — IIT Kharagpur, 21 Oct</td><td class="num">19</td><td class="num">57%</td><td class="num"><strong>17/17</strong></td><td class="num">0</td></tr>
 <tr><td>synthetic CV — VIT Vellore, 15 Sep</td><td class="num">20</td><td class="num">44%</td><td class="num"><strong>7/7</strong></td><td class="num">1 <span class="no">(correct)</span></td></tr>
 <tr><td>professional CV — 2 pages, 15 Sep</td><td class="num">15</td><td class="num">22%</td><td class="num"><strong>2/2</strong></td><td class="num">0</td></tr>
@@ -260,7 +261,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <div class="tw"><table>
 <thead><tr><th>File</th><th class="num">Tests</th><th>Covers</th></tr></thead>
 <tbody>
-<tr><td class="mono">test_rules.py</td><td class="num">185</td><td>all 28 checks, against recorded evidence</td></tr>
+<tr><td class="mono">test_rules.py</td><td class="num">185</td><td>the checks, against recorded evidence (D13 and D14 in test_hidden.py)</td></tr>
 <tr><td class="mono">test_github.py</td><td class="num">44</td><td>authored-file detection, repo evidence, manifests</td></tr>
 <tr><td class="mono">test_contract.py</td><td class="num">44</td><td>our models and a whole emitted report vs. the JSON Schemas</td></tr>
 <tr><td class="mono">test_dates.py</td><td class="num">36</td><td>the date parser's table</td></tr>
@@ -268,6 +269,7 @@ pre.data .ok{color:var(--verified);font-weight:500}
 <tr><td class="mono">test_store.py · test_narrative.py</td><td class="num">22</td><td>both store backends · the second LLM site</td></tr>
 <tr><td class="mono">test_intervals.py · test_filters.py</td><td class="num">21</td><td>three-valued interval algebra · the deterministic gate</td></tr>
 <tr><td class="mono">test_ingest.py</td><td class="num">21</td><td>PDF · DOCX · OCR · PDF dates to ISO 8601</td></tr>
+<tr><td class="mono">test_hidden.py</td><td class="num">30</td><td>hidden text kept from the model (D13) · lines no claim covers (D14) · the injected-CV paths</td></tr>
 <tr><td class="mono">test_extract.py</td><td class="num">19</td><td>extraction internals</td></tr>
 <tr><td class="mono">test_logs.py</td><td class="num">18</td><td>log redaction</td></tr>
 <tr><td class="mono">test_spans.py</td><td class="num">15</td><td>grounding and the numeral guard</td></tr>
@@ -824,7 +826,7 @@ finding_id = "f" + sha1(f"{report_id}|{rule_id}|{','.join(sorted(claim_refs))}")
 <section id="invariant">
 <h2 class="sec"><span class="num">20</span>The invariant</h2>
 <blockquote>A CV from someone with no account, no repositories and no contest history must still produce a complete, honest report.</blockquote>
-<p>All eleven document-intrinsic checks need no network at all, so the document-only path is a real path rather than a failure mode. <code>cvv verify --offline</code> is that path, and a test asserts every rule still appears in the report with its reason.</p>
+<p>All thirteen document-intrinsic checks need no network at all, so the document-only path is a real path rather than a failure mode. <code>cvv verify --offline</code> is that path, and a test asserts every rule still appears in the report with its reason.</p>
 <p>Everything else follows from this: <strong>abstention is a first-class result</strong>, and evidence gathering lives inside this system rather than arriving from somewhere else.</p>
 </section>
 
@@ -1043,7 +1045,7 @@ JUDGEMENT ONLY — no machine result exists or should
 </div>
 </section>
 
-<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 33 modules · 579 tests · 28 checks · 26 October 2026</footer>
+<footer>DevBridge M5 · CV Verification Engine · design record · Python 3.12 · 33 modules · 610 tests · 30 checks · 29 October 2026</footer>
 
 </main>
 </div>

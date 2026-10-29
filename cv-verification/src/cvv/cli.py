@@ -18,7 +18,7 @@ from cvv import __version__
 from cvv.config import settings
 from cvv.extract import extract
 from cvv.gather import gather
-from cvv.ingest import document_info, read, sections
+from cvv.ingest import document_info, read, reading, sections
 from cvv.logs import configure
 from cvv.models import ClaimGraph, EvidenceBundle, Subject
 from cvv.narrative import narrate
@@ -101,6 +101,7 @@ def verify(
         bundle,
         report_id=f"fr_{document.document_id[4:]}",
         document=document_info(document),
+        reading=reading(document),
     )
 
     if save:
@@ -175,6 +176,9 @@ def evaluate(
     """
     from cvv.evaluate import render_evaluation, run
 
+    # The file as read, for D14 — re-read even with a baseline, since a baseline holds
+    # the claims and the evidence but not the page.
+    file_reading = reading(read(path)) if path.is_file() else None
     if baseline is not None:
         graph = ClaimGraph.model_validate_json((baseline / "claim-graph.json").read_text())
         bundle = EvidenceBundle.model_validate_json(
@@ -198,7 +202,7 @@ def evaluate(
         (save_baseline / "evidence-bundle.json").write_text(bundle.model_dump_json(indent=2))
         typer.secho(f"baseline written to {save_baseline}/", fg="green", err=True)
 
-    typer.echo(render_evaluation(*run(graph, bundle)))
+    typer.echo(render_evaluation(*run(graph, bundle, file_reading)))
 
 
 @app.command()

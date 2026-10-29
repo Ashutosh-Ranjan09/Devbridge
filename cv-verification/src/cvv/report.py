@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime
 
 from cvv.models import (
+    CANDIDATE_TEXT,
     Buckets,
     ClaimGraph,
     ClaimKind,
@@ -20,6 +21,7 @@ from cvv.models import (
     EvidenceBundle,
     FindingsReport,
     IngestMethod,
+    Reading,
     RuleStatus,
     Section,
     SectionConfidence,
@@ -44,8 +46,10 @@ def assemble(
     *,
     report_id: str = "fr_001",
     document: DocumentInfo | None = None,
+    reading: Reading | None = None,
 ) -> FindingsReport:
-    ctx = Context(graph=graph, bundle=bundle, report_id=report_id, document=document)
+    ctx = Context(graph=graph, bundle=bundle, report_id=report_id, document=document,
+                  reading=reading)
     findings, outcomes = run_all(ctx)
     by_id = {r.rule_id: r for r in REGISTRY}
 
@@ -302,6 +306,10 @@ def render(
             f = findings[fid]
             out.append(f"    [{f.rule_id}] {f.explanation}")
             out.append(f"          benign reading: {f.innocent_explanation}")
+            # The candidate's own words, for the reviewer. repr, so a control
+            # sequence in a CV prints as text instead of driving the terminal.
+            for quoted in f.params.get(CANDIDATE_TEXT, []):
+                out.append(f"          text: {quoted!r}")
     else:
         out.append("    (nothing)")
 

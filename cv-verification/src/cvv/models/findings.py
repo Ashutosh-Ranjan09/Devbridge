@@ -15,6 +15,12 @@ from pydantic import Field, model_validator
 from cvv.models.claims import Confidence, Frozen, Id, Model
 from cvv.models.enums import RuleStatus, Section, Severity, Tier
 
+# The `params` key for text the CANDIDATE wrote, quoted so a person can read it. The
+# narrative's model is never shown it (`narrative.facts` drops the key): an
+# instruction hidden in a CV, or printed in one, would otherwise reach the next model
+# as input by way of the finding that reported it.
+CANDIDATE_TEXT = "candidate_text"
+
 
 class Discrepancy(Model):
     """One finding. `tier` is declared on the rule, not chosen here."""

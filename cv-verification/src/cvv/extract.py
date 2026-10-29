@@ -24,7 +24,6 @@ Three things this module learned from running against a real CV:
 from __future__ import annotations
 
 import datetime
-import hashlib
 import re
 import time
 from dataclasses import dataclass, field
@@ -33,9 +32,10 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from cvv.dates import parse_interval, slash_convention
+from cvv.filters import GITHUB_REPO
 from cvv.filters import apply as apply_filters
 from cvv.ids import claim_id
-from cvv.ingest import Document, Section, line_at, section_text, sections
+from cvv.ingest import Document, Section, input_hash, line_at, section_text, sections
 from cvv.logs import get
 from cvv.models import (
     Artefact,
@@ -371,8 +371,6 @@ PASSES: list[Pass] = [
 # --------------------------------------------------------------------------- #
 # Deterministic pre-pass — no model
 # --------------------------------------------------------------------------- #
-
-GITHUB_REPO = re.compile(r"github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)/([\w.-]+)")
 
 
 def regex_claims(text: str) -> list[ProposedClaim]:
@@ -926,7 +924,7 @@ def ground(
         extraction_meta=ExtractionMeta(
             model_id=model_id,
             prompt_version=PROMPT_VERSION,
-            input_hash="sha256:" + hashlib.sha256(doc.text.encode()).hexdigest()[:32],
+            input_hash=input_hash(doc.text),
             span_failures=span_failures,
             filtered={k: v for k, v in dropped.items() if v},
             extracted_at=datetime.datetime.now(datetime.UTC),

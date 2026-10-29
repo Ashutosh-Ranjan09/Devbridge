@@ -24,9 +24,11 @@ from cvv.models.claims import (
     ExtractionMeta,
     Frozen,
     FuzzyDate,
+    HiddenText,
     Id,
     Interval,
     Model,
+    Reading,
     Resolution,
     SourceInfo,
     SpanProvenance,
@@ -69,6 +71,7 @@ from cvv.models.evidence import (
     RepoEvidence,
 )
 from cvv.models.findings import (
+    CANDIDATE_TEXT,
     Buckets,
     Discrepancy,
     FindingsReport,
@@ -78,6 +81,7 @@ from cvv.models.findings import (
 )
 
 __all__ = [
+    "CANDIDATE_TEXT",
     "ActivityWindow",
     "ApiError",
     "Artefact",
@@ -106,6 +110,7 @@ __all__ = [
     "Gap",
     "GapReason",
     "GitHubEvidence",
+    "HiddenText",
     "Id",
     "IngestMethod",
     "Interval",
@@ -117,6 +122,7 @@ __all__ = [
     "Precision",
     "Proficiency",
     "ProvenanceView",
+    "Reading",
     "Recovery",
     "RepoEvidence",
     "ReportProvenance",

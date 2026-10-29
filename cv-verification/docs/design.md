@@ -20,7 +20,7 @@ because the reasoning is worth more than the conclusion.
 
 | Group | Built | Not built | Reason |
 |---|---|---|---|
-| **D** document-intrinsic | D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 — **11/11** | — | complete |
+| **D** document-intrinsic | D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 D13 D14 — **13/13** | — | complete |
 | **G** GitHub | G2 G3 G4 G5 G6 G7 G8 G9 G10 G11 — **10/10** | — | complete |
 | **P** platforms | P1 P2 P3 P4 P5 P6 — **6/6** | — | complete; P5 is scraped, so attention-only |
 | **W** deployments | W1 — **1/2** | W2 | human by design — a reviewer opens the link |
@@ -28,16 +28,16 @@ because the reasoning is worth more than the conclusion.
 | **H** human | — | H1–H6 | human by design |
 
 ```
-41 catalogued  −1 excluded (G12)  −7 human (W2, H1–H6)  −4 out of scope (C1–C4)
-                                                       =  29 in scope, 29 built
+43 catalogued  −1 excluded (G12)  −7 human (W2, H1–H6)  −4 out of scope (C1–C4)
+                                                       =  31 in scope, 31 built
 ```
 
 ### Code and tests
 
 | | |
 |---|---|
-| source | 33 modules, 10,984 lines |
-| tests | 22 files, **579 passing** (589 with Postgres, 5 live) |
+| source | 33 modules, 11,468 lines |
+| tests | 23 files, **610 passing** (620 with Postgres, 5 live) |
 | quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
@@ -73,6 +73,7 @@ responsible notices.
 
 | Document | claims | coverage | detection | collateral |
 |---|---:|---:|---|---:|
+| student CV (IIT Kharagpur), 29 Oct — the 21 Oct baseline, with D14's mutation | 19 | 57% | **18/18** | 0 |
 | student CV (IIT Kharagpur), 21 Oct | 19 | 57% | **17/17** | 0 |
 | synthetic CV (VIT Vellore), 15 Sep | 20 | 44% | **7/7** applicable | 1 (correct) |
 | professional CV (2-page), 15 Sep | 15 | 22% | **2/2** applicable | 0 |
@@ -1161,7 +1162,7 @@ draft is what should be regenerated.
 > **A CV from someone with no account, no repositories and no contest history must
 > still produce a complete, honest report.**
 
-All eleven document-intrinsic checks need no network at all, so the document-only path
+All thirteen document-intrinsic checks need no network at all, so the document-only path
 is a real path rather than a failure mode. `cvv verify --offline` is that path, and a
 test asserts every rule still appears in the report with its reason.
 

@@ -6,7 +6,7 @@ Produced by ingest + extract, consumed by rules. Nothing here knows about HTTP.
 from __future__ import annotations
 
 import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
@@ -212,6 +212,39 @@ class DocumentInfo(Model):
     producer: str | None = None
     created_at: str | None = None
     modified_at: str | None = None
+
+
+class HiddenText(Model):
+    """Text the file carries that a reader of the rendered page cannot see.
+
+    Found at ingest and kept OUT of `normalised_text`, so no model is shown it and no
+    claim can ground in it. Recorded so D13 can tell a reviewer it was there.
+    """
+
+    page: int = Field(ge=1)
+    # invisible: no ink where it sits on the rendered page — white on white, covered
+    # by a shape, an invisible text mode. tiny: set below a size anyone reads.
+    reason: Literal["invisible", "tiny"]
+    text: str
+    size: float | None = None  # points
+
+
+class Reading(Model):
+    """What reading the file found beyond its text, for the rules that need it.
+
+    Not part of the contract and never serialised into a report: the contract's
+    `document` object is closed, and nothing here is evidence about a claim. A rule
+    that needs it abstains when it is absent — the /v1/evaluate path holds a claim
+    graph and no file.
+    """
+
+    # The same value as ExtractionMeta.input_hash, so a rule can tell that this
+    # reading and that claim graph are of one text, not a re-read that differs.
+    input_hash: str
+    hidden: list[HiddenText] = Field(default_factory=list)
+    # Each non-empty line of the text, as normalised offsets [start, end).
+    # Normalisation collapses line breaks, so the lines exist only here.
+    lines: list[tuple[int, int]] = Field(default_factory=list)
 
 
 class ExtractionMeta(Model):

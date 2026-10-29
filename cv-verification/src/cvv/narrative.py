@@ -32,7 +32,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
-from cvv.models import Discrepancy, FindingsReport, Tier
+from cvv.models import CANDIDATE_TEXT, Discrepancy, FindingsReport, Tier
 from cvv.providers import LLMProvider
 
 PROMPT_VERSION = "narrative/v3"
@@ -113,7 +113,10 @@ def facts(finding: Discrepancy, ref: str | None = None) -> dict[str, object]:
         "rule": finding.rule_id,
         "says": finding.explanation,
         "innocent_reading": finding.innocent_explanation,
-        "details": finding.params,
+        # Never the candidate's own words: text quoted from a CV is for a person,
+        # and an instruction hidden or printed in one must not reach a model by way
+        # of the finding that reported it.
+        "details": {k: v for k, v in finding.params.items() if k != CANDIDATE_TEXT},
     }
 
 

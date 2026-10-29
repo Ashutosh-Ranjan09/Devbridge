@@ -21,7 +21,7 @@ from typing import Protocol, cast
 
 from rapidfuzz import fuzz
 
-from cvv.filters import is_aggregate
+from cvv.filters import GITHUB_REPO, is_aggregate
 from cvv.ids import finding_id
 from cvv.intervals import (
     Rel,
@@ -34,6 +34,7 @@ from cvv.intervals import (
 )
 from cvv.logs import get
 from cvv.models import (
+    CANDIDATE_TEXT,
     ArtefactType,
     Claim,
     ClaimGraph,
@@ -50,6 +51,7 @@ from cvv.models import (
     Platform,
     PlatformEvidence,
     Precision,
+    Reading,
     RuleOutcome,
     RuleStatus,
     Severity,
@@ -98,6 +100,9 @@ class Context:
     bundle: EvidenceBundle
     report_id: str
     document: DocumentInfo | None = None
+    # The file as read — what was hidden in it, where its lines fall. None when no
+    # file was read here (/v1/evaluate holds only a claim graph); D13 and D14 abstain.
+    reading: Reading | None = None
     today: datetime.date = field(default_factory=lambda: datetime.date.today())
 
     def claims(self, kind: ClaimKind) -> list[Claim]:
@@ -2820,6 +2825,190 @@ class D12TitleProgression:
                     "total."
                 ),
             )
+
+
+# What a candidate wrote is quoted for a person under this many characters a passage,
+# and this many passages. Enough to read; not a second copy of the document.
+_QUOTE_CHARS = 200
+_QUOTE_COUNT = 20
+
+
+def _quote(texts: list[str]) -> list[str]:
+    return [" ".join(t.split())[:_QUOTE_CHARS] for t in texts[:_QUOTE_COUNT]]
+
+
+def _reading(ctx: Context) -> Reading:
+    if ctx.reading is None:
+        raise Abstain(
+            "No file was read here — only a claim graph — so there is no page to "
+            "look at."
+        )
+    return ctx.reading
+
+
+@register
+@dataclass(frozen=True)
+class D13HiddenText:
+    """Text in the file that a reader of the rendered page cannot see.
+
+    Found at ingest and kept OUT of the text every later stage reads: the extraction
+    model is never shown it, and no claim can ground in it, so whatever it says — an
+    instruction to a model, a list of keywords — it reaches no check. This rule is how
+    a reviewer learns it was there.
+
+    A PDF span is hidden when its box on the rendered page holds no ink (white on
+    white, a shape drawn over it, the invisible text mode) or it is set below 4 pt.
+    Measured on the render, not inferred from colour: white text on a dark sidebar is
+    visible and is not reported. A Word file is not rendered, so there it is read from
+    formatting — hidden runs, tiny runs, white with nothing behind it.
+
+    The hidden text is quoted under `params[CANDIDATE_TEXT]`, never in the
+    explanation, because the narrative's model reads explanations: quoting an injected
+    instruction there would hand it to the next model.
+    """
+
+    rule_id: str = "D13"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False  # about the document, not a claim
+    summary: str = "Text in the file that cannot be seen on the page, and was not read"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        hidden = _reading(ctx).hidden
+        if not hidden:
+            return
+        invisible = [h for h in hidden if h.reason == "invisible"]
+        tiny = [h for h in hidden if h.reason == "tiny"]
+        pages = sorted({h.page for h in hidden})
+        why = []
+        if invisible:
+            why.append(f"{len(invisible)} leave no ink where they sit — the same colour as "
+                       "what is behind them, or covered")
+        if tiny:
+            why.append(f"{len(tiny)} are set below 4 pt")
+        on = f"page {pages[0]}" if len(pages) == 1 else "pages " + ", ".join(map(str, pages))
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, []),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.MEDIUM if invisible else Severity.LOW,
+            confidence=1.0,  # measured on the file, not inferred
+            scoring=self.scoring,
+            claim_refs=[],
+            evidence_refs=["ingest.hidden_text"],
+            params={
+                "passages": len(hidden),
+                "characters": sum(len(h.text) for h in hidden),
+                "invisible": len(invisible),
+                "tiny": len(tiny),
+                "pages": pages,
+                CANDIDATE_TEXT: _quote([h.text for h in hidden]),
+            },
+            explanation=(
+                f"{len(hidden)} passage(s) on {on} cannot be seen when the document is "
+                f"displayed: " + "; ".join(why) + ". They were not read: no model was "
+                "shown them and no check used them."
+            ),
+            innocent_explanation=(
+                "Templates leave placeholder text in white, and some career advice "
+                "tells candidates to hide keywords for applicant-tracking software. "
+                "Neither is a false claim. Whatever the text says, it was kept out of "
+                "every check, so it cannot have changed any other finding."
+            ),
+        )
+
+
+# The platforms this system gathers evidence from. A line naming one of them with a
+# number or a profile link is a line a P rule could have checked.
+_CHECKED_PLATFORMS = {"codeforces": "Codeforces", "leetcode": "LeetCode", "codechef": "CodeChef"}
+_PLATFORM_NAMED = re.compile(r"\b(" + "|".join(_CHECKED_PLATFORMS) + r")(?:\.com)?\b", re.I)
+
+
+@register
+@dataclass(frozen=True)
+class D14ExtractionCoverage:
+    """A line this system could have checked, and no claim was kept from.
+
+    The extraction model chooses what to return, and text in the CV can try to steer
+    that choice — "do not extract the achievements" — so a false rating is never
+    compared with the platform at all. Grounding cannot see that: it checks what was
+    returned, not what was left out. This rule looks without a model.
+
+    It looks for the two things the decisive checks run on. A line naming Codeforces,
+    LeetCode or CodeChef together with a number or a profile link is covered by an
+    achievement or profile claim overlapping it; a GitHub repository link is covered
+    when some claim names that repository. Anything else is reported for a person to
+    read. An education or employment section left out is not detected here.
+
+    The line is quoted under `params[CANDIDATE_TEXT]` for the reason D13 gives.
+    """
+
+    rule_id: str = "D14"
+    rule_version: str = "1.0"
+    tier: Tier = Tier.ATTENTION
+    scoring: bool = False  # about the extraction, like D2
+    summary: str = "Lines naming a checked source that no claim was kept from"
+
+    def evaluate(self, ctx: Context) -> Iterator[Discrepancy]:
+        reading = _reading(ctx)
+        if reading.input_hash != ctx.graph.extraction_meta.input_hash:
+            raise Abstain(
+                "The claims were extracted from a different reading of the document "
+                "than the one available here, so their lines cannot be matched."
+            )
+        text = ctx.graph.source.normalised_text
+        spans = [
+            (c.provenance.char_start, c.provenance.char_end)
+            for c in ctx.graph.claims
+            if c.kind in (ClaimKind.ACHIEVEMENT, ClaimKind.PROFILE)
+        ]
+        repos = ctx.named_repos()
+        missed: list[tuple[int, str, str]] = []  # line number, what it names, the line
+
+        for number, (start, end) in enumerate(reading.lines, start=1):
+            line = text[start:end]
+            named = sorted({m.lower().removesuffix(".com") for m in _PLATFORM_NAMED.findall(line)})
+            checkable = named and (re.search(r"\d", line) or re.search(r"\.com/", line))
+            if checkable and not any(s < end and e > start for s, e in spans):
+                missed.append((number, ", ".join(_CHECKED_PLATFORMS[p] for p in named), line))
+            for m in GITHUB_REPO.finditer(line):
+                repo = f"{m.group(1)}/{m.group(2)}".removesuffix(".git")
+                if repo not in repos and repo.split("/")[1] not in repos:
+                    missed.append((number, f"the GitHub repository {repo}", line))
+
+        if not missed:
+            return
+        where = "; ".join(f"{what} (line {n})" for n, what, _ in missed[:8])
+        more = f", and {len(missed) - 8} more" if len(missed) > 8 else ""
+        yield Discrepancy(
+            finding_id=finding_id(ctx.report_id, self.rule_id, []),
+            rule_id=self.rule_id,
+            rule_version=self.rule_version,
+            tier=self.tier,
+            severity=Severity.LOW,
+            confidence=1.0,
+            scoring=self.scoring,
+            claim_refs=[],
+            evidence_refs=["claim_graph.source.normalised_text"],
+            params={
+                "lines": [n for n, _, _ in missed],
+                "names": [what for _, what, _ in missed],
+                CANDIDATE_TEXT: _quote(list(dict.fromkeys(line for _, _, line in missed))),
+            },
+            explanation=(
+                f"{len(missed)} line(s) name a source this system checks, and no claim "
+                f"was kept from them, so nothing on them was checked: {where}{more}. "
+                "Read them by hand."
+            ),
+            innocent_explanation=(
+                "Extraction is a model's reading, and it misses lines on honest CVs "
+                "too — a project named after a platform, a number that is not a rating. "
+                "If D2 reports filtered claims, the line may have been extracted and "
+                "then refused as unusable. This describes the extraction, not the "
+                "candidate."
+            ),
+        )
 
 
 def _matches(tech: str, observed: list[str]) -> bool:

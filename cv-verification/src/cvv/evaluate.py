@@ -40,6 +40,7 @@ from cvv.models import (
     Interval,
     Platform,
     Precision,
+    Reading,
     RuleStatus,
 )
 from cvv.report import assemble
@@ -338,6 +339,20 @@ def _contest_absent(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
     return g, b.model_copy(update={"platforms": platforms})
 
 
+def _claim_suppressed(g: ClaimGraph, b: EvidenceBundle) -> Pair | None:
+    """The extractor left the Codeforces lines out — what a model that obeyed "do not
+    extract the achievements", printed or hidden in the CV, would return. Nothing is
+    then compared with Codeforces, and no rule that reads claims can notice."""
+    kept = [
+        c for c in g.claims
+        if not (c.kind in (ClaimKind.ACHIEVEMENT, ClaimKind.PROFILE)
+                and (c.platform or "").lower() == "codeforces")
+    ]
+    if len(kept) == len(g.claims):
+        return None
+    return _with_claims(g, kept), b
+
+
 CATALOGUE: list[Mutation] = [
     Mutation("rating-inflated", "P1", "Codeforces rating raised by 305", _inflate_rating),
     Mutation("rank-inflated", "P2", "contest rank improved to 40", _inflate_rank),
@@ -356,6 +371,8 @@ CATALOGUE: list[Mutation] = [
     Mutation("role-twice", "D10", "one role dated two incompatible ways", _same_role_twice),
     Mutation("degree-stretched", "D8", "a 4-year degree claimed over 7", _degree_span),
     Mutation("deployment-dead", "W1", "every live URL returns 404", _dead_deployment),
+    Mutation("claims-suppressed", "D14", "the Codeforces lines left out by the extractor",
+             _claim_suppressed),
 ]
 
 
@@ -364,34 +381,53 @@ CATALOGUE: list[Mutation] = [
 # --------------------------------------------------------------------------- #
 
 
-def _run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], dict[str, str]]:
-    """Which rules fired, and why each abstaining rule could not run.
+def _run(
+    graph: ClaimGraph, bundle: EvidenceBundle, reading: Reading | None = None
+) -> tuple[set[str], dict[str, str], dict[str, frozenset[str]]]:
+    """Which rules fired, why each abstaining rule could not run, and what each
+    firing rule said.
 
     Both are needed. A rule that ABSTAINED did not miss the mutation — it never got
     to look, because its source was unreachable or the CV named no account. Counting
     that as a miss conflates a broken check with an absent source, which is the one
     conflation this whole system exists to avoid, and it would make the detection
     rate a measure of how well-connected a candidate is.
+
+    What a rule SAID matters for a rule that already fires on the honest document:
+    firing again proves nothing, and only a finding that differs is a detection.
     """
-    report = assemble(graph, bundle, report_id="fr_eval")
+    report = assemble(graph, bundle, report_id="fr_eval", reading=reading)
     fired = {o.rule_id for o in report.rule_outcomes if o.status is RuleStatus.FIRED}
     unable = {
         o.rule_id: o.reason or "no reason given"
         for o in report.rule_outcomes
         if o.status in (RuleStatus.ABSTAINED, RuleStatus.ERROR)
     }
-    return fired, unable
+    said: dict[str, set[str]] = {}
+    for f in report.discrepancies:
+        said.setdefault(f.rule_id, set()).add(f.explanation)
+    return fired, unable, {rule: frozenset(texts) for rule, texts in said.items()}
 
 
-def run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], list[Outcome]]:
+def run(
+    graph: ClaimGraph, bundle: EvidenceBundle, reading: Reading | None = None
+) -> tuple[set[str], list[Outcome]]:
     """The baseline's own findings, then one run per mutation.
 
     Baseline findings are subtracted from every mutated run, so a rule that already
     fires on the honest document is never counted as collateral. That subtraction is
     the reason the baseline set is returned too: a reader must be able to see what
     was excused.
+
+    A rule that already fires on the honest document is caught only by a finding
+    that differs from its baseline one — firing again is what it would have done
+    anyway. P2 on the reference CV fires on a 1109-against-1106 rank, and D14 on a
+    line the extractor missed, so both need this.
+
+    `reading` is the file as read. Without it D14 cannot run, and its mutation is
+    reported as skipped with that reason rather than as a miss.
     """
-    baseline, _ = _run(graph, bundle)
+    baseline, _, baseline_said = _run(graph, bundle, reading)
     outcomes: list[Outcome] = []
 
     for mutation in CATALOGUE:
@@ -408,7 +444,7 @@ def run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], list[Outco
             )
             continue
 
-        fired, unable = _run(*mutated)
+        fired, unable, said = _run(*mutated, reading)
         if reason := unable.get(mutation.expect):
             outcomes.append(
                 Outcome(
@@ -426,7 +462,9 @@ def run(graph: ClaimGraph, bundle: EvidenceBundle) -> tuple[set[str], list[Outco
                 mutation.mutation_id,
                 mutation.expect,
                 mutation.describes,
-                caught=mutation.expect in fired,
+                caught=mutation.expect in fired
+                and (mutation.expect not in baseline
+                     or said.get(mutation.expect) != baseline_said.get(mutation.expect)),
                 collateral=sorted(fired - baseline - {mutation.expect}),
             )
         )

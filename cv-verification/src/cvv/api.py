@@ -43,7 +43,7 @@ from cvv.config import settings
 from cvv.extract import extract
 from cvv.gather import gather
 from cvv.ids import stable_id
-from cvv.ingest import document_info, read
+from cvv.ingest import document_info, read, reading
 from cvv.logs import configure, get
 from cvv.models import (
     ApiError,
@@ -174,6 +174,7 @@ def run_verification(
             bundle,
             report_id=f"fr_{doc.document_id[4:]}",
             document=document,
+            reading=reading(doc),
         )
         report = verification_report(
             verification_id=verification_id,

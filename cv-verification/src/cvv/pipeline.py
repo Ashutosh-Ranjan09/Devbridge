@@ -7,7 +7,7 @@ from pathlib import Path
 from cvv import __version__
 from cvv.extract import extract
 from cvv.gather import gather
-from cvv.ingest import document_info, read
+from cvv.ingest import document_info, read, reading
 from cvv.models import (
     ClaimGraph,
     DocumentInfo,
@@ -39,7 +39,11 @@ def verify(
     graph, _ = extract(doc, provider=provider, graph_id=f"cg_{doc.document_id[4:]}")
     bundle = gather(graph, bundle_id=f"eb_{doc.document_id[4:]}")
     report = assemble(
-        graph, bundle, report_id=f"fr_{doc.document_id[4:]}", document=document_info(doc)
+        graph,
+        bundle,
+        report_id=f"fr_{doc.document_id[4:]}",
+        document=document_info(doc),
+        reading=reading(doc),
     )
     return graph, bundle, report
 

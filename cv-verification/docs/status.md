@@ -12,15 +12,15 @@
 
 | | Today | Notes |
 |---|---|---|
-| **Checks** | **29 / 29 in scope** | 28 rules + the narrative (C5). 41 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human |
-| **Tests** | **579** passing · 589 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Checks** | **31 / 31 in scope** | 30 rules + the narrative (C5). 43 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human. D13 and D14 added 29 Oct: hidden text, extraction coverage |
+| **Tests** | **610** passing · 620 with Postgres | 0 failing; 5 live tests deselected by default |
 | **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
-| **Size** | 33 modules · 10,984 lines · 22 test files · 6,119 test lines | |
+| **Size** | 33 modules · 11,468 lines · 23 test files · 6,577 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 10 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 75, since 4 Sep | **no remote** |
+| **Commits** | 76, since 4 Sep | **no remote** |
 
 ---
 
@@ -28,7 +28,7 @@
 
 | Group | Built | Not built | Why |
 |---|---|---|---|
-| D · document-intrinsic | 11 / 11 | — | |
+| D · document-intrinsic | 13 / 13 | — | |
 | G · GitHub | 10 / 10 | — | G12 excluded on fairness grounds |
 | P · platforms | 6 / 6 | — | P5 reads CodeChef's profile page — scraped, so attention-only |
 | W · deployments | 1 / 2 | W2 | human by design — a reviewer opens the link |
@@ -42,8 +42,8 @@
 ```
 ruff check src tests                  PASS
 mypy --strict                         33 files, no issues
-pytest                                579 passed · 10 skipped (Postgres-only) · 0 failed
-cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
+pytest                                610 passed · 10 skipped (Postgres-only) · 0 failed
+cvv evaluate docs/CV-SDE-AR.pdf       18/18 detection · 0 collateral
 ```
 
 ---
@@ -52,6 +52,7 @@ cvv evaluate docs/CV-SDE-AR.pdf       17/17 detection · 0 collateral
 
 | Document | Claims | Filtered | Coverage | Detection | Collateral |
 |---|---:|---:|---:|---|---:|
+| student CV — IIT Kharagpur (29 Oct, Claude baseline of 21 Oct) | 19 | 0 | 57% | **18/18** | 0 |
 | student CV — IIT Kharagpur (21 Oct, Claude) | 19 | 0 | 57% | **17/17** | 0 |
 | synthetic CV — VIT Vellore (15 Sep) | 20 | 1 | 44% | **7/7** applicable | 1 |
 | professional CV — 2 pages (15 Sep) | 15 | 6 | 22% | **2/2** applicable | 0 |
@@ -111,7 +112,7 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 75 commits, now all three modules, exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 76 commits, now all three modules, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
 | 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |

@@ -135,7 +135,7 @@ responsible notices.
 
 | | student CV | synthetic CV ¹ | professional CV ¹ |
 |---|---|---|---|
-| **detection** | 17/17 | 7/7 of applicable | 2/2 of applicable |
+| **detection** | 18/18 | 7/7 of applicable | 2/2 of applicable |
 | **collateral** | 0 | 1 (correct) | 0 |
 
 ¹ measured 15 September, before the CodeChef check and the October fairness fixes.
@@ -258,7 +258,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 579 tests, no server needed
+uv run pytest                                   # 610 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy
