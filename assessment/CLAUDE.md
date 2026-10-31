@@ -46,6 +46,7 @@ flat `{"error", "detail"}`, like M6's: 404 unknown id, 409 the module's own refu
 | `POST /v1/jobs` `{text, model}` · `GET /v1/jobs[/{id}]` | propose skills from a JD (synchronous, up to the model's timeout) |
 | `PATCH /v1/jobs/{id}` `{must:{id:bar}, nice, drop, tasks?}` · `POST …/confirm` `{by}` | a person's edits, then the lock; bars checked 0–1; `tasks` is the patterns every applicant gets, each testing a must-have |
 | `GET /v1/jobs/{id}/tasks` | each must-have with the patterns that test it, the chosen ones ticked, and those no pattern tests |
+| `GET /v1/jobs/{id}/results` | each of the job's tasks ranked on its own: final results by hidden tests passed, then time taken, equal places shared (`scoring.standings`); the rest under `pending`, unranked |
 | `GET /v1/jobs/{id}/requirements` | the body for M6's `POST /shortlist` |
 | `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id, start_by?}` | issue tasks; asking again returns the same ones. A job's tasks are `issued` with no clock, to be started by `start_by` (default 7 days, at most 60); practice starts at once |
 | `POST /v1/sessions/{id}/begin` | the candidate presses Start: the time limit runs from now and the task is shown; again changes nothing; after `start_by`, 409 |
@@ -109,6 +110,12 @@ threads. Never share one Store between requests.
     ability estimate. How far to TRUST a result is `contracts/evidence.yaml`.
 
 ## Known limits, stated
+
+- **Each task's results are ranked, one task at a time.** Hidden tests passed, then time
+  taken from Start to the counted submission; attempts never order anyone. Coarse:
+  rate_limiter has 6 tests and top_k_frequent 8, so many candidates share a count and
+  time decides, which rewards speed. A rank says nothing about why a test failed; the
+  full result does. Never summed across tasks: that would be an overall score.
 
 - **Tasks are chosen per job, not per candidate.** The recruiter ticks which patterns
   every applicant gets while the job is a draft (default: each must-have's first); the

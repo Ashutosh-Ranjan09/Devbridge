@@ -174,6 +174,27 @@ class TestTasks:
                                                    "model": False}, headers=KEY).json()
         assert [t["pattern_id"] for t in issued["tasks"]] == ["top_k_frequent"]
 
+    def test_a_job_s_results_are_ranked_one_task_at_a_time(self, client, sandbox) -> None:
+        job = client.post("/v1/jobs", json={"text": JD, "model": False}, headers=KEY).json()
+        jid = job["job_id"]
+        client.patch(f"/v1/jobs/{jid}", json={"must": {"rate_limiting": None, "algorithms": None}}, headers=KEY)
+        client.post(f"/v1/jobs/{jid}/confirm", json={"by": "A. Recruiter"}, headers=KEY)
+        sandbox["run"] = Run(Outcome.PASSED, rows(), INFO)
+        for ref in ("subject:asha", "subject:ravi"):
+            client.post("/v1/sessions", json={"candidate_ref": ref, "job_id": jid, "model": False}, headers=KEY)
+        tasks = client.post("/v1/sessions", json={"candidate_ref": "subject:asha", "job_id": jid, "model": False},
+                            headers=KEY).json()["tasks"]
+        limiter = next(t["session_id"] for t in tasks if t["pattern_id"] == "rate_limiter")
+        client.post(f"/v1/sessions/{limiter}/begin", headers=KEY)
+        client.post(f"/v1/sessions/{limiter}/submit", json={"code": "x = 1"}, headers=KEY)   # passes: final
+        r = client.get(f"/v1/jobs/{jid}/results", headers=KEY).json()
+        assert [t["pattern_id"] for t in r] == ["rate_limiter", "top_k_frequent"], "one ranking per task"
+        rl, tk = r
+        assert [(s["rank"], s["candidate_ref"], s["passed"], s["total"]) for s in rl["ranked"]] == [(1, "subject:asha", 6, 6)]
+        assert {p["candidate_ref"]: (p["status"], p["started"]) for p in rl["pending"]} == {"subject:ravi": ("issued", False)}
+        assert tk["ranked"] == [] and len(tk["pending"]) == 2, "not started is not ranked last; it is not ranked"
+        assert not set(r[0]) & {"overall", "score", "sum"}, "no number across tasks"
+
     def test_job_or_pattern_not_both(self, client) -> None:
         r = client.post("/v1/sessions", json={"candidate_ref": "s", "job_id": "j",
                                               "pattern_id": "rate_limiter"}, headers=KEY)

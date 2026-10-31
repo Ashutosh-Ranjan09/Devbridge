@@ -27,6 +27,7 @@ from assess.config import settings
 from assess.events import NotEvidenceError, batch
 from assess.models import Job, Model, Outcome, Result, Score, Session, SessionStatus, Variant
 from assess.patterns import PatternError, all_patterns, load
+from assess.scoring import standings
 from assess.sessions import (
     NotPythonError,
     SessionError,
@@ -114,6 +115,37 @@ class TaskOption(Model):
     level: str
     time_limit_minutes: int
     chosen: bool
+
+
+class Standing(Model):
+    rank: int
+    session_id: str
+    candidate_ref: str
+    passed: int
+    total: int
+    core: str                              # "5/5"
+    twist: str
+    time_used_seconds: int
+    attempt: int                           # the counted one
+
+
+class Pending(Model):
+    """No final result yet: still working, not started, or expired with no submission."""
+
+    session_id: str
+    candidate_ref: str
+    status: SessionStatus
+    attempts_used: int
+    start_by: datetime.datetime | None
+    started: bool                          # pressed Start: an expired one ran out of time, not of chances
+
+
+class TaskResults(Model):
+    pattern_id: str
+    title: str
+    max_attempts: int
+    ranked: list[Standing]                 # hidden tests passed, then time taken; equal places shared
+    pending: list[Pending]                 # not ranked, and not last: they have no result
 
 
 class JobTasks(Model):
@@ -330,6 +362,43 @@ def job_tasks(_: Auth, db: Db, job_id: str) -> JobTasks:
               for skill, patterns in options.items() if patterns},
         not_assessable=[skill for skill, patterns in options.items() if not patterns],
     )
+
+
+@app.get("/v1/jobs/{job_id}/results")
+def job_results(_: Auth, db: Db, job_id: str) -> list[TaskResults]:
+    """Each of the job's tasks ranked on its own, never summed across tasks: one number
+    across tasks would be an overall score. Every applicant faced the same pattern, each
+    variant equally hard, which is what makes one task's results comparable. A session
+    past its deadline is settled first, so its last attempt is ranked."""
+    job = _job(db, job_id)
+    by_pattern: dict[str, list[Session]] = {}
+    for listed in db.sessions_for_job(job_id):
+        session = current(db, listed.session_id)
+        variant = db.variant(session.variant_id, session.job_id)
+        assert variant is not None
+        by_pattern.setdefault(variant.pattern_id, []).append(session)
+    chosen = jd.chosen_tasks(job)
+    out: list[TaskResults] = []
+    for pattern_id in [*chosen, *(p for p in by_pattern if p not in chosen)]:
+        group = by_pattern.get(pattern_id, [])
+        finals = [r for s in group if s.status is SessionStatus.SUBMITTED
+                  and (r := db.result(s.session_id)) is not None and r.score is not None]
+        ranked = []
+        for rank, r in standings(finals):
+            assert r.score is not None
+            ranked.append(Standing(
+                rank=rank, session_id=r.session_id, candidate_ref=r.candidate_ref,
+                passed=r.score.passed, total=r.score.total,
+                core=f"{r.score.core_passed}/{r.score.core_total}",
+                twist=f"{r.score.twist_passed}/{r.score.twist_total}",
+                time_used_seconds=r.time_used_seconds, attempt=r.attempt))
+        pending = [Pending(session_id=s.session_id, candidate_ref=s.candidate_ref, status=s.status,
+                           attempts_used=len(db.attempts(s.session_id)), start_by=s.start_by,
+                           started=s.started_at is not None)
+                   for s in group if s.status is not SessionStatus.SUBMITTED]
+        out.append(TaskResults(pattern_id=pattern_id, title=load(pattern_id).title,
+                               max_attempts=settings.max_attempts, ranked=ranked, pending=pending))
+    return out
 
 
 @app.get("/v1/jobs/{job_id}/requirements")

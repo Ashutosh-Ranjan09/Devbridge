@@ -1,7 +1,7 @@
 /** A task's dates and state in words. Dates are India's: a recruiter picks a day, and the
  * task can be started until the end of it, IST, wherever the server runs. */
 
-import type { Task } from "./types";
+import type { Task, TaskResults } from "./types";
 
 const IST = "Asia/Kolkata";
 const DAY_MS = 86_400_000;
@@ -16,6 +16,22 @@ export const endOfDay = (day: string): Date => new Date(`${day}T23:59:59+05:30`)
 
 export function when(iso: string): string {
   return new Date(iso).toLocaleString("en-IN", { timeZone: IST, dateStyle: "medium", timeStyle: "short" });
+}
+
+/** The rows of a module's answer that belong to this job's applicants, with who each is.
+ * A session the web did not issue for one of them is not shown. */
+export function forApplicants<T extends { session_id: string }, W>(rows: T[], who: Map<string, W>): (T & { who: W })[] {
+  return rows.flatMap((r) => {
+    const w = who.get(r.session_id);
+    return w === undefined ? [] : [{ ...r, who: w }];
+  });
+}
+
+/** Why a task has no result yet, in words. */
+export function pendingStatus(p: TaskResults["pending"][number], maxAttempts: number): string {
+  if (p.status === "issued") return p.start_by ? `not started · start by ${when(p.start_by)}` : "not started";
+  if (p.status === "expired") return p.started ? "expired · nothing submitted in time" : "expired · never started";
+  return `open · ${p.attempts_used} of ${maxAttempts} attempts used`;
 }
 
 /** An issued task has no clock yet: it waits for the candidate to press Start. */

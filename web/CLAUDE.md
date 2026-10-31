@@ -77,9 +77,11 @@ tests/                  Vitest: actions against a temporary database; service ca
 2. **No business logic here.** What evidence is worth, whether a must-have is met, what
    a test result means: a module says it, this app shows it. If a page needs a number
    no module returns, the module gains an endpoint.
-3. **Nothing is scored or ranked.** No overall score on any page. Lists of people are
-   ordered by name or date, never by a skill. A decision needs a person and a written
-   reason, and is stored with both.
+3. **Nothing is scored overall.** No overall score on any page. Lists of people are
+   ordered by name or date, never by a skill, with one exception: a job's "Results by
+   task" card shows each task's results in the assessment module's order (hidden tests
+   passed, then time), one task at a time, never summed. A decision needs a person and a
+   written reason, and is stored with both.
 4. **The modules see only `subject_ref`.** Never send a name or an email to M5, M6 or
    assessment. Only `Candidate` maps a subject to a person.
 5. **Every page and every server action checks the role itself** with `requireRole`.

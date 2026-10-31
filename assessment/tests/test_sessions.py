@@ -12,6 +12,7 @@ from assess import sessions
 from assess.models import Outcome, SandboxInfo, Session, SessionStatus
 from assess.patterns import load
 from assess.sandbox import Run
+from assess.scoring import standings
 from assess.sessions import (
     NotPythonError,
     SessionError,
@@ -282,3 +283,32 @@ class TestStartingFromAJob:
                                       "twist": "retry_after"}, "story": "A login page under attack."})
         ((_, variant),) = start_for_job(store, job.job_id, "subject:asha", provider=model, now=T)[0]
         assert variant.chosen_by == "model" and variant.params["key_kind"] == "user_email"
+
+
+class TestStandings:
+    """One task's results, best first: hidden tests passed, then time taken."""
+
+    def take(self, store, sandbox, ref, seed, run, minutes):
+        s, _ = start(store, "rate_limiter", ref, job_id="job_1", seed=seed, now=T)
+        sandbox["run"] = run
+        submit(store, s.session_id, "x", now=T + datetime.timedelta(minutes=minutes))
+        finish(store, s.session_id, now=T + datetime.timedelta(minutes=minutes))
+        return store.result(s.session_id)
+
+    def test_tests_passed_then_time_and_an_exact_tie_shares_its_place(self, store, sandbox) -> None:
+        passed = Run(Outcome.PASSED, rows(), INFO)
+        one_failed = Run(Outcome.TESTS_FAILED, rows({"exact_boundary"}), INFO)
+        results = [
+            self.take(store, sandbox, "slow", 1, passed, 20),
+            self.take(store, sandbox, "fast", 2, passed, 10),
+            self.take(store, sandbox, "quick_but_wrong", 3, one_failed, 5),
+            self.take(store, sandbox, "fast_too", 4, passed, 10),
+            self.take(store, sandbox, "no_import", 5, Run(Outcome.IMPORT_ERROR, [], INFO, "SyntaxError"), 2),
+        ]
+        ranks = {r.candidate_ref: rank for rank, r in standings(results)}
+        assert ranks == {"fast": 1, "fast_too": 1, "slow": 3, "quick_but_wrong": 4, "no_import": 5}
+
+    def test_time_never_outranks_a_test(self, store, sandbox) -> None:
+        a = self.take(store, sandbox, "a", 1, Run(Outcome.PASSED, rows(), INFO), 39)
+        b = self.take(store, sandbox, "b", 2, Run(Outcome.TESTS_FAILED, rows({"window_slides"}), INFO), 1)
+        assert [r.candidate_ref for _, r in standings([b, a])] == ["a", "b"]

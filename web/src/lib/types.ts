@@ -145,6 +145,17 @@ export type Job = {
   tasks?: string[] | null; // pattern ids every applicant gets; null: each must-have's first
 };
 
+/** GET /v1/jobs/{id}/results: each task ranked on its own by the assessment module,
+ * hidden tests passed then time taken; those with no final result apart, unranked. */
+export type TaskResults = {
+  pattern_id: string;
+  title: string;
+  max_attempts: number;
+  ranked: { rank: number; session_id: string; candidate_ref: string; passed: number; total: number;
+    core: string; twist: string; time_used_seconds: number; attempt: number }[];
+  pending: { session_id: string; candidate_ref: string; status: Task["status"]; attempts_used: number; start_by: string | null; started: boolean }[];
+};
+
 /** GET /v1/jobs/{id}/tasks: each must-have with the tasks that test it, the chosen ones
  * ticked, and the must-haves no task tests. The same for every applicant. */
 export type JobTasks = {

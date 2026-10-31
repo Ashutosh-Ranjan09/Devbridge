@@ -79,6 +79,22 @@ def build_result(
     )
 
 
+def standings(results: list[Result]) -> list[tuple[int, Result]]:
+    """ONE task's final results, best first: hidden tests passed, then time taken.
+    Equal on both share a place (1, 2, 2, 4). Never called across tasks: one order over
+    several would need their scores added up, the overall score this system refuses.
+    Comparable because every applicant to a job faced the same pattern, each variant
+    equally hard (guardrail 3); a person still reads why each test failed."""
+    def key(r: Result) -> tuple[int, int]:
+        assert r.score is not None, "only a scored, final result is ranked"
+        return (-r.score.passed, r.time_used_seconds)
+
+    out: list[tuple[int, Result]] = []
+    for i, r in enumerate(sorted(results, key=lambda r: (*key(r), r.session_id))):
+        out.append((out[-1][0] if out and key(out[-1][1]) == key(r) else i + 1, r))
+    return out
+
+
 def render(result: Result) -> str:
     """The report a person reads."""
     p = result.params

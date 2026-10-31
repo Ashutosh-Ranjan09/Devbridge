@@ -54,3 +54,8 @@ every combination.
 - No module may publish an overall score, rank by a combination of skills, or filter
   candidates on the system's own judgement. A person confirms a job's requirements,
   and a person reads the results.
+
+  One exception, decided by the project owner: a job's assessment results are ranked
+  **one task at a time** (hidden tests passed, then time taken; `GET /v1/jobs/{id}/results`),
+  so a recruiter can see who did best on each task. Never summed across tasks or skills,
+  never filtering anyone, and a person still picks and decides.

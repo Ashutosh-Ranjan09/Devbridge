@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { Suspense } from "react";
 
 import { Musts } from "@/components/musts";
@@ -9,7 +10,9 @@ import { confirmJob, setOpen } from "@/app/recruiter/actions";
 import { db } from "@/lib/db";
 import { myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
-import type { Job, JobTasks, Requirements, Shortlist, ShortlistEntry } from "@/lib/types";
+import { settleAssessment } from "@/lib/sync";
+import { forApplicants, pendingStatus } from "@/lib/tasks";
+import type { Job, JobTasks, Requirements, Shortlist, ShortlistEntry, TaskResults } from "@/lib/types";
 
 export default function JobPage({ params, searchParams }: PageProps<"/recruiter/jobs/[id]">) {
   return (
@@ -117,6 +120,8 @@ async function Applicants({ jobId, skills, only }: { jobId: string; skills: stri
   ]);
   const shown = only ? apps.filter((a) => entries.get(a.candidate.subjectRef)?.clearsAll) : apps;
   return (
+    <>
+    <ResultsByTask jobId={jobId} apps={apps} />
     <Card>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold">Applicants ({apps.length})</h3>
@@ -145,6 +150,7 @@ async function Applicants({ jobId, skills, only }: { jobId: string; skills: stri
         })}
       </ul>
     </Card>
+    </>
   );
 }
 
@@ -157,5 +163,79 @@ function TasksSummary({ tasks }: { tasks: JobTasks }) {
       Tasks every applicant gets:{" "}
       {chosen.length ? `${chosen.map((o) => o.title).join(", ")} (${minutes} minutes in all)` : "none"}
     </p>
+  );
+}
+
+type Who = { name: string; appId: string };
+
+/** Each task's results ranked on its own, as the assessment module ranks them: hidden
+ * tests passed, then time taken. Never summed across tasks. The applicant rows below stay
+ * in name order; a person picks from here and decides on the applicant's page. */
+async function ResultsByTask({ jobId, apps }: { jobId: string; apps: { id: string; candidate: { user: { name: string } } }[] }) {
+  const sessions = await db.assessment.findMany({ where: { applicationId: { in: apps.map((a) => a.id) } } });
+  if (!sessions.length) return null;
+  const names = new Map(apps.map((a) => [a.id, a.candidate.user.name]));
+  const who = new Map<string, Who>(sessions.map((s) => [s.id, { name: names.get(s.applicationId ?? "") ?? "?", appId: s.applicationId ?? "" }]));
+  let results: TaskResults[];
+  try {
+    results = await call<TaskResults[]>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/results`);
+  } catch (e) {
+    if (e instanceof ServiceError) return <Card><p>{e.message}</p></Card>;
+    throw e;
+  }
+  // Settled by the deadline with nobody pressing a button: tell M6 and the application.
+  const settled = new Set(results.flatMap((t) => t.ranked.map((r) => r.session_id)));
+  for (const s of sessions) if (settled.has(s.id) && !s.sentToM6At) after(() => settleAssessment(s.id).catch(() => {}));
+  const view = (w: Who) => `/recruiter/jobs/${jobId}/applicants/${w.appId}`;
+  return (
+    <Card>
+      <h3 className="mb-1 font-semibold">Results by task</h3>
+      <p className="mb-3 text-xs text-muted">
+        Each task on its own: hidden tests passed, then time taken; equal places are shared. Every applicant got
+        the same tasks, each variant equally hard. Why a test failed is on the applicant&apos;s page.
+      </p>
+      <div className="space-y-5">
+        {results.map((t) => {
+          const ranked = forApplicants(t.ranked, who);
+          const pending = forApplicants(t.pending, who);
+          return (
+            <section key={t.pattern_id}>
+              <h4 className="font-medium">{t.title}</h4>
+              {ranked.length === 0 && <p className="text-sm text-muted">No final result yet.</p>}
+              {ranked.length > 0 && (
+                <table className="mt-1 w-full text-left text-sm">
+                  <thead className="text-muted">
+                    <tr><th className="py-1 pr-2">#</th><th className="pr-2">Applicant</th><th className="pr-2">Hidden tests</th><th className="pr-2">Time</th><th>Attempt</th></tr>
+                  </thead>
+                  <tbody>
+                    {ranked.map((r) => (
+                      <tr key={r.session_id} className="border-t border-line">
+                        <td className="py-1 pr-2 font-mono">{r.rank}</td>
+                        <td className="pr-2"><Link href={view(r.who)} className="text-accent underline">{r.who.name}</Link></td>
+                        <td className="pr-2">{r.passed} of {r.total} <span className="text-muted">({r.core} core, {r.twist} twist)</span></td>
+                        <td className="pr-2">{Math.round(r.time_used_seconds / 60)} min</td>
+                        <td>{r.attempt} counts</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {pending.length > 0 && (
+                <p className="mt-1 text-sm text-muted">
+                  No result yet:{" "}
+                  {pending.map((p, i) => (
+                    <span key={p.session_id}>
+                      {i > 0 && "; "}
+                      <Link href={view(p.who)} className="underline">{p.who.name}</Link>{" "}
+                      ({pendingStatus(p, t.max_attempts)})
+                    </span>
+                  ))}
+                </p>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
