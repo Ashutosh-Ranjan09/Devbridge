@@ -95,11 +95,6 @@ class Store:
         return [Job.model_validate_json(r[0]) for r in self.db.execute("SELECT doc FROM jobs ORDER BY rowid")]
 
     # ── variants ───────────────────────────────────────────────────────────
-    def save_variant(self, variant: Variant) -> None:
-        with self.tx() as db:
-            db.execute("INSERT OR IGNORE INTO variants VALUES (?, ?, ?)",
-                       (variant.variant_id, variant.job_id or "", variant.model_dump_json()))
-
     def variant(self, variant_id: str, job_id: str | None) -> Variant | None:
         row = self.db.execute("SELECT doc FROM variants WHERE variant_id = ? AND job_id = ?",
                               (variant_id, job_id or "")).fetchone()
@@ -111,11 +106,24 @@ class Store:
         return {r[0] for r in rows}
 
     # ── sessions ───────────────────────────────────────────────────────────
-    def save_session(self, session: Session, pattern_id: str) -> None:
-        with self.tx() as db:
-            db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       (session.session_id, session.variant_id, session.candidate_ref, pattern_id,
-                        session.job_id or "", session.status.value, session.model_dump_json()))
+    def save_issued(self, variant: Variant, session: Session, pattern_id: str) -> Session:
+        """The variant and its session in one transaction. Two requests for one task at
+        once (a double click, two tabs) both find none and both make one; the unique
+        index lets one in, and the other is handed the winner's session, its own variant
+        rolled back with it, so `issued` never counts a task nobody was given."""
+        try:
+            with self.tx() as db:
+                db.execute("INSERT OR IGNORE INTO variants VALUES (?, ?, ?)",
+                           (variant.variant_id, variant.job_id or "", variant.model_dump_json()))
+                db.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)",
+                           (session.session_id, session.variant_id, session.candidate_ref, pattern_id,
+                            session.job_id or "", session.status.value, session.model_dump_json()))
+        except sqlite3.IntegrityError:
+            winner = self.existing_session(session.candidate_ref, pattern_id, session.job_id)
+            if winner is None:
+                raise
+            return winner
+        return session
 
     def set_status(self, session: Session, status: SessionStatus) -> Session:
         updated = session.model_copy(update={"status": status})

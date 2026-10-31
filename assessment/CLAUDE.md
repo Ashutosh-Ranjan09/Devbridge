@@ -13,7 +13,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-94 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+95 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).

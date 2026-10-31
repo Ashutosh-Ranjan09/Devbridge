@@ -159,6 +159,14 @@ describe("applicants", () => {
     expect((await db.application.findUniqueOrThrow({ where: { id: appId } })).status).toBe("ASSESSMENT_SENT");
   });
 
+  it("sending twice keeps one row per task: assessment returns the same sessions", async () => {
+    const issued = { tasks: [{ session_id: "as_9" }, { session_id: "as_10" }], not_assessable: [] };
+    modules({ "POST http://assess.test/v1/sessions": [200, issued] });
+    await sendAssessment("job_1", appId, undefined, form({}));
+    await sendAssessment("job_1", appId, undefined, form({}));
+    expect((await db.assessment.findMany({ orderBy: { id: "asc" } })).map((a) => a.id)).toEqual(["as_10", "as_9"]);
+  });
+
   it("the candidate submitting moves the application on", async () => {
     await db.assessment.create({ data: { id: "as_9", candidateId: asha, applicationId: appId } });
     await db.application.update({ where: { id: appId }, data: { status: "ASSESSMENT_SENT" } });

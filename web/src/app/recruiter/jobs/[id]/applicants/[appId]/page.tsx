@@ -98,7 +98,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
             )}
           </div>
         ))}
-        {!app.decision && <SendAssessment jobId={jobId} applicationId={app.id} />}
+        {!app.decision && <SendAssessment jobId={jobId} applicationId={app.id} sent={tasks.length > 0} />}
       </Card>
 
       <Card>

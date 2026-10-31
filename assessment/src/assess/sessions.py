@@ -64,8 +64,11 @@ def start(
         started_at=started,
         deadline=started + datetime.timedelta(minutes=variant.time_limit_minutes),
     )
-    store.save_variant(variant)
-    store.save_session(session, pattern_id)
+    winner = store.save_issued(variant, session, pattern_id)
+    if winner is not session:
+        found = store.variant(winner.variant_id, job_id)
+        assert found is not None
+        return winner, found
     return session, variant
 
 

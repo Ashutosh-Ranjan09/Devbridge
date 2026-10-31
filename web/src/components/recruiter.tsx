@@ -107,15 +107,24 @@ export function SkillEditor({ jobId, skills, catalogue }: { jobId: string; skill
   );
 }
 
-export function SendAssessment({ jobId, applicationId }: { jobId: string; applicationId: string }) {
+/** Once tasks are sent the button goes: sending again returns the same tasks, so a
+ * second click would only look like a second assessment. The form stays mounted so the
+ * send's own message (which must-haves no task tests) survives the page refreshing. */
+export function SendAssessment({ jobId, applicationId, sent }: { jobId: string; applicationId: string; sent: boolean }) {
   const [state, action, pending] = useActionState(sendAssessment.bind(null, jobId, applicationId), undefined);
   return (
     <form action={action} className="space-y-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="model" defaultChecked />
-        Fit each task&apos;s story to this job description (the model chooses only from each task&apos;s allowed values)
-      </label>
-      <Button pending={pending}>Send an assessment</Button>
+      {sent ? (
+        !state?.message && <p className="text-sm text-muted">Sent. Sending again would return the same tasks.</p>
+      ) : (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="model" defaultChecked />
+            Fit each task&apos;s story to this job description (the model chooses only from each task&apos;s allowed values)
+          </label>
+          <Button pending={pending}>Send an assessment</Button>
+        </>
+      )}
       {state?.message && <p className="text-sm">{state.message}</p>}
     </form>
   );

@@ -39,6 +39,22 @@ class TestStarting:
         b, vb = start(store, "rate_limiter", "subject:asha", seed=99, now=T)
         assert a.session_id == b.session_id and va.variant_id == vb.variant_id
 
+    def test_two_requests_at_once_get_one_task(self, store, monkeypatch) -> None:
+        """A double click, or two tabs: both find no task and both make one. The second
+        is handed the first's session, not a server error, and leaves no variant behind."""
+        a, va = start(store, "rate_limiter", "subject:asha", job_id="job_1", seed=1, now=T)
+        real, calls = store.existing_session, []
+
+        def raced(*args):  # the check ran before the first request had saved its task
+            calls.append(args)
+            return None if len(calls) == 1 else real(*args)
+
+        monkeypatch.setattr(store, "existing_session", raced)
+        variants = store.db.execute("SELECT COUNT(*) FROM variants").fetchone()[0]
+        b, vb = start(store, "rate_limiter", "subject:asha", job_id="job_1", seed=2, now=T)
+        assert (b.session_id, vb.variant_id) == (a.session_id, va.variant_id)
+        assert store.db.execute("SELECT COUNT(*) FROM variants").fetchone()[0] == variants
+
     def test_two_candidates_for_one_job_never_get_the_same_task(self, store) -> None:
         _, va = start(store, "rate_limiter", "subject:asha", job_id="job_1", seed=1, now=T)
         _, vb = start(store, "rate_limiter", "subject:ravi", job_id="job_1", seed=1, now=T)
