@@ -121,7 +121,7 @@ export async function sendAssessment(jobId: string, applicationId: string, _: Fo
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values: typed(form) };
   let issued: { tasks: Task[]; not_assessable: string[] };
   try {
-    // One task per assessable must-have; asking again returns the same tasks. Each waits
+    // The job's chosen tasks; asking again returns the same ones. Each waits
     // for the candidate to press Start, until the end of the chosen day.
     issued = await call("assess", "/v1/sessions", {
       body: {

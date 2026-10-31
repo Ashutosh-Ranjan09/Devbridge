@@ -46,9 +46,9 @@ describe("call", () => {
   });
 
   it("a refusal becomes a ServiceError with the module's own reason", async () => {
-    vi.stubGlobal("fetch", answer(409, { error: "refused", detail: "a session takes one submission" }));
+    vi.stubGlobal("fetch", answer(409, { error: "refused", detail: "its result is final" }));
     const e = await failure(call("assess", "/v1/sessions/x/submit", { body: { code: "" } }));
-    expect([e.status, e.code, e.message]).toEqual([409, "refused", "a session takes one submission"]);
+    expect([e.status, e.code, e.message]).toEqual([409, "refused", "its result is final"]);
   });
 
   it("no answer at all is status 0, unreachable", async () => {

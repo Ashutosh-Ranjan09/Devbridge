@@ -56,7 +56,7 @@ async function Assessment({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-sm">
               {task.start_by && <>Start by <strong>{when(task.start_by)}</strong>. </>}
               The task is shown and the clock starts when you press Start: you will have {task.time_limit_minutes} minutes
-              and one submission.
+              and up to {task.max_attempts} submissions, the last of which counts.
             </p>
             <BeginTask sessionId={task.session_id} minutes={task.time_limit_minutes} />
           </div>

@@ -78,7 +78,8 @@ async function Assessments() {
         <h2 className="mb-1 font-semibold">Practice</h2>
         <p className="mb-3 text-sm text-muted">
           Your own variant of the task, as hard as everyone else&apos;s. The clock starts when you press Start,
-          you get one submission, and the result is added to your skill graph. Each task can be practised once.
+          you can run the examples as often as you like and submit up to three times (the last counts), and the
+          result is added to your skill graph. Each task can be practised once.
         </p>
         <ul className="space-y-3">
           {patterns.map((p) => {

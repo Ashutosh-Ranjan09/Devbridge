@@ -49,8 +49,10 @@ scripts/dev.sh prod                  # the same with a production build of the w
 One command starts all four with one key per module per run, passed through the
 environment and never printed; logs go to `.run/`, and Ctrl-C stops everything.
 Candidates check a CV (with their platform usernames and a note, both optional), see
-their skills and take assessments; recruiters confirm a job's skills, read each
-applicant's evidence and decide, with a reason the candidate reads; admins see the
+their skills and take assessments (Start when ready, run the visible examples, up to
+three submissions, the last counts); recruiters confirm a job's skills and the tasks
+every applicant gets, send them with a start-by date, read each applicant's evidence and
+every attempt, and decide, with a reason the candidate reads; admins see the
 system's state, mark any line of a candidate's CV report verified or unverified with a
 note, and make one-time password reset links. Everyone can change their password on
 `/account`; five wrong logins lock an email for 15 minutes. See
@@ -73,7 +75,7 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 630 |
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 595, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 124; `-m docker` 12, `-m slow` 1 more |
-| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 72 |
+| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 82 |
 
 ## Personal data
 

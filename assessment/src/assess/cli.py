@@ -101,7 +101,7 @@ def _write_task(folder: Path, title: str, session_id: str, deadline: str, varian
 def start_cmd(
     candidate: Annotated[str, typer.Option(help="Candidate reference — the same subject_ref M6 uses.")],
     pattern_id: Annotated[str | None, typer.Argument(help="Pattern to draw the task from.")] = None,
-    job: Annotated[str | None, typer.Option(help="A confirmed job: one task per assessable must-have.")] = None,
+    job: Annotated[str | None, typer.Option(help="A confirmed job: the tasks it chose, one session each.")] = None,
     seed: Annotated[int | None, typer.Option(help="Fix the variant; random if unset.")] = None,
     model: Annotated[bool, typer.Option(help="With --job, let the model fit tasks to the JD.")] = True,
     out: Annotated[Path | None, typer.Option(help="Folder for the task files.")] = None,

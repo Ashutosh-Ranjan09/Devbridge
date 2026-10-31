@@ -40,7 +40,8 @@ three in M5, four in M6 — and both test suites passed every one.
 ```
 JD ─▶ assessment: skills proposed (model, grounded in the JD) ─▶ a person confirms
    ─▶ requirements.json ─▶ M6 shortlist (must-haves filter; never ranked)
-   ─▶ assessment: a unique, equally hard task per candidate ─▶ Docker ─▶ tests passed
+   ─▶ assessment: the job's chosen tasks, each a unique, equally hard variant per candidate
+   ─▶ Docker ─▶ tests passed (up to three attempts; the last counts)
    ─▶ assessment_result batch ─▶ M6 ingest (priced by m6-parameters.yaml)
 ```
 

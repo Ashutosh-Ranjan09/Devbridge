@@ -54,7 +54,7 @@ src/lib/tasks.ts        a task's state in words (taskStatus) and its dates, in I
 src/app/(auth)/         login, signup, reset/[token] (an admin's one-time link), and their server actions
 src/app/account/        any role: who you are, and changing your password (other sessions end)
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
-                        assessments (practice, task, editor, result) · jobs (apply, decisions) · actions.ts
+                        assessments (grouped by job; practice, Start, editor with Run and Submit, attempts, Finish) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, the tasks every applicant gets, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
 src/app/admin/          system (modules, counts) · accounts (and reset links) · candidates (each one's CV reports,
