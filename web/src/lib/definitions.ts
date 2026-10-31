@@ -67,6 +67,17 @@ export const CvSchema = z.object({
     .refine((f) => /\.(pdf|docx)$/i.test(f.name), { error: "A .pdf or .docx file." }),
 });
 
+/** A document backing a line of the CV: a PDF or a photo of one. No SVG or HTML, which
+ * could run script when opened from this site. */
+export const ProofSchema = z.object({
+  file: z
+    .instanceof(File, { error: "Choose a file." })
+    .refine((f) => f.size > 0, { error: "Choose a file." })
+    .refine((f) => f.size <= MAX_CV_BYTES, { error: "At most 5 MB." })
+    .refine((f) => /\.(pdf|png|jpe?g)$/i.test(f.name), { error: "A PDF, PNG or JPG." }),
+  label: z.string().trim().min(2, { error: "Say what it proves." }).max(300),
+});
+
 /** M5's own rule for a username (cvv.models.api.HANDLE), checked here so a wrong one
  * is said beside its field. Every field is optional: blank is "I have no account". */
 const handle = z

@@ -7,8 +7,9 @@ import * as z from "zod";
 import { requireCandidate, myAssessment } from "@/lib/candidate";
 import { db } from "@/lib/db";
 import {
-  CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, NoteSchema, type RunState, SubmissionSchema, typed,
+  CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, NoteSchema, ProofSchema, type RunState, SubmissionSchema, typed,
 } from "@/lib/definitions";
+import { removeFile, saveFile } from "@/lib/files";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
 import type { CandidateResult, Examples, Submitted, Task } from "@/lib/types";
@@ -58,7 +59,42 @@ export async function uploadCv(_: FormState, form: FormData): Promise<FormState>
       data: { githubHandle: h.github, codeforcesHandle: h.codeforces, leetcodeHandle: h.leetcode, codechefHandle: h.codechef },
     }),
   ]);
-  redirect(`/candidate/cv/${id}`);
+  // Kept so the candidate (and the recruiters they apply to) can see the CV itself.
+  // Only the newest is shown: uploading again replaces it.
+  await saveFile("cv", id, cv.name, cv);
+  revalidatePath("/candidate/cv");
+  redirect("/candidate/cv");
+}
+
+/** A document backing one line of the CV (`claimId`, M5's) or the candidate's own. Kept
+ * here only: never sent to a module, and the system checks nothing in it. */
+export async function addProof(claimId: string | null, _: FormState, form: FormData): Promise<FormState> {
+  const me = await requireCandidate();
+  const cv = await db.verification.findFirst({ where: { candidateId: me.id }, orderBy: { createdAt: "desc" } });
+  if (!cv) return { message: "Upload your CV first." };
+  const parsed = ProofSchema.safeParse({ file: form.get("file"), label: form.get("label") });
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values: typed(form) };
+  const { file, label } = parsed.data;
+  const proof = await db.proof.create({ data: { verificationId: cv.id, claimId, label, fileName: file.name } });
+  try {
+    await saveFile("proofs", proof.id, file.name, file);
+  } catch (e) {
+    await db.proof.delete({ where: { id: proof.id } });
+    throw e;
+  }
+  revalidatePath("/candidate/cv");
+  return undefined;
+}
+
+export async function removeProof(id: string): Promise<FormState> {
+  const me = await requireCandidate();
+  // Through its owner: another candidate's proof id is the same "not found".
+  const proof = await db.proof.findFirst({ where: { id, verification: { candidateId: me.id } } });
+  if (!proof) return { message: "That document is not yours or no longer exists." };
+  await db.proof.delete({ where: { id } });
+  await removeFile("proofs", id, proof.fileName);
+  revalidatePath("/candidate/cv");
+  return undefined;
 }
 
 export async function startPractice(patternId: string): Promise<FormState> {
@@ -165,5 +201,6 @@ export async function applyToJob(jobId: string): Promise<FormState> {
     update: {},
   });
   revalidatePath("/candidate/jobs");
+  revalidatePath("/candidate");
   return undefined;
 }

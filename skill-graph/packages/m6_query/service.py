@@ -304,7 +304,7 @@ class QueryService:
         if self.ontology is None:
             return []
         return sorted(
-            ({"skill_id": s, "volatility_tier": self.engine.tier_of(s),
+            ({"skill_id": s, "label": self.ontology.label(s) or s, "volatility_tier": self.engine.tier_of(s),
               "half_life_days": round(self.engine.p.half_life(self.engine.tier_of(s)))}
              for s in getattr(self.ontology, "skill_ids", lambda: [])()),
             key=lambda r: r["skill_id"])

@@ -10,6 +10,12 @@ export type Claim = {
   claim_id: string;
   kind: string;
   provenance: { verbatim: string; page?: number | null };
+  // employment · education · certification
+  org?: string | null;
+  title?: string | null;
+  degree?: string | null;
+  issuer?: string | null;
+  employment_type?: "full_time" | "part_time" | "internship" | "freelance" | "unstated";
 };
 
 export type Discrepancy = {
@@ -44,8 +50,9 @@ export type Report = {
   };
   narrative: { summary: string; model_id: string; fallback_used: boolean; rejected_because: string | null } | null;
   coverage: { rules_total: number; rules_evaluated: number; rules_abstained: number; coverage: number };
-  /** typed_handles: usernames the candidate typed that M5 used, because the CV names none. */
-  provenance?: { typed_handles?: Record<string, string> };
+  /** typed_handles: usernames the candidate typed that M5 used, because the CV names none.
+   * sources_queried: each outside source M5 asked while checking. */
+  provenance?: { typed_handles?: Record<string, string>; sources_queried?: { source: string; queried_at: string }[] };
   valid_as_of: string;
 };
 
@@ -56,12 +63,16 @@ export const CANDIDATE_TEXT = "candidate_text";
 
 export type Skill = {
   skill_id: string;
+  /** The interval's lower bound, M6's own single number. A developer's own pages show
+   * this; a recruiter's show the interval. */
+  score: number;
   interval: [number, number];
   mean: number;
   volatility_tier: string;
   evidence_count: number;
   inferred: boolean;
   days_since_newest_evidence: number | null;
+  propagated: { from_skill_id: string; edge_type: string } | null;
 };
 
 export type Profile = {
@@ -77,12 +88,15 @@ export type Profile = {
 
 export type Explanation = {
   skill: string;
+  score: number;
   interval: [number, number];
   mean: number;
   evidence_count: number;
   half_life_days: number;
   basis: string;
   contributions: { event_id: string; kind: string; occurred_at: string; observed: number; weight: number; moved_mean_to: number }[];
+  /** Set when the skill has no direct evidence and is estimated from a related one. */
+  propagated: { from_skill_id: string; edge_type: string } | null;
   not_counted: unknown[];
 };
 

@@ -1,11 +1,9 @@
-import { Card, Page } from "@/components/ui";
+import type { Metadata } from "next";
 
-import { SignupForm } from "./form";
+import { AuthShell } from "@/components/auth";
+
+export const metadata: Metadata = { title: "Create an account · DevBridge" };
 
 export default function SignupPage() {
-  return (
-    <Page title="Create an account">
-      <Card><SignupForm /></Card>
-    </Page>
-  );
+  return <AuthShell initial="signup" />;
 }

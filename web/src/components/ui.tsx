@@ -37,7 +37,7 @@ export function Button({ children, pending }: { children: ReactNode; pending?: b
   return (
     <button
       type="submit" disabled={pending}
-      className="rounded-md bg-accent px-4 py-2 font-medium text-on-accent disabled:opacity-60"
+      className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-60"
     >
       {pending ? "Working…" : children}
     </button>

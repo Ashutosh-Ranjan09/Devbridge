@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 
 import { requireRole } from "./auth";
 import { db } from "./db";
+import { call } from "./services";
+import type { Task } from "./types";
 
 /** The signed-in candidate and the subject_ref the modules know them by. */
 export async function requireCandidate() {
@@ -28,4 +30,12 @@ export async function myAssessment(candidateId: string, id: string) {
 /** Who a task is for: the company and job that sent it, or the candidate's own practice. */
 export function taskFor(job: { title: string; org: { name: string } } | null | undefined): string {
   return job ? `${job.org.name} · ${job.title}` : "Practice";
+}
+
+/** The practice tasks this candidate has been given, by pattern: each pattern is
+ * practised once (assessment's rule), so a second Start reopens the first. */
+export async function myPractice(candidateId: string): Promise<Map<string, { id: string; status: Task["status"] }>> {
+  const rows = await db.assessment.findMany({ where: { candidateId, applicationId: null } });
+  const tasks = await Promise.all(rows.map((r) => call<Task>("assess", `/v1/sessions/${encodeURIComponent(r.id)}`).catch(() => null)));
+  return new Map(tasks.flatMap((t, i) => (t ? [[t.pattern_id, { id: rows[i].id, status: t.status }] as const] : [])));
 }

@@ -53,7 +53,9 @@ src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6
 src/lib/tasks.ts        a task's state in words (taskStatus) and its dates, in India's time (dayIn · endOfDay · when)
 src/app/(auth)/         login, signup, reset/[token] (an admin's one-time link), and their server actions
 src/app/account/        any role: who you are, and changing your password (other sessions end)
-src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
+src/app/files/          cv/[id], proof/[id]: a candidate's uploaded files, to whoever lib/access.ts allows
+src/lib/files.ts        those files on disk (.data/files/, or FILES_DIR): PDF, Word, PNG, JPG only
+src/app/candidate/      overview · cv (one CV: its preview, Replace, and proofs beside it; the check report) · skills (profile, explain) ·
                         assessments (grouped by job; practice, Start, editor with Run and Submit, attempts, Finish) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, the tasks every applicant gets, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
@@ -62,10 +64,14 @@ src/app/admin/          system (modules, counts) · accounts (and reset links) �
                         quarantine (skills M6 holds because the list lacks them) · actions.ts
 src/app/not-found.tsx   one page for "does not exist" and "is not yours"
 src/app/error.tsx       an unexpected failure: a retry button and the server log's digest
-src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown · musts
+src/components/         ui · report (M5's buckets, in M5's order; recruiter and admin) · cv-report (a developer's
+                        own report, drawn) · interval · score · markdown · musts
                         (an applicant's must-haves, as M6's shortlist answered) · action-button ·
                         candidate, recruiter, admin (the client components: forms, refresh, countdown, editor)
                         · session-watch (a login or logout in another tab reloads this one: one browser, one cookie)
+                        · site-nav (each role's links, in the one header) · icons · dashboard (panels, chips,
+                        an application's stages) · cv, jobs (client: upload, role search) · workspace, ide,
+                        code-editor (a task's editor: CodeMirror, browser only)
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
@@ -158,6 +164,20 @@ tests/                  Vitest: actions against a temporary database; service ca
 - Blanking a bar that is already set keeps the old one: `jd.edit` reads "none" as "unchanged".
   Drop the skill and add it again to remove a bar.
 - The recruiter sees a candidate's latest CV report only.
+- A developer's own pages show each skill as one number: M6's `score` (the interval's lower
+  bound) out of 100, rescaled and nothing else, with the evidence in plain words and no
+  interval. Recruiters' pages keep the interval. Labels, tiers and the edges between
+  skills come from M6's `/skills`, which reads them from `schemas/skills/ontology.yaml`;
+  My skills' graph view draws the developer's own skills on them, ordered by tier and
+  name, never by score.
+- One CV per candidate: the newest Verification is theirs; uploading again replaces it on
+  every page. Older rows stay (M6 already holds their evidence, and its log cannot drop
+  it), so a replaced CV's evidence still counts in their skills.
+- The CV file and the proofs beside it are the candidate's own uploads, kept on disk like
+  their note is kept in the database: never sent to a module, never checked. A proof belongs
+  to the CV it was added for. A recruiter opens them only through an application, an admin
+  always (lib/access.ts); anyone else gets the same 404 as a missing file. CVs uploaded
+  before files were kept have no preview.
 - Usernames typed on upload are kept on `Candidate` to fill the form next time, and an
   emptied box clears one. M5 decides whether each is used (only where the CV names none);
   the report says which were.
