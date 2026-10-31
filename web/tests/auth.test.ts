@@ -6,6 +6,7 @@ import { form, jar, redirectOf, resetDb } from "./next";
 
 const { login, logout, resetPassword, signup } = await import("@/app/(auth)/actions");
 const { makeResetLink } = await import("@/app/admin/actions");
+const { changePassword } = await import("@/app/account/actions");
 const { currentUser, requireRole } = await import("@/lib/auth");
 const { SESSION_COOKIE } = await import("@/lib/cookie");
 const { db } = await import("@/lib/db");
@@ -251,5 +252,42 @@ describe("a password reset link", () => {
     const token = await link();
     expect((await reset(token, "short"))?.errors?.password).toBeDefined();
     expect(await redirectOf(reset(token))).toBe("/candidate");
+  });
+});
+
+describe("changing your password", () => {
+  const NEW = "a brand new passphrase";
+  const change = (current: string, password = NEW) => changePassword(undefined, form({ current, password }));
+
+  beforeEach(async () => {
+    await redirectOf(signup(undefined, candidate())); // signed in as Asha
+  });
+
+  it("needs the current password, and keeps this session while ending the others", async () => {
+    const asha = (await db.user.findUniqueOrThrow({ where: { email: "asha@example.com" } })).id;
+    const here = jar.get(SESSION_COOKIE)!;
+    await createSession(asha); // another device
+    jar.set(SESSION_COOKIE, here);
+    expect((await change(PASSWORD))?.message).toMatch(/Password changed/);
+    expect(await db.session.count({ where: { userId: asha } })).toBe(1);
+    expect((await currentUser())?.email).toBe("asha@example.com"); // still signed in here
+    jar.clear();
+    expect(await redirectOf(login(undefined, form({ email: "asha@example.com", password: NEW })))).toBe("/candidate");
+  });
+
+  it("a wrong current password is refused and counts against the login limit", async () => {
+    expect((await change("not it at all"))?.errors?.current).toEqual(["That is not your current password."]);
+    expect(await db.loginFailure.count({ where: { email: "asha@example.com" } })).toBe(1);
+    for (let i = 1; i < MAX_FAILURES; i++) await change("not it at all");
+    expect((await change(PASSWORD))?.message).toMatch(/Too many wrong attempts/);
+  });
+
+  it("the new password follows the signup rule", async () => {
+    expect((await change(PASSWORD, "short"))?.errors?.password).toBeDefined();
+  });
+
+  it("signed out, there is no account to change", async () => {
+    jar.clear();
+    expect(await redirectOf(change(PASSWORD))).toBe("/login");
   });
 });

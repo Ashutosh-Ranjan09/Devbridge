@@ -27,6 +27,13 @@ export const currentUser = cache(async (): Promise<CurrentUser | null> => {
   });
 });
 
+/** Any signed-in user, whatever their role (the account page); signed out: to /login. */
+export async function requireUser(): Promise<CurrentUser> {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
 /** Every page and every action of a role starts here. Signed out: to /login. Signed in
  * as another role: to that role's home. The proxy's cookie check is only a shortcut;
  * this is the check. */

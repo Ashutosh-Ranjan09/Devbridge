@@ -11,6 +11,11 @@ const password = z
 
 export const ResetSchema = z.object({ password });
 
+export const ChangePasswordSchema = z.object({
+  current: z.string().min(1, { error: "Enter your current password." }),
+  password,
+});
+
 export const LoginSchema = z.object({
   email,
   password: z.string().min(1, { error: "Enter your password." }),

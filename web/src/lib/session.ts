@@ -46,6 +46,13 @@ export async function sessionUserId(): Promise<string | null> {
   return session.userId;
 }
 
+/** Every session of this user but the one making this request: after a password
+ * change, any other device has to log in again with the new one. */
+export async function endOtherSessions(userId: string): Promise<void> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  await db.session.deleteMany({ where: { userId, NOT: { tokenHash: hashToken(token ?? "") } } });
+}
+
 export async function deleteSession(): Promise<void> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;

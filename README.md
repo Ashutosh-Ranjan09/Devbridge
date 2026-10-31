@@ -70,7 +70,7 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 621 |
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 593, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 94; `-m docker` 10, `-m slow` 1 more |
-| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 66 |
+| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 70 |
 
 ## Personal data
 

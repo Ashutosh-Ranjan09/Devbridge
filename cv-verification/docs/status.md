@@ -20,7 +20,7 @@
 | **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 11 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 88, since 4 Sep | **no remote** |
+| **Commits** | 89, since 4 Sep | **no remote** |
 
 ---
 
@@ -113,7 +113,7 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 88 commits, now all three modules and the web layer, exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 89 commits, now all three modules and the web layer, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
 | 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |

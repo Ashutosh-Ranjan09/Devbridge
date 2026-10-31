@@ -51,6 +51,7 @@ src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest adm
 src/lib/limits.ts       failed logins per email: lockedFor() · recordFailure() · clearFailures()
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
 src/app/(auth)/         login, signup, reset/[token] (an admin's one-time link), and their server actions
+src/app/account/        any role: who you are, and changing your password (other sessions end)
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
                         assessments (practice, task, editor, result) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, confirm, open, applicants) ·
@@ -95,7 +96,8 @@ tests/                  Vitest: actions against a temporary database; service ca
    A forgotten password is reset by a one-time link an admin makes on Accounts and hands
    over: only its SHA-256 is stored, it works once for 24 hours, a new one cancels the
    last, one message covers unknown, used and expired, and using it ends the person's
-   other sessions. Not for the admin's own account.
+   other sessions. Not for the admin's own account. Changing a password needs the current
+   one; a wrong one counts against the same limit, and every other session ends.
 9. **Text from a module or a CV is shown as text.** React escapes it; Markdown (task
    stories and requirements) only through react-markdown, which renders no raw HTML —
    never add `rehype-raw`, never `dangerouslySetInnerHTML`. A CV can carry anything.

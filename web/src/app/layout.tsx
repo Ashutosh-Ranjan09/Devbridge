@@ -41,6 +41,7 @@ async function Account() {
     <div className="flex items-center gap-4 text-sm">
       <Link href={HOME[user.role]}>{user.name}</Link>
       <span className="text-muted">{user.role.toLowerCase()}</span>
+      <Link href="/account" className="text-accent underline">Account</Link>
       <form action={logout}>
         <button type="submit" className="text-accent underline">Log out</button>
       </form>
