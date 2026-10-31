@@ -52,6 +52,17 @@ log = get("cvv.gather")
 
 def _cf_get(client: httpx.Client, endpoint: str, **params: str) -> list[dict[str, object]]:
     response = client.get(f"{CODEFORCES_API}/{endpoint}", params=params, timeout=30.0)
+    # Codeforces refuses a request it understood — an unknown handle among them — with
+    # 400 and {"status": "FAILED", "comment": ...}. That is the platform answering, not
+    # the network failing: read it before raise_for_status calls it "unreachable", which
+    # marked every report with a mistyped handle degraded and asked for a re-run.
+    if response.status_code == 400:
+        try:
+            refused = response.json()
+        except ValueError:
+            refused = None
+        if isinstance(refused, dict) and refused.get("status") == "FAILED":
+            raise LookupError(refused.get("comment") or "codeforces refused the request")
     response.raise_for_status()
     body = response.json()
     if body.get("status") != "OK":
@@ -72,7 +83,11 @@ def gather_codeforces(handle: str) -> PlatformEvidence | Gap:
         try:
             info = _cf_get(client, "user.info", handles=handle)[0]
         except LookupError as exc:
-            return Gap(source="codeforces", reason=GapReason.NOT_FOUND, detail=str(exc))
+            return Gap(
+                source="codeforces",
+                reason=GapReason.NOT_FOUND,
+                detail=f"No Codeforces account exists at codeforces.com/profile/{handle} ({exc}).",
+            )
         except httpx.HTTPStatusError as exc:
             reason = (
                 GapReason.RATE_LIMITED
