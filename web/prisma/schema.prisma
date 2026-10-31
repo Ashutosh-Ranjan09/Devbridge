@@ -110,6 +110,9 @@ model Verification {
   candidateId String
   candidate   Candidate @relation(fields: [candidateId], references: [userId])
   fileName    String
+  /// What the candidate typed beside the CV: their own words, shown to the people who
+  /// read the report and labelled as unchecked. Never sent to a module or a model.
+  note        String?
   createdAt   DateTime  @default(now())
   /// Set once M6 has accepted the report.
   sentToM6At  DateTime?

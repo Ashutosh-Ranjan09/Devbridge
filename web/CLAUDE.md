@@ -83,7 +83,10 @@ tests/                  Vitest: actions against a temporary database; service ca
 5. **Every page and every server action checks the role itself** with `requireRole`.
    The proxy only saves a round trip; a server action can be called without the page.
 6. **This database holds who and which, never what.** No copy of a report, a skill
-   interval, a job's skills or a result: fetch it from the module that owns it.
+   interval, a job's skills or a result: fetch it from the module that owns it. What a
+   person wrote here is theirs to keep here — a decision's reason, an admin's mark, the
+   note a candidate types beside a CV (`Verification.note`: shown beside the report as
+   their own unchecked words, never sent to a module or a model).
 7. **A candidate sees the candidate view.** `view=full` on an assessment result
    (failure details, which quote the hidden tests) is for the recruiters of that job
    and admins only.

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { MarkForm } from "@/components/admin";
-import { ReportView } from "@/components/report";
+import { CandidateNote, ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -38,7 +38,7 @@ async function CandidateReview({ params, searchParams }: {
       candidate: {
         select: {
           subjectRef: true,
-          verifications: { orderBy: { createdAt: "desc" }, select: { id: true, fileName: true, createdAt: true } },
+          verifications: { orderBy: { createdAt: "desc" }, select: { id: true, fileName: true, createdAt: true, note: true } },
         },
       },
     },
@@ -80,6 +80,7 @@ async function CandidateReview({ params, searchParams }: {
     <div className="space-y-4">
       {header}
       <p className="text-sm text-muted">{chosen.fileName} · uploaded {chosen.createdAt.toLocaleString("en-IN")}</p>
+      <CandidateNote note={chosen.note} />
       {report instanceof ServiceError ? <Card><p>{report.message}</p></Card>
         : report.status === "running" ? <Card><p>Still being checked.</p></Card>
         : report.status === "failed" ? <Card><p>Could not be checked: {report.failure}</p></Card>

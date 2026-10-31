@@ -71,6 +71,13 @@ const handle = z
   })
   .transform((s) => s || null);
 
+/** Anything the CV leaves out, in the candidate's words. Optional; blank is none. */
+export const NoteSchema = z
+  .string()
+  .trim()
+  .max(2000, { error: "At most 2,000 characters." })
+  .transform((s) => s || null);
+
 export const HANDLE_FIELDS = ["github", "codeforces", "leetcode", "codechef"] as const;
 export const HandlesSchema = z.object(Object.fromEntries(HANDLE_FIELDS.map((k) => [k, handle])) as Record<
   (typeof HANDLE_FIELDS)[number],

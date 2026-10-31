@@ -167,3 +167,18 @@ function Quote({ label, children }: { label: string; children: string }) {
     </p>
   );
 }
+
+/** What the candidate typed beside the CV. Their words, shown as text and never as a
+ * finding: nothing in it was checked, and the label says so. */
+export function CandidateNote({ note, mine = false }: { note: string | null; mine?: boolean }) {
+  if (!note) return null;
+  return (
+    <Card>
+      <h2 className="mb-1 font-semibold">{mine ? "Your note" : "The candidate's note"}</h2>
+      <p className="mb-2 text-xs text-muted">
+        {mine ? "In your own words, beside the CV." : "In their own words, typed beside the CV."} Not checked against any source.
+      </p>
+      <p className="whitespace-pre-line text-sm">{note}</p>
+    </Card>
+  );
+}

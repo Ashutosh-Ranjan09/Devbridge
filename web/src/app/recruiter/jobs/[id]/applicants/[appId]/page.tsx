@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Interval } from "@/components/interval";
 import { Musts } from "@/components/musts";
 import { DecisionForm, SendAssessment } from "@/components/recruiter";
-import { ReportView } from "@/components/report";
+import { CandidateNote, ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { db } from "@/lib/db";
 import { myApplication, requireRecruiter } from "@/lib/recruiter";
@@ -124,7 +124,10 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
           : report instanceof ServiceError ? <Card><p>{report.message}</p></Card>
           : report.status === "running" ? <Card><p>Still being checked.</p></Card>
           : report.status === "failed" ? <Card><p>Could not be checked: {report.failure}</p></Card>
-          : <ReportView report={report} marks={marks} alsoChecked={alsoChecked(report, rules)} />}
+          : <div className="space-y-4">
+              <CandidateNote note={latest?.note ?? null} />
+              <ReportView report={report} marks={marks} alsoChecked={alsoChecked(report, rules)} />
+            </div>}
       </div>
 
       <Card>

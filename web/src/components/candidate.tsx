@@ -29,6 +29,15 @@ export function UploadCv({ saved }: { saved: Record<string, string> }) {
           ))}
         </div>
       </fieldset>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium">Anything the CV leaves out (optional)</span>
+        <textarea name="note" rows={3} maxLength={2000} defaultValue={state?.values?.note}
+          className="w-full rounded-md border border-line bg-background p-2 text-sm" />
+        <span className="block text-xs text-muted">
+          Shown beside the report to the people who read it, as your own words. Nothing in it is checked.
+        </span>
+        {state?.errors?.note?.map((e) => <span key={e} className="block text-sm text-danger">{e}</span>)}
+      </label>
       {state?.message && <p className="text-sm text-danger">{state.message}</p>}
       <Button pending={pending}>Check this CV</Button>
     </form>

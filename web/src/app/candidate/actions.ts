@@ -6,7 +6,7 @@ import * as z from "zod";
 
 import { requireCandidate, myAssessment } from "@/lib/candidate";
 import { db } from "@/lib/db";
-import { CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, SubmissionSchema, typed } from "@/lib/definitions";
+import { CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, NoteSchema, SubmissionSchema, typed } from "@/lib/definitions";
 import { call, ServiceError } from "@/lib/services";
 import { forwardAssessment } from "@/lib/sync";
 import type { CandidateResult, Task } from "@/lib/types";
@@ -18,11 +18,13 @@ export async function uploadCv(_: FormState, form: FormData): Promise<FormState>
   const me = await requireCandidate();
   const parsed = CvSchema.safeParse({ cv: form.get("cv") });
   const typedHandles = HandlesSchema.safeParse(Object.fromEntries(HANDLE_FIELDS.map((k) => [k, form.get(k) ?? ""])));
-  if (!parsed.success || !typedHandles.success) {
+  const note = NoteSchema.safeParse(form.get("note") ?? "");
+  if (!parsed.success || !typedHandles.success || !note.success) {
     return {
       errors: {
         ...(parsed.success ? {} : z.flattenError(parsed.error).fieldErrors),
         ...(typedHandles.success ? {} : z.flattenError(typedHandles.error).fieldErrors),
+        ...(note.success ? {} : { note: note.error.issues.map((i) => i.message) }),
       },
       values: typed(form),
     };
@@ -47,7 +49,8 @@ export async function uploadCv(_: FormState, form: FormData): Promise<FormState>
   }
   const h = typedHandles.data;
   await db.$transaction([
-    db.verification.create({ data: { id, candidateId: me.id, fileName: cv.name } }),
+    // The note stays here: it is the candidate's own words, never sent to a module.
+    db.verification.create({ data: { id, candidateId: me.id, fileName: cv.name, note: note.data } }),
     db.candidate.update({
       where: { userId: me.id },
       data: { githubHandle: h.github, codeforcesHandle: h.codeforces, leetcodeHandle: h.leetcode, codechefHandle: h.codechef },

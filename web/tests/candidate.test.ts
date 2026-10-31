@@ -99,6 +99,28 @@ describe("uploading a CV", () => {
     expect((await db.candidate.findUniqueOrThrow({ where: { userId: asha } })).leetcodeHandle).toBeNull(); // emptied, so cleared
   });
 
+  it("a note stays here, beside the report, and never reaches M5", async () => {
+    modules({ "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_1", status: "queued" }] });
+    const f = new FormData();
+    f.set("cv", PDF());
+    f.set("note", "  I also mentor juniors at the coding club.  ");
+    await redirectOf(uploadCv(undefined, f));
+    const sentFields = [...(sent[0].body as FormData).entries()].filter(([, v]) => typeof v === "string").map(([, v]) => v).join(" ");
+    expect(sentFields).not.toMatch(/mentor/);
+    expect((await db.verification.findUniqueOrThrow({ where: { id: "vr_1" } })).note).toBe("I also mentor juniors at the coding club.");
+  });
+
+  it("an over-long note is refused before anything is sent, and comes back as typed", async () => {
+    modules({});
+    const f = new FormData();
+    f.set("cv", PDF());
+    f.set("note", "x".repeat(2001));
+    const state = await uploadCv(undefined, f);
+    expect(state?.errors?.note).toEqual(["At most 2,000 characters."]);
+    expect(state?.values?.note).toHaveLength(2001);
+    expect(sent).toEqual([]);
+  });
+
   it("a link instead of a username is refused before anything is sent, and what was typed comes back", async () => {
     modules({});
     const f = new FormData();
