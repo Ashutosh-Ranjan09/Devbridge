@@ -17,6 +17,7 @@ vi.mock("next/headers", () => ({
     set: (name: string, value: string) => void jar.set(name, value),
     delete: (name: string) => void jar.delete(name),
   }),
+  headers: async () => new Headers({ host: "web.test" }),
 }));
 
 vi.mock("next/server", async (original) => ({
@@ -60,6 +61,7 @@ export function form(fields: Record<string, string>): FormData {
 export async function resetDb(): Promise<void> {
   const { db } = await import("@/lib/db");
   await db.loginFailure.deleteMany();
+  await db.passwordReset.deleteMany();
   await db.itemReview.deleteMany();
   await db.decision.deleteMany();
   await db.assessment.deleteMany();

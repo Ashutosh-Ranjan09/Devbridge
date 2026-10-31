@@ -4,11 +4,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { form, jar, redirectOf, resetDb } from "./next";
 
-const { login, logout, signup } = await import("@/app/(auth)/actions");
+const { login, logout, resetPassword, signup } = await import("@/app/(auth)/actions");
+const { makeResetLink } = await import("@/app/admin/actions");
 const { currentUser, requireRole } = await import("@/lib/auth");
 const { SESSION_COOKIE } = await import("@/lib/cookie");
 const { db } = await import("@/lib/db");
-const { hashToken } = await import("@/lib/session");
+const { createSession, hashToken } = await import("@/lib/session");
 const { MAX_FAILURES, WINDOW_MS, recordFailure } = await import("@/lib/limits");
 
 const PASSWORD = "correct horse battery";
@@ -168,5 +169,87 @@ describe("roles", () => {
     expect(await redirectOf(requireRole("RECRUITER"))).toBe("/candidate");
     expect(await redirectOf(requireRole("ADMIN"))).toBe("/candidate");
     expect((await requireRole("CANDIDATE")).email).toBe("asha@example.com");
+  });
+});
+
+describe("a password reset link", () => {
+  const NEW = "a brand new passphrase";
+  let asha: string;
+  let admin: string;
+
+  /** The admin makes a link; the token is its last path segment. */
+  async function link(userId = asha): Promise<string> {
+    jar.clear();
+    await createSession(admin);
+    const made = await makeResetLink(userId);
+    jar.clear();
+    expect(made.link).toMatch(/^http:\/\/web\.test\/reset\/[\w-]{43}$/);
+    return made.link!.split("/").pop()!;
+  }
+  const reset = (token: string, password = NEW) => resetPassword(token, undefined, form({ password }));
+
+  beforeEach(async () => {
+    await redirectOf(signup(undefined, candidate()));
+    asha = (await db.user.findUniqueOrThrow({ where: { email: "asha@example.com" } })).id;
+    admin = (await db.user.create({ data: { email: "meera@example.com", name: "Meera", passwordHash: "x", role: "ADMIN" } })).id;
+    jar.clear();
+  });
+
+  it("only an admin can make one, and never for their own account", async () => {
+    await createSession(asha);
+    await expect(redirectOf(makeResetLink(asha))).resolves.toBe("/candidate");
+    jar.clear();
+    await createSession(admin);
+    expect((await makeResetLink(admin)).message).toMatch(/your own account/);
+    expect(await db.passwordReset.count()).toBe(0);
+  });
+
+  it("stores the token's hash, never the token", async () => {
+    const token = await link();
+    const row = await db.passwordReset.findFirstOrThrow();
+    expect(row.tokenHash).toBe(hashToken(token));
+    expect(row.tokenHash).not.toContain(token);
+  });
+
+  it("sets the password, logs the person in, and works once", async () => {
+    const token = await link();
+    expect(await redirectOf(reset(token))).toBe("/candidate");
+    expect((await currentUser())?.email).toBe("asha@example.com");
+    jar.clear();
+    expect(await redirectOf(login(undefined, form({ email: "asha@example.com", password: NEW })))).toBe("/candidate");
+    jar.clear();
+    expect((await reset(token, "yet another passphrase"))?.message).toMatch(/expired or was already used/);
+  });
+
+  it("an expired link and a made-up token get the same answer", async () => {
+    const token = await link();
+    await db.passwordReset.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
+    const expired = await reset(token);
+    const madeUp = await reset("x".repeat(43));
+    expect(expired?.message).toMatch(/expired or was already used/);
+    expect(madeUp?.message).toBe(expired?.message);
+  });
+
+  it("a new link cancels the one before it", async () => {
+    const first = await link();
+    const second = await link();
+    expect((await reset(first))?.message).toMatch(/expired or was already used/);
+    expect(await redirectOf(reset(second))).toBe("/candidate");
+  });
+
+  it("ends the person's other sessions and clears their failed logins", async () => {
+    await createSession(asha);
+    jar.clear();
+    await recordFailure("asha@example.com");
+    const token = await link();
+    await redirectOf(reset(token));
+    expect(await db.session.count({ where: { userId: asha } })).toBe(1); // only the one just made
+    expect(await db.loginFailure.count()).toBe(0);
+  });
+
+  it("a short password is refused and the link stays usable", async () => {
+    const token = await link();
+    expect((await reset(token, "short"))?.errors?.password).toBeDefined();
+    expect(await redirectOf(reset(token))).toBe("/candidate");
   });
 });

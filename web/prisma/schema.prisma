@@ -54,6 +54,8 @@ model User {
   jobsCreated  Job[]
   decisions    Decision[]
   reviews      ItemReview[]
+  resets       PasswordReset[] @relation("resets")
+  resetsMade   PasswordReset[] @relation("resetsMade")
 }
 
 /// A login. The cookie holds a random token; only its SHA-256 is stored, so a copy
@@ -200,4 +202,19 @@ model LoginFailure {
   at    DateTime @default(now())
 
   @@index([email, at])
+}
+
+/// A one-time password reset an admin made. Only the token's SHA-256 is stored, like a
+/// session's: the link is shown once, to the admin, who gives it to the person.
+model PasswordReset {
+  tokenHash   String    @id
+  userId      String
+  user        User      @relation("resets", fields: [userId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User      @relation("resetsMade", fields: [createdById], references: [id])
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
 }

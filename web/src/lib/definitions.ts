@@ -9,6 +9,8 @@ const password = z
   .min(10, { error: "At least 10 characters." })
   .max(200, { error: "At most 200 characters." });
 
+export const ResetSchema = z.object({ password });
+
 export const LoginSchema = z.object({
   email,
   password: z.string().min(1, { error: "Enter your password." }),

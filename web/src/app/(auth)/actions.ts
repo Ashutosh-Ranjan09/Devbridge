@@ -8,10 +8,10 @@ import * as z from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { HOME } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { type FormState, LoginSchema, SignupSchema } from "@/lib/definitions";
+import { type FormState, LoginSchema, ResetSchema, SignupSchema } from "@/lib/definitions";
 import { clearFailures, lockedFor, recordFailure } from "@/lib/limits";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { createSession, deleteSession } from "@/lib/session";
+import { createSession, deleteSession, hashToken } from "@/lib/session";
 
 const TAKEN = { email: ["An account with this email exists. Log in instead."] };
 
@@ -87,6 +87,33 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   await clearFailures(email);
   await createSession(user.id);
   redirect(HOME[user.role]);
+}
+
+/** A new password from an admin's one-time link. Using it logs the person out
+ * everywhere else and clears their failed logins, then logs them in here. */
+export async function resetPassword(token: string, _: FormState, form: FormData): Promise<FormState> {
+  const parsed = ResetSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors };
+  const reset = await db.passwordReset.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
+  // One message for unknown, used and expired: a guessed token learns nothing.
+  const gone = { message: "This link has expired or was already used. Ask an admin for a new one." };
+  if (!reset || reset.usedAt || reset.expiresAt < new Date()) return gone;
+  const passwordHash = await hashPassword(parsed.data.password);
+  const used = await db.$transaction(async (tx) => {
+    // Conditional on usedAt being null, so two uses at the same instant cannot both win.
+    const { count } = await tx.passwordReset.updateMany({
+      where: { tokenHash: reset.tokenHash, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (count === 0) return false;
+    await tx.user.update({ where: { id: reset.userId }, data: { passwordHash } });
+    await tx.session.deleteMany({ where: { userId: reset.userId } });
+    await tx.loginFailure.deleteMany({ where: { email: reset.user.email } });
+    return true;
+  });
+  if (!used) return gone;
+  await createSession(reset.userId);
+  redirect(HOME[reset.user.role]);
 }
 
 export async function logout(): Promise<void> {

@@ -1,6 +1,7 @@
 /** Admins are made here, never by signing up: `npm run create-admin -- EMAIL "NAME"`.
- * The password is read from the terminal, not the command line, so it stays out of the
- * shell's history. */
+ * Run again for an existing admin, it sets a new password and logs them out everywhere:
+ * the site's reset links are never for an admin's own account. The password is read
+ * from the terminal, not the command line, so it stays out of the shell's history. */
 
 import { createInterface } from "node:readline/promises";
 
@@ -24,8 +25,22 @@ if (password.length < 10) {
 }
 
 const db = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! }) });
-await db.user.create({
-  data: { email: email.trim().toLowerCase(), name, role: "ADMIN", passwordHash: await bcrypt.hash(password, 12) },
-});
-console.log(`admin ${email} created`);
+const address = email.trim().toLowerCase();
+const passwordHash = await bcrypt.hash(password, 12);
+const existing = await db.user.findUnique({ where: { email: address } });
+if (existing && existing.role !== "ADMIN") {
+  console.error(`${address} belongs to a ${existing.role.toLowerCase()}, not an admin`);
+  process.exit(1);
+}
+if (existing) {
+  await db.$transaction([
+    db.user.update({ where: { id: existing.id }, data: { passwordHash } }),
+    db.session.deleteMany({ where: { userId: existing.id } }),
+    db.loginFailure.deleteMany({ where: { email: address } }),
+  ]);
+  console.log(`admin ${address}: new password set, logged out everywhere`);
+} else {
+  await db.user.create({ data: { email: address, name, role: "ADMIN", passwordHash } });
+  console.log(`admin ${address} created`);
+}
 await db.$disconnect();

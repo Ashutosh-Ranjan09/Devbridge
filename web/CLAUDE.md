@@ -18,7 +18,7 @@ renders behind `<Suspense>`.
 npm install                       # also generates the Prisma client (src/generated/, gitignored)
 cp .env.example .env              # module URLs and keys
 npm run db:migrate                # create or update .data/web.db
-npm run create-admin -- EMAIL "NAME"
+npm run create-admin -- EMAIL "NAME"   # again for an existing admin: a new password
 npm run dev                       # http://localhost:3000
 npm run check · npm run build
 ```
@@ -49,12 +49,12 @@ src/lib/recruiter.ts    requireRecruiter(); myJob() / myApplication(): their org
 src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest admin mark on each
 src/lib/limits.ts       failed logins per email: lockedFor() · recordFailure() · clearFailures()
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
-src/app/(auth)/         login, signup, and their server actions
+src/app/(auth)/         login, signup, reset/[token] (an admin's one-time link), and their server actions
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
                         assessments (practice, task, editor, result) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
-src/app/admin/          system (modules, counts) · accounts · candidates (each one's CV reports,
+src/app/admin/          system (modules, counts) · accounts (and reset links) · candidates (each one's CV reports,
                         every line markable) · catalogue (M5's checks, the tasks) ·
                         quarantine (skills M6 holds because the list lacks them) · actions.ts
 src/app/not-found.tsx   one page for "does not exist" and "is not yours"
@@ -91,6 +91,10 @@ tests/                  Vitest: actions against a temporary database; service ca
    Admins are made with `create-admin`, never by signing up. Five wrong attempts for one
    email in 15 minutes lock that email (`lib/limits.ts`), checked before the password and
    counted for any email typed, so the lock says nothing about which emails have accounts.
+   A forgotten password is reset by a one-time link an admin makes on Accounts and hands
+   over: only its SHA-256 is stored, it works once for 24 hours, a new one cancels the
+   last, one message covers unknown, used and expired, and using it ends the person's
+   other sessions. Not for the admin's own account.
 9. **Text from a module or a CV is shown as text.** React escapes it; Markdown (task
    stories and requirements) only through react-markdown, which renders no raw HTML —
    never add `rehype-raw`, never `dangerouslySetInnerHTML`. A CV can carry anything.
@@ -121,7 +125,9 @@ tests/                  Vitest: actions against a temporary database; service ca
 
 ## Known limits, stated
 
-- No email verification, no password reset.
+- No email verification; the site sends no email, so a reset link is handed over by an admin.
+- An admin cannot reset their own password on the site: `create-admin` run again for an
+  existing admin sets a new one and ends their sessions.
 - The login limit is per email, not per address: behind no proxy there is no address to
   trust. So someone who knows an email can lock its owner out for 15 minutes. Two
   attempts at the same instant can both pass the check, overshooting the limit by one.
