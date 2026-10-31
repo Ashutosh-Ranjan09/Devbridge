@@ -72,7 +72,7 @@ async function JobView({ params, searchParams }: {
             <li key={s.skill_id}>
               <code>{s.skill_id}</code>{" "}
               <span className="text-muted">
-                {s.bar !== null ? `bar ${s.bar.toFixed(2)}` : "assessed, not filtered"}
+                {s.bar === null ? "assessed, not filtered" : s.bar === 0 ? "any direct evidence" : `bar ${s.bar.toFixed(2)}`}
               </span>
             </li>
           ))}

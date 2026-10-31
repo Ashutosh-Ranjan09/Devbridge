@@ -48,10 +48,13 @@ scripts/dev.sh prod                  # the same with a production build of the w
 
 One command starts all four with one key per module per run, passed through the
 environment and never printed; logs go to `.run/`, and Ctrl-C stops everything.
-Candidates check a CV, see their skills and take assessments; recruiters confirm a job's
-skills, read each applicant's evidence and decide, with a reason the candidate reads;
-admins see the system's state, and can mark any line of a candidate's CV report verified
-or unverified, with a note. See [`web/CLAUDE.md`](web/CLAUDE.md).
+Candidates check a CV (with their platform usernames and a note, both optional), see
+their skills and take assessments; recruiters confirm a job's skills, read each
+applicant's evidence and decide, with a reason the candidate reads; admins see the
+system's state, mark any line of a candidate's CV report verified or unverified with a
+note, and make one-time password reset links. Everyone can change their password on
+`/account`; five wrong logins lock an email for 15 minutes. See
+[`web/CLAUDE.md`](web/CLAUDE.md).
 
 ## From a job description to a task
 
