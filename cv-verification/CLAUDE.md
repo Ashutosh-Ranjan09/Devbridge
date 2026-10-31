@@ -12,7 +12,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 **31 of the 43 catalogued checks are built — every one in scope — and the pipeline
 runs end to end** on `docs/CV-SDE-AR.pdf`: 30 registered rules plus the narrative
-(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 630 tests, ~11,400 lines across 33
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 630 tests, ~11,400 lines across 34
 modules, ruff and `mypy --strict` clean.
 
 The other twelve are not pending. **C1–C4 are out of scope** for this project — a
@@ -275,7 +275,7 @@ Built: `models/` · `ingest` (PDF · DOCX · OCR) · `spans` · `extract` · `fi
 `dates` · `intervals` · `ids` · `reference` · `cache` · `config` · `providers` · `skills` ·
 `gather` (Codeforces · LeetCode · CodeChef · GitHub · liveness) · `github` ·
 `leetcode` · `codechef` ·
-`rules` · `report` · `narrative` · `worksheet` · `evaluate` · `logs` ·
+`rules` · `report` · `narrative` · `worksheet` · `evaluate` · `gold` · `logs` ·
 `store` · `api` · `pipeline` · `cli`.
 
 | Group | Built | Missing |
