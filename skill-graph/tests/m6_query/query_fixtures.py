@@ -16,6 +16,7 @@ from datetime import date
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "packages"))
+sys.path.insert(0, str(ROOT / "contracts" / "reference"))  # published_trace
 
 EXAMPLES = ROOT.parent / "schemas" / "examples"
 

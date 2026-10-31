@@ -130,16 +130,18 @@ documented behaviour so nobody "fixes" it by accident.
 | `test_reference_parity.py` | Prior, update, decay, variance, fold, explain and propagation all matched against `m6_model.py` to 1e-9. |
 | `test_pipeline.py` | Report → projection → ingestor → scoring over real storage. |
 
-## One thing to fix before publishing results
+## The Codeforces table is measured
 
 `contracts/reference-distributions.yaml` holds the Codeforces ECDF the
-`platform_rating` observation needs. Its anchors are **approximated** from the
-published rank boundaries, not computed from the user list — the file says so in
-its own `status` field, and a test asserts that admission stays there. Regenerate
-it (`/api/user.ratedList`, one rating per handle, sort, emit the empirical CDF)
-before any number from this engine goes in the report. `platform_rating` is the
-strongest event kind in the system at reliability 0.90, so an error there matters
-more than an error anywhere else.
+`platform_rating` observation needs, **measured** on 2026-10-31 from
+`/api/user.ratedList` (987,113 rated handles, peak rating, the call and formula in the
+file). It replaced an approximation from the rank boundaries that put a 1495 peak at
+the 60th percentile; it is the 84th. Re-measure the same way and record the date.
+
+The published trace (`docs/m6-worked-trace.html`, `docs/m6-decisions.html`, the guide)
+was computed with the approximation. That table is frozen in
+`contracts/reference/reference-distributions-approximated.yaml`, and the tests that
+reproduce the published numbers run under `published_trace()`.
 
 The table is per platform: a rating is priced from `<platform>_rated_ecdf`, and a
 platform with no table is refused with `UnscoreableEvent`. Codeforces is the only

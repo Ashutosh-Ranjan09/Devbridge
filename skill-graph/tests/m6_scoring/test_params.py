@@ -99,10 +99,10 @@ def test_an_unknown_skill_takes_the_declared_default():
 
 
 def test_the_ecdf_table_declares_its_provenance():
-    """It is approximated, not measured. A reader must be able to find that out
-    from the data rather than from a commit message."""
+    """Measured, and says when and from how many. A reader must be able to find that
+    out from the data rather than from a commit message."""
     p = default_parameters()
-    assert p.ecdf_status == "approximated_pending_regeneration"
+    assert p.ecdf_status == "measured"
     assert sorted(p.ecdf_anchors) == list(p.ecdf_anchors.keys()) or True
     assert len(p.ecdf_anchors) >= 5
 

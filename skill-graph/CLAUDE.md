@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 593 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 594 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "593 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "594 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -85,7 +85,8 @@ Dependencies point one way. Ports are deliberately narrow:
 ```
 prior            μ0 = logit(0.25) = −1.0986,  σ0² = 1.69          # below median, wide
 observed value   per kind from m6-parameters.yaml observed_value   # display space, clamp [0.01,0.99]
-                 platform_rating = 0.50 + 0.40·ECDF(max_rating); repo bands 0.35/0.50/0.62/0.66;
+                 platform_rating = 0.50 + 0.40·ECDF(max_rating)  (measured table; 1495 → 0.834);
+                 repo bands 0.35/0.50/0.62/0.66;
                  claim_corroborated 0.68; artifact_live 0.58; credential 0.70;
                  cv_claim by proficiency 0.30/0.45/0.60/0.75; claim_contradicted 0.15;
                  assessment_result = 0.20 + (ceiling[level] − 0.20)·passed/total,
@@ -164,8 +165,13 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   `ownership_unverified`; the project's weak `cv_claim` is then not emitted beside it. Other
   decisive findings on a project (G4 missing repo, D7 anachronism, W1 dead link) say the claim
   is wrong, not that its skills are, and leave it a weak `cv_claim`.
-- The Codeforces ECDF is **approximated** (`status: approximated_pending_regeneration`). Regenerate it from
-  `/api/user.ratedList` before publishing any number, because `platform_rating` is the strongest event (reliability 0.90).
+- **The Codeforces ECDF is measured** (2026-10-31, `/api/user.ratedList`, 987,113 rated handles,
+  peak rating): a 1495 peak is the 84th percentile and observes 0.834, not the approximated 0.739.
+  The published trace, the decisions page and the guide PDF used the approximation; it is frozen
+  in `contracts/reference/reference-distributions-approximated.yaml`, and the tests that
+  reproduce those numbers run under `published_trace()`. So a Specialist now observes above a
+  fully passed medium assessment (0.78): `assessment_result`'s ceilings were set against 0.739
+  and are a decision to revisit, not retuned here.
 - **A report's `skill_resolution` is read first.** M5 maps every skill name to an id from
   the shared list, or none (rules, cache, then a closed-choice model call). 6.0 uses that,
   and its own `normalise_skill` — spelling variants checked against `knows()` — only for a

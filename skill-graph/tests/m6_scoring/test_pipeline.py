@@ -4,6 +4,7 @@ The other suites test each module against fixtures. This one runs the whole
 chain the way production will, so a shape change anywhere fails here rather than
 at integration.
 """
+from published_trace import published_trace
 from datetime import date, timedelta
 
 from scoring_fixtures import AS_OF, PUBLISHED, engine, report
@@ -22,12 +23,15 @@ def pipeline(name="report-full.json"):
 
 
 def test_the_whole_chain_reproduces_the_published_graph():
-    log = pipeline()
-    eng = engine()
-    events = [e.document for e in log.events()]
-    for skill, published in PUBLISHED.items():
-        got = eng.fold(events, skill, AS_OF).state.score(eng.p.z)
-        assert abs(got - published) < 0.01, f"{skill}: chain {got:.3f}, published {published}"
+    # The published trace was computed with the approximated Codeforces table; see
+    # contracts/reference/published_trace.py.
+    with published_trace():
+        log = pipeline()
+        eng = engine()
+        events = [e.document for e in log.events()]
+        for skill, published in PUBLISHED.items():
+            got = eng.fold(events, skill, AS_OF).state.score(eng.p.z)
+            assert abs(got - published) < 0.01, f"{skill}: chain {got:.3f}, published {published}"
 
 
 def test_scoring_reads_per_skill_agree_with_reading_the_whole_log():

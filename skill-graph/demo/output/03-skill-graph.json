@@ -1,12 +1,12 @@
 [
   {
     "skill_id": "algorithms",
-    "score": 0.638,
+    "score": 0.712,
     "interval": [
-      0.638,
-      0.767
+      0.712,
+      0.822
     ],
-    "mean": 0.707,
+    "mean": 0.772,
     "volatility_tier": "fundamental",
     "evidence_count": 2,
     "inferred": false,
@@ -15,12 +15,12 @@
   },
   {
     "skill_id": "problem_solving",
-    "score": 0.628,
+    "score": 0.7,
     "interval": [
-      0.628,
-      0.76
+      0.7,
+      0.814
     ],
-    "mean": 0.698,
+    "mean": 0.762,
     "volatility_tier": "fundamental",
     "evidence_count": 3,
     "inferred": false,
@@ -29,12 +29,12 @@
   },
   {
     "skill_id": "cpp",
-    "score": 0.556,
+    "score": 0.618,
     "interval": [
-      0.556,
-      0.708
+      0.618,
+      0.758
     ],
-    "mean": 0.635,
+    "mean": 0.692,
     "volatility_tier": "fundamental",
     "evidence_count": 3,
     "inferred": false,
@@ -43,12 +43,12 @@
   },
   {
     "skill_id": "data_structures",
-    "score": 0.541,
+    "score": 0.613,
     "interval": [
-      0.541,
-      0.749
+      0.613,
+      0.8
     ],
-    "mean": 0.652,
+    "mean": 0.716,
     "volatility_tier": "fundamental",
     "evidence_count": 0,
     "inferred": true,
@@ -72,6 +72,24 @@
     "inferred": false,
     "days_since_newest_evidence": 81,
     "propagated": null
+  },
+  {
+    "skill_id": "c",
+    "score": 0.516,
+    "interval": [
+      0.516,
+      0.737
+    ],
+    "mean": 0.634,
+    "volatility_tier": "fundamental",
+    "evidence_count": 0,
+    "inferred": true,
+    "days_since_newest_evidence": 203,
+    "propagated": {
+      "from_skill_id": "cpp",
+      "edge_type": "RELATED_TO",
+      "gamma": 0.4
+    }
   },
   {
     "skill_id": "python",
@@ -114,24 +132,6 @@
     "inferred": false,
     "days_since_newest_evidence": 49,
     "propagated": null
-  },
-  {
-    "skill_id": "c",
-    "score": 0.461,
-    "interval": [
-      0.461,
-      0.692
-    ],
-    "mean": 0.581,
-    "volatility_tier": "fundamental",
-    "evidence_count": 0,
-    "inferred": true,
-    "days_since_newest_evidence": 203,
-    "propagated": {
-      "from_skill_id": "cpp",
-      "edge_type": "RELATED_TO",
-      "gamma": 0.4
-    }
   },
   {
     "skill_id": "typescript",

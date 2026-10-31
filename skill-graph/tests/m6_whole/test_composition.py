@@ -5,6 +5,7 @@ that the pieces compose in the right order, that a guarantee made by one is not
 undone by another, and that the facade is a convenience rather than a second
 implementation.
 """
+from published_trace import published_trace
 from datetime import date, timedelta
 
 from whole_fixtures import (DEMO_AS_OF, DEMO_SUBJECT, GOLDEN_AS_OF, GOLDEN_SUBJECT,
@@ -21,7 +22,9 @@ def test_the_facade_reproduces_the_published_graph():
     """The composition must not change any number the submodules produce."""
     published = {"algorithms": 0.533, "cpp": 0.514, "typescript": 0.381,
                  "nextjs": 0.316, "python": 0.189, "mongodb": 0.173}
-    with loaded() as m6:
+    # The published trace was computed with the approximated Codeforces table; see
+    # contracts/reference/published_trace.py.
+    with published_trace(), loaded() as m6:
         got = {v.skill_id: v.lower for v in m6.skills(GOLDEN_SUBJECT, GOLDEN_AS_OF)}
     for skill, value in published.items():
         assert abs(got[skill] - value) < 0.01, skill

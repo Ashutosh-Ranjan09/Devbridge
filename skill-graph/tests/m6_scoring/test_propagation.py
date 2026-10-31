@@ -5,6 +5,7 @@ propagated state would become a source and evidence would drift arbitrarily
 far), one hop, and direct-evidence sources only (which is what makes the pass
 loop-free without cycle detection).
 """
+from published_trace import published_trace
 from scoring_fixtures import AS_OF, engine, events, validate_state
 from m6_ontology import default_ontology
 from m6_scoring import Propagator, edges_from_ontology
@@ -32,8 +33,11 @@ def test_propagation_reaches_a_skill_with_no_direct_evidence():
 def test_a_propagated_state_reproduces_the_published_trace():
     """The trace publishes c at 0.378 propagated from cpp. cpp itself moved to
     0.507 after the CV-dating fix, so c follows it down slightly."""
-    eng, _, out = propagated()
-    assert abs(out["c"].state.score(eng.p.z) - 0.378) < 0.02
+    # The published trace was computed with the approximated Codeforces table; see
+    # contracts/reference/published_trace.py.
+    with published_trace():
+        eng, _, out = propagated()
+        assert abs(out["c"].state.score(eng.p.z) - 0.378) < 0.02
 
 
 def test_a_propagated_state_carries_its_provenance():

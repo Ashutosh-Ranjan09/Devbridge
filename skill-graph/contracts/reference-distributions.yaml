@@ -8,45 +8,69 @@
 # It is DATA, not a parameter: the sweep does not touch it. It changes only when
 # the underlying population is re-measured.
 #
-# PROVENANCE — read this before trusting the numbers.
-#   These anchors are approximated from the published Codeforces rank boundaries
-#   (newbie <1200, pupil 1200-1399, specialist 1400-1599, expert 1600-1899,
-#   candidate master 1900-2099, master 2100-2299, international master 2300-2399,
-#   grandmaster 2400+) and the widely reported shape of the rated population.
-#   They have NOT been computed from the actual user list, because doing that
-#   needs a network call this repository deliberately cannot make.
+# PROVENANCE.
+#   Measured on 2026-10-31 from GET https://codeforces.com/api/user.ratedList
+#   ?activeOnly=false&includeRetired=true: 987,113 rated handles, one row each. The
+#   value at each anchor is the fraction of them whose PEAK rating (maxRating) is at
+#   or below it — peak, because platform_rating prices the max_rating M5 reports.
+#   Computed outside this repository, which makes no network calls:
+#       peaks = sorted(u.get("maxRating", u["rating"]) for u in result)
+#       ecdf(r) = bisect_right(peaks, r) / len(peaks)
+#   The loader interpolates linearly between anchors, so the grid can change freely.
 #
-#   Regenerate before any published result: page /api/user.ratedList, take one
-#   rating per handle, sort, and emit the empirical CDF at these anchors. The
-#   loader interpolates, so the anchor grid can change freely.
-#
-#   Until then, treat platform_rating's observed value as approximate. It is the
-#   single strongest event kind in the system (reliability 0.90), so an error
-#   here matters more than an error anywhere else in observed_value.
+#   It replaced an approximation from the rank boundaries that put a 1495 peak at the
+#   60th percentile; measured, it is the 84th (0.8374). The rated population is
+#   everyone who ever played a rated round, many of them once, so a modest peak sits
+#   high in it. The spike between 1400 and 1500 is the old 1500 starting rating.
+#   Re-measure with the same call and formula; record the date and count here.
 
 codeforces_rated_ecdf:
-  status: approximated_pending_regeneration
-  measured_at: null
+  status: measured
+  measured_at: "2026-10-31"
   population: rated_users_all_time
+  population_size: 987113
+  statistic: max_rating
   interpolation: linear
-  # rating -> fraction of RATED users at or below it
+  # peak rating -> fraction of RATED users whose peak is at or below it
   anchors:
-    800:  0.02
-    1000: 0.15
-    1200: 0.35
-    1400: 0.55
-    1600: 0.65
-    1900: 0.82
-    2100: 0.91
-    2300: 0.96
-    2400: 0.975
-    2600: 0.99
-    3000: 0.999
+    0: 0.0000
+    100: 0.0000
+    200: 0.0001
+    300: 0.0001
+    400: 0.1361
+    500: 0.1781
+    600: 0.2071
+    700: 0.2514
+    800: 0.3046
+    900: 0.3796
+    1000: 0.4505
+    1100: 0.5105
+    1200: 0.5584
+    1300: 0.6035
+    1400: 0.7131
+    1500: 0.8404
+    1600: 0.8838
+    1700: 0.9236
+    1800: 0.9492
+    1900: 0.9624
+    2000: 0.9747
+    2100: 0.9820
+    2200: 0.9900
+    2300: 0.9942
+    2400: 0.9963
+    2500: 0.9978
+    2600: 0.9986
+    2700: 0.9991
+    2800: 0.9994
+    2900: 0.9996
+    3000: 0.9997
+    3200: 0.9999
+    3500: 1.0000
+    4000: 1.0000
   worked_example:
     rating: 1495
-    ecdf: 0.5975
-    observed: 0.739
+    ecdf: 0.8340
+    observed: 0.8336
     note: >
-      m6-parameters.yaml quotes "ECDF_rated ~0.60 -> 0.74" for this rating. The
-      table reproduces that to three decimals, which is the check that the
-      anchors are consistent with the published trace rather than free-floating.
+      Interpolated between the 1400 and 1500 anchors (0.7131 -> 0.8404); the exact
+      measured fraction is 0.8374. observed = 0.50 + 0.40 x ecdf.

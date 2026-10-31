@@ -5,6 +5,7 @@ lines. This package is the service: same mathematics, every constant read from
 m6-parameters.yaml instead. If the two ever disagree, one of them is a bug, and
 this is where that shows up rather than in a published number.
 """
+from published_trace import published_trace
 from datetime import date, timedelta
 
 import m6_model as M
@@ -94,11 +95,14 @@ def test_the_explain_shape_matches_the_reference():
 
 
 def test_the_whole_graph_reproduces_the_published_trace():
-    eng = engine()
-    evs = events()
-    for skill, published in PUBLISHED.items():
-        got = eng.fold(evs, skill, AS_OF).state.score(eng.p.z)
-        assert abs(got - published) < 0.01, f"{skill}: engine {got:.3f}, published {published}"
+    # The published trace was computed with the approximated Codeforces table; see
+    # contracts/reference/published_trace.py.
+    with published_trace():
+        eng = engine()
+        evs = events()
+        for skill, published in PUBLISHED.items():
+            got = eng.fold(evs, skill, AS_OF).state.score(eng.p.z)
+            assert abs(got - published) < 0.01, f"{skill}: engine {got:.3f}, published {published}"
 
 
 def test_the_published_ordering_is_preserved():

@@ -63,7 +63,9 @@ observed_value:
       general-population floor, which is what `a` encodes. ECDF_rated is built
       once from the Codeforces user list and stored as a lookup table — a
       for-loop, not a training run.
-    worked_example: "max_rating 1495 (Specialist), ECDF_rated ~0.60 -> 0.74"
+    # Measured table (reference-distributions.yaml, 2026-10-31). The published trace used
+    # the approximated one: ECDF ~0.60 -> 0.74.
+    worked_example: "max_rating 1495 (Specialist), ECDF_rated 0.834 -> 0.834"
   repo_artifact:
     method: substance_band
     bands:
@@ -116,8 +118,10 @@ observed_value:
         sweep: [0.80, 0.93]
     rationale: >
       observed = floor + (ceiling[level] - floor) x passed / total. Every test passed on
-      a medium task observes 0.78 — a little above a Codeforces Specialist's 0.739,
-      because it is the skill itself, measured directly, not a proxy for it. Nothing
+      a medium task observes 0.78 — set a little above a Codeforces Specialist's 0.739
+      under the approximated table, because it is the skill itself, measured directly,
+      not a proxy for it. The measured table puts that Specialist at 0.834, so the
+      relation no longer holds; revisit with calibration data rather than by hand. Nothing
       passed observes the floor, below the prior's 0.25: a task the candidate could not
       do is evidence against the skill. Constants are documented priors for the sweep,
       not fitted; pass rates per pattern (assessment's calibration report) are the

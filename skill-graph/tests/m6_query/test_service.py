@@ -4,6 +4,8 @@ The plan calls explain the demo and says to build it as a first-class
 deliverable, so it is tested as one: not merely "does it return", but does it
 say enough for a reader to disagree with the number.
 """
+from published_trace import published_trace
+import math
 from datetime import date, timedelta
 
 from query_fixtures import AS_OF, SUBJECT, population, raises, service
@@ -25,7 +27,10 @@ def test_skills_are_ordered_by_lower_bound():
 
 
 def test_the_published_skills_are_present_with_the_published_numbers():
-    views = {v.skill_id: v for v in service().skills(SUBJECT, AS_OF)}
+    # The published trace was computed with the approximated Codeforces table; see
+    # contracts/reference/published_trace.py.
+    with published_trace():
+        views = {v.skill_id: v for v in service().skills(SUBJECT, AS_OF)}
     for skill, published in (("algorithms", 0.533), ("typescript", 0.381),
                              ("python", 0.189)):
         assert abs(views[skill].lower - published) < 0.01, skill
@@ -161,12 +166,19 @@ def test_subjects_lists_everyone_with_evidence():
 
 
 def test_thin_evidence_gives_a_wider_interval_than_full_evidence():
+    """Compared in logit space, where the state's uncertainty lives: logit(upper) −
+    logit(lower) is 2zσ exactly. In display space a sigmoid compresses near 1, so a
+    higher mean from fewer events can draw a narrower DISPLAYED band — which the
+    measured Codeforces table did, for problem_solving."""
+    def width(v):
+        return math.log(v.upper / (1 - v.upper)) - math.log(v.lower / (1 - v.lower))
+
     svc = population()
     full = {v.skill_id: v for v in svc.skills("subj_strong", AS_OF)}
     thin = {v.skill_id: v for v in svc.skills("subj_thin", AS_OF)}
     shared = set(full) & set(thin)
     assert shared
-    widths = [(thin[s].upper - thin[s].lower) - (full[s].upper - full[s].lower)
+    widths = [width(thin[s]) - width(full[s])
               for s in shared if thin[s].evidence_count < full[s].evidence_count]
     assert widths and all(w > 0 for w in widths)
 

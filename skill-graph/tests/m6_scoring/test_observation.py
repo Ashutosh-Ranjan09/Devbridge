@@ -4,6 +4,7 @@ Two quantities, and keeping them apart is the design: `observed` is what the
 evidence says the ability IS, `variance` is how much to believe it. Relevance is
 epistemic and belongs only in the variance.
 """
+from published_trace import published_trace
 from scoring_fixtures import engine, event, raises
 from m6_scoring import ObservationModel, UnscoreableEvent, interpolate
 
@@ -48,8 +49,16 @@ def test_a_missing_proficiency_takes_the_declared_default():
 
 
 def test_platform_rating_reproduces_the_contracts_worked_example():
-    """m6-parameters.yaml quotes: max_rating 1495 -> ECDF ~0.60 -> 0.74."""
+    """reference-distributions.yaml's measured worked example: a 1495 peak
+    interpolates to ECDF 0.834 and observes 0.834 (0.50 + 0.40 x 0.834)."""
     got = model().observed(event("platform_rating", max_rating=1495))
+    assert abs(got - 0.8336) < 0.001, got
+
+
+def test_the_published_trace_used_the_approximated_table():
+    """The trace quotes 1495 -> ECDF ~0.60 -> 0.74; under the frozen table it still does."""
+    with published_trace():
+        got = engine().observation.observed(event("platform_rating", max_rating=1495))
     assert abs(got - 0.74) < 0.005, got
 
 
