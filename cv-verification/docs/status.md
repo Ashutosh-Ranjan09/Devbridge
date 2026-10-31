@@ -13,14 +13,14 @@
 | | Today | Notes |
 |---|---|---|
 | **Checks** | **31 / 31 in scope** | 30 rules + the narrative (C5). 43 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human. D13 and D14 added 29 Oct: hidden text, extraction coverage |
-| **Tests** | **621** passing · 631 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Tests** | **622** passing · 632 with Postgres | 0 failing; 5 live tests deselected by default |
 | **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
 | **Size** | 33 modules · 11,468 lines · 23 test files · 6,577 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 11 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 93, since 4 Sep | **no remote** |
+| **Commits** | 94, since 4 Sep | **no remote** |
 
 ---
 
@@ -42,7 +42,7 @@
 ```
 ruff check src tests                  PASS
 mypy --strict                         33 files, no issues
-pytest                                621 passed · 10 skipped (Postgres-only) · 0 failed
+pytest                                622 passed · 10 skipped (Postgres-only) · 0 failed
 cvv evaluate docs/CV-SDE-AR.pdf       18/18 detection · 0 collateral
 ```
 
@@ -113,7 +113,7 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 93 commits, now all three modules and the web layer, exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 94 commits, now all three modules and the web layer, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
 | 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |
@@ -136,5 +136,5 @@ is ever made public.
 
 Known and left alone for a college project: SSRF on the probe, `document_url` and
 webhooks; no retention or delete; Postgres rows that can stay `pending`; webhooks that
-always say "completed". The narrative also prints each benign reading twice — once in
-the model's sentence, once by Python.
+always say "completed". (The narrative printed each benign reading twice until
+`narrative/v4`: the model is no longer shown it, and Python prints it once.)

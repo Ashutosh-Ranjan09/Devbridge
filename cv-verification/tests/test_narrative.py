@@ -89,7 +89,7 @@ class TestWhatTheModelIsShown:
         text, no document and no evidence bundle in what the model sees, so a fact
         nobody computed cannot be written."""
         seen = facts(P1)
-        assert set(seen) == {"ref", "rule", "says", "innocent_reading", "details"}
+        assert set(seen) == {"ref", "rule", "says", "details"}
 
     def test_the_prompt_contains_only_the_findings(self) -> None:
         provider = FakeProvider(points(("P1", "Claimed 1495 against 1180.")))
@@ -193,6 +193,14 @@ class TestTheFramePythonWrites:
         out = narrate(report(G5), provider)
         assert out.faithful
         assert "though: A rating can be a few points stale." in out.text
+
+    def test_the_innocent_reading_reaches_the_reader_once(self) -> None:
+        """The model is not shown it, so it cannot write it into the sentence as well:
+        shown it, it did, and every benign reading was printed twice."""
+        provider = FakeProvider(points(("G5", "A quiet window.")))
+        out = narrate(report(G5), provider)
+        assert "few points stale" not in provider.prompt
+        assert out.text.count("A rating can be a few points stale.") == 1
 
     def test_no_findings_calls_no_model_and_says_what_that_means(self) -> None:
         provider = FakeProvider(RuntimeError("must not be called"))

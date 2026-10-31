@@ -35,7 +35,8 @@ from dataclasses import dataclass
 from cvv.models import CANDIDATE_TEXT, Discrepancy, FindingsReport, Tier
 from cvv.providers import LLMProvider
 
-PROMPT_VERSION = "narrative/v3"
+# v4: the innocent reading is no longer shown to the model; _frame prints it once.
+PROMPT_VERSION = "narrative/v4"
 
 _NUMERAL = re.compile(r"\d+(?:\.\d+)?")
 
@@ -45,8 +46,8 @@ Rewrite each finding below as ONE sentence a busy reviewer can read at a glance.
 Rules, all of them absolute:
   - One sentence per finding, and nothing else. No summary, no opening, no closing.
   - Use ONLY what that finding says. Every number in your sentence must appear in it.
-  - Where a finding carries an innocent reading, put it in the same sentence, with
-    the same weight. "X, though Y" — never X alone.
+  - Write only what the finding says. Its innocent reading, if it has one, is printed
+    beneath your sentence by code; do not add one of your own.
   - State no verdict. Do not say whether anything is good, bad, or hiring-relevant.
   - Copy the `ref` value exactly into the `ref` field.
   - Do NOT name the rule inside the sentence. The id is printed beside it already,
@@ -112,7 +113,9 @@ def facts(finding: Discrepancy, ref: str | None = None) -> dict[str, object]:
         "ref": ref or finding.rule_id,
         "rule": finding.rule_id,
         "says": finding.explanation,
-        "innocent_reading": finding.innocent_explanation,
+        # Not the innocent reading: _frame prints it beneath the sentence, always, and
+        # a model shown it too wrote it into the sentence as well, so every benign
+        # reading reached the reader twice.
         # Never the candidate's own words: text quoted from a CV is for a person,
         # and an instruction hidden or printed in one must not reach a model by way
         # of the finding that reported it.
