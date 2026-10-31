@@ -115,6 +115,9 @@ def _aad(thread_id: str, message_id: str) -> str:
     return f"{thread_id}|{message_id}"
 
 
+# The most messages one read returns; a stream reads again until it has them all.
+PAGE = 1000
+
 # Columns added after the first release, added in place to a database that lacks them.
 UPGRADES = {"messages": [("kind", "TEXT NOT NULL DEFAULT 'text'"), ("request_id", "TEXT")]}
 
@@ -244,7 +247,7 @@ class Store:
         name = self.box.open(row["name"], f"{row['thread_id']}|{row['id']}|name").decode()
         return FileInfo(id=row["id"], name=name, mime=row["mime"], size=row["size"])
 
-    def messages(self, thread_id: str, after: int = 0, limit: int = 1000) -> list[Message]:
+    def messages(self, thread_id: str, after: int = 0, limit: int = PAGE) -> list[Message]:
         rows = self.db.execute(
             "SELECT * FROM messages WHERE thread_id = ? AND seq > ? ORDER BY seq LIMIT ?",
             (thread_id, after, limit)).fetchall()

@@ -26,6 +26,7 @@ if ! grep -qs '^CHAT_ENCRYPTION_KEY=.' chat/.env; then
   (cd chat && echo "CHAT_ENCRYPTION_KEY=$(uv run --quiet chat keygen)" >> .env && chmod 600 .env)
   echo "  made a chat encryption key in chat/.env: back it up; without it the messages cannot be read"
 fi
+chmod 600 chat/.env   # the key reads every message: for this user only
 
 pids=()
 stop() { kill "${pids[@]}" 2>/dev/null || true; wait 2>/dev/null || true; echo "stopped"; }

@@ -52,16 +52,17 @@ export async function threadView(appId: string): Promise<ThreadView | null> {
 }
 
 /** This person's threads, newest first, each with its application. A thread whose
- * application this app does not know is left out. */
+ * application this app does not know is left out. Five seconds at most: the header asks
+ * on every page, and a chat module that hangs must not hold it. */
 export async function inboxFor(user: Pick<CurrentUser, "id" | "role">) {
   let rows: InboxRow[];
   if (user.role === "CANDIDATE") {
-    rows = await call<InboxRow[]>("chat", `/v1/inbox?reader=${encodeURIComponent(user.id)}&candidate=${encodeURIComponent(user.id)}`);
+    rows = await call<InboxRow[]>("chat", `/v1/inbox?reader=${encodeURIComponent(user.id)}&candidate=${encodeURIComponent(user.id)}`, { timeoutMs: 5_000 });
   } else if (user.role === "RECRUITER") {
     const orgs = (await db.membership.findMany({ where: { userId: user.id } })).map((m) => m.orgId);
     if (!orgs.length) return [];
     const q = orgs.map((o) => `org=${encodeURIComponent(o)}`).join("&");
-    rows = await call<InboxRow[]>("chat", `/v1/inbox?reader=${encodeURIComponent(user.id)}&${q}`);
+    rows = await call<InboxRow[]>("chat", `/v1/inbox?reader=${encodeURIComponent(user.id)}&${q}`, { timeoutMs: 5_000 });
   } else {
     return [];
   }

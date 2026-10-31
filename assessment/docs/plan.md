@@ -244,6 +244,11 @@ would have sent one candidate three tasks the moment a skill had three patterns.
 - the output lists qualifying candidates with every must-have and nice-to-have interval;
 - **alphabetical, no ranking.** Combining several skills into one order needs a weighted
   sum, which is the overall score both modules refuse. The recruiter reads the columns.
+  Since then, by the project owner's decision, M6 adds a **job match** to each entry: that
+  job's skills averaged from their intervals (must-have 2, nice-to-have 1; no evidence
+  counts at the prior, 0.25), a range with how many skills have direct evidence. It
+  filters nobody; M6's lists stay alphabetical, and the web sorts a job's applicants by it
+  only when a recruiter asks.
 
 Also `POST /shortlist` on M6's combined server, with the same JSON. A must-have needs
 DIRECT evidence — an interval inferred from a neighbouring skill is a hint, not a
@@ -339,6 +344,7 @@ stop a candidate using an AI assistant · invent a constraint or a test.
 | one submission | Run on visible examples, unlimited; three hidden-test attempts, the last counts; `results` written once final | a candidate's paste was cut off mid-line and the one submission was lost to a SyntaxError |
 | — | code that does not parse is refused by `compile()` before the sandbox and uses no attempt | the same paste: an accident is not an answer. Code that parses but fails on import still scores zero |
 | no ranking, no total | each task ranked by hidden tests passed then time, and an assessment total of 100 points a task over the job's tasks, then time; candidates ranked once every task is final or expired | the project owner's decision: recruiters pick from an online test's results, as on HackerRank. The total covers one job's tasks only and never reaches M6 |
+| shortlist columns only, alphabetical | each applicant also gets a job match (that job's skills averaged, must-haves counting more, as a range with its evidence coverage); a recruiter may sort a job's applicants by it | the project owner's decision: a match between one applicant and one confirmed job is useful to a recruiter, and is never a score of the person. It filters nobody and never reaches another job |
 | the first pattern for each must-have | the recruiter chooses the job's tasks; locked at confirmation; an unbarred must-have no chosen task tests filters on any evidence | with several patterns per skill, every applicant would have got all the first ones, with no say |
 
 Measured on the reference pattern: 108 combinations, 648 cases, the reference passes all,

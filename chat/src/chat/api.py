@@ -34,6 +34,7 @@ from chat.models import (
     ThreadView,
 )
 from chat.store import (
+    PAGE,
     NoFileError,
     NotAllowedError,
     NoThreadError,
@@ -196,9 +197,13 @@ async def events(s: Store, thread_id: str, after: int, request: Disconnects) -> 
     with hub.listen(thread_id) as wake:
         while not await request.is_disconnected():
             wake.clear()            # before reading, so a post in between still wakes us
-            for m in s.messages(thread_id, after):
-                yield f"id: {m.seq}\nevent: message\ndata: {m.model_dump_json()}\n\n"
-                after = m.seq
+            while True:             # a long backlog comes a page at a time, all of it now
+                page = s.messages(thread_id, after, PAGE)
+                for m in page:
+                    yield f"id: {m.seq}\nevent: message\ndata: {m.model_dump_json()}\n\n"
+                    after = m.seq
+                if len(page) < PAGE:
+                    break
             if (now := s.seen(thread_id)) != seen:
                 seen = now
                 yield f"event: seen\ndata: {json.dumps(now.model_dump())}\n\n"

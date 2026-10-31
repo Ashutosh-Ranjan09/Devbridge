@@ -1,9 +1,10 @@
 # DevBridge — web
 
 The website: candidates upload a CV, see their skill profile and take assessments;
-recruiters confirm a job's skills and read the evidence; admins see the system's state.
-Next.js 16 with its own SQLite database for accounts. Everything about CVs, skills and
-assessments comes from the three Python modules over HTTP.
+recruiters confirm a job's skills, read the evidence and chat with applicants (asking for
+documents they upload there); admins see the system's state. Next.js 16 with its own
+SQLite database for accounts. Everything about CVs, skills, assessments and chats comes
+from the four Python modules over HTTP.
 
 ```bash
 npm install

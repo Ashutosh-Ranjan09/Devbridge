@@ -10,7 +10,7 @@ never edited or deleted, and arrive live over Server-Sent Events, relayed by the
 uv sync
 echo "CHAT_ENCRYPTION_KEY=$(uv run chat keygen)" > .env   # or let ../scripts/dev.sh write it
 uv run chat serve                # :8090
-uv run pytest                    # 46 tests
+uv run pytest                    # 47 tests
 ```
 
 Encrypted at rest, not end to end: a copy of the database is unreadable without the key,

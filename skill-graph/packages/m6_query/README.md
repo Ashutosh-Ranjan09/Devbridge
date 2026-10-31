@@ -97,14 +97,33 @@ A propagated skill returns `basis: "propagated"`, `evidence_count: 0`, empty
 settled answer to the presentation problem: `c` outranks skills with real
 evidence, and the response says plainly that it is an inference.
 
-## Tests — 106 in this package
+## Shortlist and job match
+
+`shortlist(requirements, as_of, subjects=…)` reads a confirmed job's
+`../schemas/job-requirements.schema.json`. Each must-have with a bar is a filter needing
+DIRECT evidence whose interval clears it (`clears` per must-have says so: true, false, or
+null for an unbarred one); nice-to-haves are shown and filter nobody. With `subjects` — a
+job's applicants — everyone asked about is answered for: `candidates`, `others`, or
+`no_evidence`. Both lists are alphabetical.
+
+Each entry carries a `job_match`, the one combination of skills M6 publishes, by the
+project owner's decision: that job's skills averaged, a must-have weighted 2 and a
+nice-to-have 1 (`m6-parameters.yaml` `job_match`), each end of every interval averaged the
+same way, so the match is a range. A skill with no evidence counts at the prior (0.25,
+0.08–0.55), never zero; an inferred one at its inferred range. `evidence_for` / `of` says
+how many of the job's skills have direct evidence. It describes an applicant against one
+job, never a person, and moves nobody between the lists; `job_match_basis` says how every
+match on the answer was made.
+
+## Tests — 118 in this package
 
 | file | covers |
 |---|---|
 | `test_ranking.py` | The tiering rule in isolation: touching intervals do not separate, a wide interval is above nothing, splits are justified, tiers are order-independent. |
 | `test_service.py` | Skills, `as_of` in both directions, and explain as the demo — including that the first event carries the most weight against a wide prior. |
 | `test_search.py` | Tiers, thresholds, inferred results opt-in, and the two z-threshold findings above. |
-| `test_constraints.py` | The hard constraints as executable assertions — no aggregate key in any response, no aggregate-shaped method name, every split justified. |
+| `test_constraints.py` | The hard constraints as executable assertions — no aggregate key in any response, no aggregate-shaped method name, every split justified; a `job_match` appears on shortlist entries and nowhere else. |
+| `test_shortlist.py` | Must-haves as filters on direct evidence, unbarred must-haves and nice-to-haves filtering nobody, applicants answered for, the schema checked; the job match's weights, the prior for no evidence, an inferred skill's range, weights read from the parameters, and that it moves and orders nobody. |
 | `test_api.py` | Real sockets, status codes, four refusal spellings, and eight concurrent readers returning identical scores. |
 
 ## Handing off

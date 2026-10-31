@@ -98,3 +98,18 @@ def test_a_stream_resumes_after_the_last_id_it_sent(store: Store):
 
     chunk = asyncio.run(first_chunk())
     assert "new" in chunk and "old" not in chunk
+
+
+def test_a_backlog_longer_than_a_page_is_sent_whole_at_once(store: Store, monkeypatch):
+    monkeypatch.setattr("chat.api.PAGE", 2)   # five messages: three pages
+    monkeypatch.setattr(api.settings, "per_minute", 100)
+    store.open_thread(THREAD)
+    for i in range(5):
+        store.post("app_1", NewMessage(sender="u_ravi", side="recruiter", body=f"m{i}"))
+
+    async def backlog() -> list[str]:
+        gen = api.events(store, "app_1", 0, OpenFor(1))
+        return [await anext(gen) for _ in range(5)]
+
+    chunks = asyncio.run(backlog())
+    assert [f"m{i}" in c for i, c in enumerate(chunks)] == [True] * 5
