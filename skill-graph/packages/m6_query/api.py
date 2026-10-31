@@ -5,7 +5,7 @@
     GET /developers/{ref}/skills                   the graph
     GET /developers/{ref}/skills/{skill}/explain   the demo
     GET /search?skill=…&min=…&definite=…           tiers, never a ranking
-    GET /developers/{ref}/score                    410, on purpose
+    GET /developers/{ref}/score                    400, on purpose: no overall score exists
 
 Every endpoint accepts `as_of=YYYY-MM-DD`. Decisions live in QueryService; this
 file only routes and translates.

@@ -17,7 +17,7 @@ them for the demo and for anyone who wants module 6 as one process.
     GET  /search?skill=...
     POST /shortlist[?subject=…]      a confirmed job's requirements → who qualifies;
                                      `subject` (repeatable) answers for those people only
-    GET  /developers/{ref}/score     410, on purpose
+    GET  /developers/{ref}/score     400, on purpose: no overall score exists
 """
 from __future__ import annotations
 

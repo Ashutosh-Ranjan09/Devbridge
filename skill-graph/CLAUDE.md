@@ -193,8 +193,8 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   though the contract's `claim_corroborated` rule names both. So "competitive programming" and
   "data structures and algorithms" have no alias: as `cv_claim`s at 0.45 they would pull down
   an `algorithms` estimate a Codeforces rating had already set.
-- `claim_corroborated` observes a flat 0.68, which sits below a Specialist's 0.739, so a
-  CodeChef confirmation pulls `algorithms` down slightly.
+- `claim_corroborated` observes a flat 0.68, which sits below a Codeforces Specialist's 0.834
+  (measured table), so a CodeChef confirmation pulls `algorithms` down.
 - `commit_count: null` (M5 sends it for repos it read file by file) is unknown, not zero:
   substance-band conditions over an unknown value are skipped.
 - `half_life_days` (h = k/λ) is actually the e-folding time constant. The true half-life is h·ln2.
@@ -202,7 +202,6 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   A later candidate can still overlap a member of an earlier tier.
 - At z = 1 search mostly *filters* rather than ranks. A real ~0.10 ability gap only separates at z ≤ 0.40.
   The lever is `display.z`, at the cost of false precision. Two tests pin this.
-- Docstrings in `m6_query/api.py` and `m6/api.py` say `/score` returns 410, but the code and tests return **400**.
 
 ## Where to read more
 
