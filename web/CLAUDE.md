@@ -82,8 +82,9 @@ tests/                  Vitest: actions against a temporary database; service ca
    assessment module's order — "Assessment total" (each task 100 points, summed over the
    job's tasks, then time) and "Results by task" (each task on its own). Shown to that
    job's recruiters only. And M6's **job match** per applicant (that job's skills averaged,
-   must-haves counting more, as a range with what it rests on), shown beside the skills
-   in a list still ordered by name; never a filter. Nothing else is ever summed. A
+   must-haves counting more, as a range with what it rests on), shown beside the skills;
+   the list is by name unless the recruiter picks "Sort by job match" (middle value,
+   highest first, no evidence last). Never a filter. Nothing else is ever summed. A
    decision needs a person and a
    written reason, and is stored with both.
 4. **The modules see only `subject_ref`.** Never send a name or an email to M5, M6 or

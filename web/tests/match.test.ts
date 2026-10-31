@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-const { basisText, matchText } = await import("@/lib/match");
+const { basisText, byJobMatch, matchText } = await import("@/lib/match");
 
 describe("a job match", () => {
   it("is shown as a range, with how many of the job's skills have evidence", () => {
@@ -16,5 +16,26 @@ describe("a job match", () => {
     const basis = { weights: { must: 2, nice: 1 }, without_evidence: { interval: [0.083, 0.55] as [number, number], mean: 0.25 } };
     expect(basisText(basis)).toBe("In a job match a must-have counts 2 and a nice-to-have 1; "
       + "a skill with no evidence counts 0.25 (0.08–0.55).");
+  });
+});
+
+describe("sorting a job's applicants by match", () => {
+  const m = (mean: number) => ({ interval: [mean - 0.1, mean + 0.1] as [number, number], mean, evidence_for: 1, of: 2 });
+  const rows = [
+    { name: "Asha", match: m(0.4) },
+    { name: "Bo", match: null },
+    { name: "Chen", match: m(0.6) },
+    { name: "Dev", match: m(0.4) },
+    { name: "Esi", match: undefined },
+  ];
+
+  it("puts the highest middle first, equal matches by name, and no match last", () => {
+    const sorted = byJobMatch(rows, (r) => r.match, (r) => r.name);
+    expect(sorted.map((r) => r.name)).toEqual(["Chen", "Asha", "Dev", "Bo", "Esi"]);
+  });
+
+  it("leaves the list it was given alone", () => {
+    byJobMatch(rows, (r) => r.match, (r) => r.name);
+    expect(rows.map((r) => r.name)).toEqual(["Asha", "Bo", "Chen", "Dev", "Esi"]);
   });
 });

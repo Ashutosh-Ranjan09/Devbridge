@@ -73,8 +73,9 @@ def job_match(views: dict[str, SkillView], musts: Sequence[str], nice: Sequence[
 
     The one combination of skills this system publishes, by the project owner's decision,
     and it is a property of the PAIR — the same person matches each job differently, and
-    there is no match without a job. It filters nobody and orders nobody; the shortlist
-    stays alphabetical and the must-have bars stay the only filter.
+    there is no match without a job. It filters nobody: the must-have bars stay the only
+    filter. M6's lists stay alphabetical; a client may sort one job's applicants by it
+    when its reader asks (the web's "Sort by job match").
 
     It is a range, not a point: the weighted average of each end of every skill's
     interval. That is wider than an interval of the average would be, which errs toward
@@ -339,7 +340,7 @@ class QueryService:
             },
             "note": ("Alphabetical, not ranked. Each job match is this job's skills averaged, "
                      "must-haves counting more: read it beside the intervals per skill; it "
-                     "orders and filters nobody."
+                     "filters nobody, and this answer is not ordered by it."
                      + ("" if filters else " No must-have has a bar, so nothing filtered: "
                         "every candidate is listed, and the must-haves are to be assessed.")),
         }

@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
-import { basisText, matchText } from "@/lib/match";
+import { basisText, byJobMatch, matchText } from "@/lib/match";
 import { forApplicants, pendingStatus } from "@/lib/tasks";
 import type { Job, JobResults, JobTasks, Requirements, Shortlist, ShortlistEntry } from "@/lib/types";
 
@@ -92,17 +92,18 @@ async function JobView({ params, searchParams }: {
             note={row.open ? "Candidates can see and apply to it." : "Not listed for candidates."} />
         </div>
       </Card>
-      <Applicants jobId={row.id} skills={must.map((s) => s.skill_id as string)} only={(await searchParams).only === "clear"} />
+      <Applicants jobId={row.id} skills={must.map((s) => s.skill_id as string)}
+        only={(await searchParams).only === "clear"} byMatch={(await searchParams).sort === "match"} />
     </div>
   );
 }
 
-async function Applicants({ jobId, skills, only }: { jobId: string; skills: string[]; only: boolean }) {
+async function Applicants({ jobId, skills, only, byMatch }: { jobId: string; skills: string[]; only: boolean; byMatch: boolean }) {
   const apps = await db.application.findMany({
     where: { jobId },
     include: { candidate: { include: { user: true } }, decision: true },
   });
-  // By name: a list of people, never ordered by any skill.
+  // By name, unless the recruiter asks for this job's match order.
   apps.sort((a, b) => a.candidate.user.name.localeCompare(b.candidate.user.name));
   if (!apps.length) return <Card><p className="text-sm text-muted">No applicants yet.</p></Card>;
 
@@ -119,19 +120,32 @@ async function Applicants({ jobId, skills, only }: { jobId: string; skills: stri
     ...shortlist.candidates.map((c) => [c.subject_ref, { ...c, clearsAll: true }] as const),
     ...shortlist.others.map((c) => [c.subject_ref, { ...c, clearsAll: false }] as const),
   ]);
-  const shown = only ? apps.filter((a) => entries.get(a.candidate.subjectRef)?.clearsAll) : apps;
+  const filtered = only ? apps.filter((a) => entries.get(a.candidate.subjectRef)?.clearsAll) : apps;
+  const shown = byMatch
+    ? byJobMatch(filtered, (a) => entries.get(a.candidate.subjectRef)?.job_match, (a) => a.candidate.user.name)
+    : filtered;
+  const href = (q: { only: boolean; byMatch: boolean }) =>
+    "?" + new URLSearchParams({ ...(q.only ? { only: "clear" } : {}), ...(q.byMatch ? { sort: "match" } : {}) });
   return (
     <>
     <ResultsByTask jobId={jobId} apps={apps} />
     <Card>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-semibold">Applicants ({apps.length})</h3>
-        <Link href={only ? "?" : "?only=clear"} className="text-sm text-accent underline">
-          {only ? "Show everyone" : "Only those who clear every bar"}
-        </Link>
+        <div className="flex flex-wrap gap-x-4 text-sm">
+          <Link href={href({ only, byMatch: !byMatch })} className="text-accent underline">
+            {byMatch ? "Sort by name" : "Sort by job match"}
+          </Link>
+          <Link href={href({ only: !only, byMatch })} className="text-accent underline">
+            {only ? "Show everyone" : "Only those who clear every bar"}
+          </Link>
+        </div>
       </div>
       <p className="mb-3 text-xs text-muted">
-        Ordered by name. {shortlist.note} Clears every bar: {shortlist.match}. {basisText(shortlist.job_match_basis)}
+        {byMatch
+          ? "Ordered by job match, highest middle first; compare the ranges, as neighbours often overlap. No evidence on record comes last."
+          : "Ordered by name."}{" "}
+        Clears every bar: {shortlist.match}. {basisText(shortlist.job_match_basis)} The match filters nobody.
       </p>
       <ul className="space-y-3">
         {shown.map((a) => {

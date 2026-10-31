@@ -67,4 +67,5 @@ every combination.
   (`m6-parameters.yaml` `job_match`), a skill with no evidence at the prior (0.25,
   0.08–0.55), as a range with how many skills have direct evidence. It belongs to one
   applicant and one confirmed job, never to the person; it filters nobody (the bars do),
-  orders nobody (lists stay alphabetical), and only that job's recruiters see it.
+  and only that job's recruiters see it. M6 answers alphabetically; the web lists by name
+  by default, and a recruiter may sort that job's applicants by the match's middle value.

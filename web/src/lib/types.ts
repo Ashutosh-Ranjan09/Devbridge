@@ -208,7 +208,7 @@ export type ShortlistEntry = {
   must: Record<string, SkillColumn>;
   nice: Record<string, SkillColumn>;
   clears: Record<string, boolean | null>; // M6's own filter decision per must-have
-  job_match: JobMatch | null; // this applicant against this job; filters and orders nobody
+  job_match: JobMatch | null; // this applicant against this job; filters nobody, sorts on request
 };
 
 /** M6's match of one applicant to one job: the job's skills averaged, must-haves counting

@@ -70,8 +70,9 @@ Dependencies point one way. Ports are deliberately narrow:
    owner's:** each shortlist entry's `job_match` — that job's skills averaged (weights in
    `job_match`, a skill with no evidence at the prior), a range with `evidence_for` / `of`.
    It describes an applicant against one job, never a person; it moves nobody between
-   `candidates` and `others` and the lists stay alphabetical. A test holds that it appears
-   on shortlist entries and nowhere else.
+   `candidates` and `others` and M6's lists stay alphabetical (the web may sort a job's
+   applicants by it when a recruiter asks). A test holds that it appears on shortlist
+   entries and nowhere else.
 3. **Intervals, never bare points.** The published `score` is the **lower bound**, and every row
    carries `interval`. Two candidates are ordered only when their intervals don't overlap, so search
    returns **tiers**, alphabetical inside a tier.
