@@ -31,6 +31,9 @@ export type Report = {
   claim_graph: { claims: Claim[] };
   findings: {
     discrepancies: Discrepancy[];
+    /** Every registered check, including those that did not fire. `note`: what a clean
+     * check confirmed, printed under Verified (an M5 extension). */
+    rule_outcomes: { rule_id: string; status: "fired" | "clean" | "abstained" | "error" | "not_applicable"; note?: string | null }[];
     buckets: {
       verified: string[];
       contradicted: string[];

@@ -8,8 +8,10 @@ import { Card } from "./ui";
 /** M5's report, in M5's own order and words: the buckets are M5's, the explanations are
  * M5's, and nothing here adds a verdict, a colour scale or a total. It mirrors what
  * `cvv verify` prints. */
-export function ReportView({ report, marks, review, mine = false }: {
+export function ReportView({ report, marks, review, mine = false, alsoChecked = [] }: {
   report: Report;
+  /** Checks below decisive that ran and found nothing (lib/m5.ts), as the CLI prints them. */
+  alsoChecked?: string[];
   /** The candidate reading their own report: "your CV". Anyone else reads "the CV". */
   mine?: boolean;
   /** People's marks beside M5's lines. M5's buckets and order are never changed by them. */
@@ -64,7 +66,15 @@ export function ReportView({ report, marks, review, mine = false }: {
         )}
       </Card>
 
-      <Bucket title="✓ Verified" empty="Nothing could be confirmed.">
+      <Bucket title="✓ Verified" empty="Nothing could be confirmed."
+        after={alsoChecked.length > 0 && (
+          <div className="mt-4 border-t border-line pt-3">
+            <p className="text-sm text-muted">Also checked, nothing raised — weaker than the above, not decisive:</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
+              {alsoChecked.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </div>
+        )}>
         {buckets.verified.map((v, i) => <li key={v}>{v}{under(lineKey("verified", i))}</li>)}
       </Bucket>
 
@@ -116,11 +126,12 @@ export function ReportView({ report, marks, review, mine = false }: {
   );
 }
 
-function Bucket({ title, empty, children }: { title: string; empty: string; children: ReactNode[] }) {
+function Bucket({ title, empty, children, after }: { title: string; empty: string; children: ReactNode[]; after?: ReactNode }) {
   return (
     <Card>
       <h2 className="mb-2 font-semibold">{title}</h2>
       {children.length ? <ul className="space-y-3">{children}</ul> : <p className="text-sm text-muted">{empty}</p>}
+      {after}
     </Card>
   );
 }

@@ -46,6 +46,7 @@ src/lib/services.ts     call() to M5 · M6 · assessment (JSON or multipart); he
 src/lib/types.ts        the fields of each module's answers that pages read
 src/lib/candidate.ts    requireCandidate(); myVerification() / myAssessment(): theirs, or 404
 src/lib/recruiter.ts    requireRecruiter(); myJob() / myApplication(): their organisation's, or 404
+src/lib/m5.ts           m5Rules() (M5's catalogue) · alsoChecked(): the CLI's "also checked, nothing raised"
 src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest admin mark on each
 src/lib/limits.ts       failed logins per email: lockedFor() · recordFailure() · clearFailures()
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
@@ -149,6 +150,7 @@ tests/                  Vitest: actions against a temporary database; service ca
   M5 never changes a stored report; a re-check is a new verification with its own marks.
 - An admin's mark is not evidence for M6: making it count needs a new event kind in the
   contract and M6 deciding what a human check is worth (with W2's queue).
-- Not built: adding context to a "needs
-  context" finding (M5's attestation is out of scope); the CLI's "also checked, nothing
-  raised" lines, which M5 computes for the CLI and does not put in the report.
+- Not built: adding context to a "needs context" finding (M5's attestation is out of scope).
+- "Also checked, nothing raised" is the one rule this app repeats from M5
+  (`cvv.report.quietly_clean`: a check below decisive that ran clean, no note), because
+  the report's closed schema has no field for it. Change both together.

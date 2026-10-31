@@ -6,6 +6,7 @@ import { ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { myVerification, requireCandidate } from "@/lib/candidate";
 import { call, ServiceError } from "@/lib/services";
+import { alsoChecked, m5Rules } from "@/lib/m5";
 import { marksFor } from "@/lib/review";
 import { forwardReport } from "@/lib/sync";
 import type { Report, Running } from "@/lib/types";
@@ -52,7 +53,7 @@ async function Verification({ params }: { params: Promise<{ id: string }> }) {
       <p className="mb-4 text-sm text-muted">
         {v.fileName} · checked {new Date(answer.valid_as_of).toLocaleString("en-IN")}
       </p>
-      <ReportView report={answer} marks={await marksFor(v.id)} mine />
+      <ReportView report={answer} marks={await marksFor(v.id)} mine alsoChecked={alsoChecked(answer, await m5Rules())} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import { ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { alsoChecked, m5Rules } from "@/lib/m5";
 import { marksFor } from "@/lib/review";
 import { call, ServiceError } from "@/lib/services";
 import type { Report, Running } from "@/lib/types";
@@ -69,10 +70,11 @@ async function CandidateReview({ params, searchParams }: {
   );
   if (!chosen) return <div className="space-y-4">{header}<Card><p>No CV uploaded yet.</p></Card></div>;
 
-  const [report, marks] = await Promise.all([
+  const [report, marks, rules] = await Promise.all([
     call<Report | Running>("m5", `/v1/verifications/${encodeURIComponent(chosen.id)}`)
       .catch((e: unknown) => (e instanceof ServiceError ? e : Promise.reject(e))),
     marksFor(chosen.id, { names: true }),
+    m5Rules(),
   ]);
   return (
     <div className="space-y-4">
@@ -81,7 +83,7 @@ async function CandidateReview({ params, searchParams }: {
       {report instanceof ServiceError ? <Card><p>{report.message}</p></Card>
         : report.status === "running" ? <Card><p>Still being checked.</p></Card>
         : report.status === "failed" ? <Card><p>Could not be checked: {report.failure}</p></Card>
-        : <ReportView report={report} marks={marks}
+        : <ReportView report={report} marks={marks} alsoChecked={alsoChecked(report, rules)}
             review={(key) => <MarkForm userId={userId} verificationId={chosen.id} lineKey={key} />} />}
     </div>
   );
