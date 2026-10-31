@@ -187,13 +187,18 @@ class TestTasks:
         limiter = next(t["session_id"] for t in tasks if t["pattern_id"] == "rate_limiter")
         client.post(f"/v1/sessions/{limiter}/begin", headers=KEY)
         client.post(f"/v1/sessions/{limiter}/submit", json={"code": "x = 1"}, headers=KEY)   # passes: final
-        r = client.get(f"/v1/jobs/{jid}/results", headers=KEY).json()
+        body = client.get(f"/v1/jobs/{jid}/results", headers=KEY).json()
+        r = body["tasks"]
         assert [t["pattern_id"] for t in r] == ["rate_limiter", "top_k_frequent"], "one ranking per task"
         rl, tk = r
         assert [(s["rank"], s["candidate_ref"], s["passed"], s["total"]) for s in rl["ranked"]] == [(1, "subject:asha", 6, 6)]
         assert {p["candidate_ref"]: (p["status"], p["started"]) for p in rl["pending"]} == {"subject:ravi": ("issued", False)}
         assert tk["ranked"] == [] and len(tk["pending"]) == 2, "not started is not ranked last; it is not ranked"
-        assert not set(r[0]) & {"overall", "score", "sum"}, "no number across tasks"
+        whole = body["assessment"]
+        assert (whole["points_per_task"], whole["tasks"]) == (100, ["rate_limiter", "top_k_frequent"])
+        assert whole["ranked"] == [], "nobody has finished every task, so nobody has a total yet"
+        assert {w["candidate_ref"]: w["tasks"] for w in whole["in_progress"]} == {
+            "subject:asha": ["top_k_frequent"], "subject:ravi": ["rate_limiter", "top_k_frequent"]}
 
     def test_job_or_pattern_not_both(self, client) -> None:
         r = client.post("/v1/sessions", json={"candidate_ref": "s", "job_id": "j",

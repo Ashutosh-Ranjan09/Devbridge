@@ -19,10 +19,11 @@ export function when(iso: string): string {
 }
 
 /** The rows of a module's answer that belong to this job's applicants, with who each is.
- * A session the web did not issue for one of them is not shown. */
-export function forApplicants<T extends { session_id: string }, W>(rows: T[], who: Map<string, W>): (T & { who: W })[] {
+ * A row `who` does not recognise (a session or subject this site did not issue for one
+ * of them) is not shown. */
+export function forApplicants<T, W>(rows: T[], who: (row: T) => W | undefined): (T & { who: W })[] {
   return rows.flatMap((r) => {
-    const w = who.get(r.session_id);
+    const w = who(r);
     return w === undefined ? [] : [{ ...r, who: w }];
   });
 }

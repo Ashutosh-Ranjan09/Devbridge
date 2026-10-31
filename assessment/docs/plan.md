@@ -338,6 +338,7 @@ stop a candidate using an AI assistant · invent a constraint or a test.
 | a session is `expired` when a late submission arrives | decided whenever a session is read | an abandoned task said `open` forever |
 | one submission | Run on visible examples, unlimited; three hidden-test attempts, the last counts; `results` written once final | a candidate's paste was cut off mid-line and the one submission was lost to a SyntaxError |
 | — | code that does not parse is refused by `compile()` before the sandbox and uses no attempt | the same paste: an accident is not an answer. Code that parses but fails on import still scores zero |
+| no ranking, no total | each task ranked by hidden tests passed then time, and an assessment total of 100 points a task over the job's tasks, then time; candidates ranked once every task is final or expired | the project owner's decision: recruiters pick from an online test's results, as on HackerRank. The total covers one job's tasks only and never reaches M6 |
 | the first pattern for each must-have | the recruiter chooses the job's tasks; locked at confirmation; an unbarred must-have no chosen task tests filters on any evidence | with several patterns per skill, every applicant would have got all the first ones, with no say |
 
 Measured on the reference pattern: 108 combinations, 648 cases, the reference passes all,

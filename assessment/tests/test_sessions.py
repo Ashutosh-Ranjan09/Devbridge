@@ -12,7 +12,7 @@ from assess import sessions
 from assess.models import Outcome, SandboxInfo, Session, SessionStatus
 from assess.patterns import load
 from assess.sandbox import Run
-from assess.scoring import standings
+from assess.scoring import standings, task_points, totals
 from assess.sessions import (
     NotPythonError,
     SessionError,
@@ -312,3 +312,38 @@ class TestStandings:
         a = self.take(store, sandbox, "a", 1, Run(Outcome.PASSED, rows(), INFO), 39)
         b = self.take(store, sandbox, "b", 2, Run(Outcome.TESTS_FAILED, rows({"window_slides"}), INFO), 1)
         assert [r.candidate_ref for _, r in standings([b, a])] == ["a", "b"]
+
+
+class TestTotals:
+    """An assessment's total: each task worth 100 points, summed, then less time."""
+
+    def result(self, store, sandbox, ref, seed, failed, minutes):
+        return TestStandings().take(store, sandbox, ref, seed,
+                                    Run(Outcome.TESTS_FAILED if failed else Outcome.PASSED, rows(failed), INFO), minutes)
+
+    def test_each_task_is_worth_100_whatever_its_number_of_tests(self, store, sandbox) -> None:
+        five_of_six = self.result(store, sandbox, "a", 1, {"exact_boundary"}, 10)
+        assert task_points(five_of_six, 100) == pytest.approx(500 / 6)
+        assert task_points(None, 100) == 0, "expired with nothing submitted is worth nothing"
+
+    def test_points_then_time_and_only_finished_candidates_are_ranked(self, store, sandbox) -> None:
+        full_slow = self.result(store, sandbox, "full_slow", 1, set(), 30)
+        full_fast = self.result(store, sandbox, "full_fast", 2, set(), 10)
+        part = self.result(store, sandbox, "part", 3, {"exact_boundary", "window_slides"}, 5)
+        counted = {
+            "full_slow": {"a": full_slow, "b": full_slow},      # 200 points, 60 min
+            "full_fast": {"a": full_fast, "b": None},           # 100 + 0 (expired), 10 min
+            "part": {"a": part, "b": part},                     # 2 x 66.7, 10 min
+            "busy": {"a": full_fast},                           # task b still to finish
+        }
+        ranked, waiting = totals(["a", "b"], counted, 100)
+        assert [(rank, t.candidate_ref, round(float(t.points), 1)) for rank, t in ranked] == [
+            (1, "full_slow", 200.0), (2, "part", 133.3), (3, "full_fast", 100.0)]
+        assert waiting == {"busy": ["b"]}
+
+    def test_equal_totals_share_a_place_unless_time_differs(self, store, sandbox) -> None:
+        x = self.result(store, sandbox, "x", 1, set(), 10)
+        y = self.result(store, sandbox, "y", 2, set(), 10)
+        z = self.result(store, sandbox, "z", 3, set(), 11)
+        ranked, _ = totals(["a"], {"x": {"a": x}, "y": {"a": y}, "z": {"a": z}}, 100)
+        assert {t.candidate_ref: rank for rank, t in ranked} == {"x": 1, "y": 1, "z": 3}

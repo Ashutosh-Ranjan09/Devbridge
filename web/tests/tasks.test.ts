@@ -13,7 +13,7 @@ describe("a job's results", () => {
       { rank: 3, session_id: "as_a" },
     ];
     const who = new Map([["as_a", { name: "Asha" }], ["as_b", { name: "Bo" }]]);
-    expect(forApplicants(ranked, who).map((r) => [r.rank, r.who.name])).toEqual([[1, "Bo"], [3, "Asha"]]);
+    expect(forApplicants(ranked, (r) => who.get(r.session_id)).map((r) => [r.rank, r.who.name])).toEqual([[1, "Bo"], [3, "Asha"]]);
   });
 
   it("says why a task has no result yet", () => {

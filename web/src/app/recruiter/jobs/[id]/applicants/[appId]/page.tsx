@@ -15,7 +15,7 @@ import { START_BY_MAX_DAYS } from "@/lib/definitions";
 import { dayIn, taskStatus } from "@/lib/tasks";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
-import type { Attempts, FullResult, JobTasks, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
+import type { Attempts, FullResult, JobResults, JobTasks, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
 
 export default function ApplicantPage({ params }: PageProps<"/recruiter/jobs/[id]/applicants/[appId]">) {
   return (
@@ -40,9 +40,10 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
   ]);
 
   const quiet = <T,>(p: Promise<T>) => p.catch((e: unknown) => (e instanceof ServiceError ? e : Promise.reject(e)));
-  const [requirements, jobTasks, profile, report, marks, rules, tasks] = await Promise.all([
+  const [requirements, jobTasks, jobResults, profile, report, marks, rules, tasks] = await Promise.all([
     quiet(call<Requirements>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/requirements`)),
     quiet(call<JobTasks>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/tasks`)),
+    assessments.length ? quiet(call<JobResults>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/results`)) : null,
     quiet(call<Profile>("m6", `/developers/${encodeURIComponent(ref)}/profile`)),
     latest ? quiet(call<Report | Running>("m5", `/v1/verifications/${encodeURIComponent(latest.id)}`)) : null,
     latest ? marksFor(latest.id) : undefined,
@@ -83,6 +84,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
       <Card>
         <h3 className="mb-2 font-semibold">Assessment for this job</h3>
         {tasks.length === 0 && <p className="mb-3 text-sm text-muted">None sent yet.</p>}
+        {jobResults && !(jobResults instanceof ServiceError) && <TotalLine results={jobResults} subjectRef={ref} />}
         {tasks.map(({ id, task, attempts }) => (
           <div key={id} className="mb-4">
             <p className="font-medium">{task?.title ?? id} <span className="text-sm text-muted">{taskStatus(task)}</span></p>
@@ -163,4 +165,21 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
       </Card>
     </div>
   );
+}
+
+/** This applicant's assessment total, as the job page's table has it. */
+function TotalLine({ results, subjectRef }: { results: JobResults; subjectRef: string }) {
+  const a = results.assessment;
+  const mine = a.ranked.find((r) => r.candidate_ref === subjectRef);
+  if (mine) {
+    return (
+      <p className="mb-3 text-sm">
+        Assessment total: <span className="font-medium">{mine.points} / {mine.out_of}</span>
+        <span className="text-muted"> · place {mine.rank} of {a.ranked.length} who have finished</span>
+      </p>
+    );
+  }
+  return a.in_progress.some((w) => w.candidate_ref === subjectRef)
+    ? <p className="mb-3 text-sm text-muted">Assessment total: once every task is finished.</p>
+    : null;
 }

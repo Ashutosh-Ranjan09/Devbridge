@@ -8,6 +8,9 @@ so a reader sees WHAT was missed — "failed only exact_boundary" says far more 
 from __future__ import annotations
 
 import datetime
+from collections.abc import Callable, Hashable
+from dataclasses import dataclass
+from fractions import Fraction
 
 from assess.models import Outcome, Pattern, Result, Score, Session, TestResult, Variant
 from assess.sandbox import Run
@@ -79,20 +82,63 @@ def build_result(
     )
 
 
+def places[T](items: list[T], key: Callable[[T], tuple[Hashable, ...]], name: Callable[[T], str]) -> list[tuple[int, T]]:
+    """Best first by `key` (smallest first); equal keys share a place (1, 2, 2, 4), and
+    `name` only fixes the order inside a shared place, never the place."""
+    out: list[tuple[int, T]] = []
+    for i, item in enumerate(sorted(items, key=lambda x: (*key(x), name(x)))):
+        out.append((out[-1][0] if out and key(out[-1][1]) == key(item) else i + 1, item))
+    return out
+
+
 def standings(results: list[Result]) -> list[tuple[int, Result]]:
     """ONE task's final results, best first: hidden tests passed, then time taken.
-    Equal on both share a place (1, 2, 2, 4). Never called across tasks: one order over
-    several would need their scores added up, the overall score this system refuses.
     Comparable because every applicant to a job faced the same pattern, each variant
     equally hard (guardrail 3); a person still reads why each test failed."""
     def key(r: Result) -> tuple[int, int]:
         assert r.score is not None, "only a scored, final result is ranked"
         return (-r.score.passed, r.time_used_seconds)
+    return places(results, key, lambda r: r.session_id)
 
-    out: list[tuple[int, Result]] = []
-    for i, r in enumerate(sorted(results, key=lambda r: (*key(r), r.session_id))):
-        out.append((out[-1][0] if out and key(out[-1][1]) == key(r) else i + 1, r))
-    return out
+
+def task_points(result: Result | None, per_task: int) -> Fraction:
+    """A task's points: per_task x passed / tests, so a task with more tests weighs no
+    more than one with fewer. None (expired with nothing submitted) is worth 0."""
+    if result is None or result.score is None or not result.score.total:
+        return Fraction(0)
+    return Fraction(per_task * result.score.passed, result.score.total)
+
+
+@dataclass(frozen=True)
+class Total:
+    candidate_ref: str
+    points: Fraction                       # exact: 83.33… + 87.5 must tie with the same sum
+    per_task: dict[str, Fraction]          # pattern id -> points
+    time_used_seconds: int
+
+
+def totals(
+    tasks: list[str], counted: dict[str, dict[str, Result | None]], per_task: int
+) -> tuple[list[tuple[int, Total]], dict[str, list[str]]]:
+    """An ASSESSMENT's totals, the way an online test totals its questions: each of the
+    job's tasks worth `per_task` points, summed, then less total time first.
+
+    `counted[candidate][pattern]` is the counted result, None for a task that expired
+    with nothing submitted (worth 0, as a closed test scores an unanswered question). A
+    task absent from it is still to finish: that candidate is not ranked yet, and is
+    returned with what they are waiting on. The total is this assessment's score, of
+    this job's tasks; no skill, report or other job is ever added in."""
+    complete: list[Total] = []
+    waiting: dict[str, list[str]] = {}
+    for ref, done in counted.items():
+        missing = [t for t in tasks if t not in done]
+        if missing:
+            waiting[ref] = missing
+            continue
+        points = {t: task_points(done[t], per_task) for t in tasks}
+        complete.append(Total(ref, sum(points.values(), Fraction(0)), points,
+                              sum(r.time_used_seconds for r in (done[t] for t in tasks) if r is not None)))
+    return places(complete, lambda t: (-t.points, t.time_used_seconds), lambda t: t.candidate_ref), waiting
 
 
 def render(result: Result) -> str:

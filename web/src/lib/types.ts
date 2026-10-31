@@ -156,6 +156,19 @@ export type TaskResults = {
   pending: { session_id: string; candidate_ref: string; status: Task["status"]; attempts_used: number; start_by: string | null; started: boolean }[];
 };
 
+/** GET /v1/jobs/{id}/results: each task ranked on its own, and the assessment's total —
+ * each task worth `points_per_task`, summed over the job's tasks, then less time. */
+export type JobResults = {
+  tasks: TaskResults[];
+  assessment: {
+    points_per_task: number;
+    tasks: string[];
+    ranked: { rank: number; candidate_ref: string; points: number; out_of: number;
+      per_task: { pattern_id: string; points: number }[]; time_used_seconds: number }[];
+    in_progress: { candidate_ref: string; tasks: string[] }[];
+  };
+};
+
 /** GET /v1/jobs/{id}/tasks: each must-have with the tasks that test it, the chosen ones
  * ticked, and the must-haves no task tests. The same for every applicant. */
 export type JobTasks = {

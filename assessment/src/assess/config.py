@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     start_by_max_days: int = 60
     # Hidden-test submissions per task; the last one counts.
     max_attempts: int = 3
+    # What one task is worth in an assessment's total, whatever its number of tests.
+    points_per_task: int = 100
 
     patterns_dir: Path = ROOT / "patterns"
     skills_dir: Path = REPO / "schemas" / "skills"

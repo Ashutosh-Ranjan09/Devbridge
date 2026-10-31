@@ -27,7 +27,7 @@ from assess.config import settings
 from assess.events import NotEvidenceError, batch
 from assess.models import Job, Model, Outcome, Result, Score, Session, SessionStatus, Variant
 from assess.patterns import PatternError, all_patterns, load
-from assess.scoring import standings
+from assess.scoring import standings, totals
 from assess.sessions import (
     NotPythonError,
     SessionError,
@@ -146,6 +146,41 @@ class TaskResults(Model):
     max_attempts: int
     ranked: list[Standing]                 # hidden tests passed, then time taken; equal places shared
     pending: list[Pending]                 # not ranked, and not last: they have no result
+
+
+class TaskPoints(Model):
+    pattern_id: str
+    points: float                          # out of points_per_task, to one decimal
+
+
+class Total(Model):
+    rank: int
+    candidate_ref: str
+    points: float                          # out of `out_of`, to one decimal
+    out_of: int
+    per_task: list[TaskPoints]
+    time_used_seconds: int
+
+
+class Waiting(Model):
+    candidate_ref: str
+    tasks: list[str]                       # pattern ids still to finish
+
+
+class AssessmentResults(Model):
+    """The assessment's total: each task worth `points_per_task`, summed over the job's
+    tasks, like an online test's questions; ranked by points, then less time. Only a
+    candidate whose every task is final or expired is ranked."""
+
+    points_per_task: int
+    tasks: list[str]
+    ranked: list[Total]
+    in_progress: list[Waiting]
+
+
+class JobResults(Model):
+    tasks: list[TaskResults]               # each task ranked on its own
+    assessment: AssessmentResults          # and the whole assessment
 
 
 class JobTasks(Model):
@@ -365,11 +400,11 @@ def job_tasks(_: Auth, db: Db, job_id: str) -> JobTasks:
 
 
 @app.get("/v1/jobs/{job_id}/results")
-def job_results(_: Auth, db: Db, job_id: str) -> list[TaskResults]:
-    """Each of the job's tasks ranked on its own, never summed across tasks: one number
-    across tasks would be an overall score. Every applicant faced the same pattern, each
-    variant equally hard, which is what makes one task's results comparable. A session
-    past its deadline is settled first, so its last attempt is ranked."""
+def job_results(_: Auth, db: Db, job_id: str) -> JobResults:
+    """Each of the job's tasks ranked on its own, and the assessment's total over them,
+    as an online test scores its questions and the whole test. Every applicant faced the
+    same patterns, each variant equally hard, which is what makes these comparable. A
+    session past its deadline is settled first, so its last attempt counts."""
     job = _job(db, job_id)
     by_pattern: dict[str, list[Session]] = {}
     for listed in db.sessions_for_job(job_id):
@@ -398,7 +433,30 @@ def job_results(_: Auth, db: Db, job_id: str) -> list[TaskResults]:
                    for s in group if s.status is not SessionStatus.SUBMITTED]
         out.append(TaskResults(pattern_id=pattern_id, title=load(pattern_id).title,
                                max_attempts=settings.max_attempts, ranked=ranked, pending=pending))
-    return out
+
+    # The whole assessment: the job's chosen tasks, per candidate.
+    counted: dict[str, dict[str, Result | None]] = {}
+    for pattern_id in chosen:
+        for s in by_pattern.get(pattern_id, []):
+            done = counted.setdefault(s.candidate_ref, {})
+            if s.status is SessionStatus.SUBMITTED:
+                done[pattern_id] = db.result(s.session_id)
+            elif s.status is SessionStatus.EXPIRED:
+                done[pattern_id] = None        # time ran out with nothing submitted: 0
+    for refs in by_pattern.values():           # anyone issued a task, even one of another set
+        for s in refs:
+            counted.setdefault(s.candidate_ref, {})
+    ranked_totals, waiting = totals(chosen, counted, settings.points_per_task)
+    assessment = AssessmentResults(
+        points_per_task=settings.points_per_task, tasks=chosen,
+        ranked=[Total(rank=rank, candidate_ref=t.candidate_ref, points=round(float(t.points), 1),
+                      out_of=settings.points_per_task * len(chosen),
+                      per_task=[TaskPoints(pattern_id=p, points=round(float(v), 1)) for p, v in t.per_task.items()],
+                      time_used_seconds=t.time_used_seconds)
+                for rank, t in ranked_totals],
+        in_progress=[Waiting(candidate_ref=ref, tasks=missing) for ref, missing in sorted(waiting.items())],
+    )
+    return JobResults(tasks=out, assessment=assessment)
 
 
 @app.get("/v1/jobs/{job_id}/requirements")

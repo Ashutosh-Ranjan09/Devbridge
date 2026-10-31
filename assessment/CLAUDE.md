@@ -4,7 +4,9 @@ From a job description to a coding task that is **unique to each candidate and e
 as hard as everyone else's**, run in a sandbox, scored by hidden tests only, and fed
 back into the skill graph (M6) as evidence.
 
-**No overall score, no verdict, no filtering.** A result names every test, whether it
+**No overall score of a person, no verdict, no filtering.** A job's assessment is scored
+like an online test: each task on its own, and a total over that job's tasks (100 points
+each). A result names every test, whether it
 passed, and why not. A person decides what it means.
 
 ## State
@@ -13,7 +15,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-124 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+130 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).
@@ -46,7 +48,7 @@ flat `{"error", "detail"}`, like M6's: 404 unknown id, 409 the module's own refu
 | `POST /v1/jobs` `{text, model}` · `GET /v1/jobs[/{id}]` | propose skills from a JD (synchronous, up to the model's timeout) |
 | `PATCH /v1/jobs/{id}` `{must:{id:bar}, nice, drop, tasks?}` · `POST …/confirm` `{by}` | a person's edits, then the lock; bars checked 0–1; `tasks` is the patterns every applicant gets, each testing a must-have |
 | `GET /v1/jobs/{id}/tasks` | each must-have with the patterns that test it, the chosen ones ticked, and those no pattern tests |
-| `GET /v1/jobs/{id}/results` | each of the job's tasks ranked on its own: final results by hidden tests passed, then time taken, equal places shared (`scoring.standings`); the rest under `pending`, unranked |
+| `GET /v1/jobs/{id}/results` | `tasks`: each task ranked on its own, by hidden tests passed then time, equal places shared (`scoring.standings`), the rest under `pending`; `assessment`: each candidate's total, 100 points a task summed over the job's tasks, then less time (`scoring.totals`), ranked once every task is final or expired, the rest `in_progress` |
 | `GET /v1/jobs/{id}/requirements` | the body for M6's `POST /shortlist` |
 | `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id, start_by?}` | issue tasks; asking again returns the same ones. A job's tasks are `issued` with no clock, to be started by `start_by` (default 7 days, at most 60); practice starts at once |
 | `POST /v1/sessions/{id}/begin` | the candidate presses Start: the time limit runs from now and the task is shown; again changes nothing; after `start_by`, 409 |
@@ -111,11 +113,15 @@ threads. Never share one Store between requests.
 
 ## Known limits, stated
 
-- **Each task's results are ranked, one task at a time.** Hidden tests passed, then time
-  taken from Start to the counted submission; attempts never order anyone. Coarse:
-  rate_limiter has 6 tests and top_k_frequent 8, so many candidates share a count and
-  time decides, which rewards speed. A rank says nothing about why a test failed; the
-  full result does. Never summed across tasks: that would be an overall score.
+- **A job's results are ranked: per task, and as an assessment total.** Per task: hidden
+  tests passed, then time from Start to the counted submission. Total: each task worth
+  100 points (its share of tests passed, so 6 tests and 8 tests weigh the same), summed
+  over the job's chosen tasks, then less total time; a task that expired with nothing
+  submitted scores 0, and nobody is ranked until every task is final or expired.
+  Attempts never order anyone. Coarse: with 6–8 tests many share a count and time
+  decides, which rewards speed. A rank says nothing about why a test failed; the full
+  result does. The total is this test's score only: never added to skills or other jobs,
+  never sent to M6.
 
 - **Tasks are chosen per job, not per candidate.** The recruiter ticks which patterns
   every applicant gets while the job is a draft (default: each must-have's first); the

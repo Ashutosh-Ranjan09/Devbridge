@@ -6,7 +6,8 @@ and each chosen candidate gets a coding task that is unique to them and exactly 
 as everyone else's. Their code runs in a sandbox, is scored by hidden tests, and the
 result goes back into the skill graph.
 
-No overall score, no verdict: a result says which tests passed and why the others did
+No overall score of a person, no verdict: a job's assessment is scored like an online
+test (each task, and a total of 100 points a task), and a result says which tests passed and why the others did
 not.
 
 ## Quickstart
@@ -63,7 +64,7 @@ The same commands as endpoints, for the web layer — see the table in
 ## Tests
 
 ```bash
-uv run pytest                 # 124, no Docker, no model
+uv run pytest                 # 130, no Docker, no model
 uv run pytest -m docker       # 12, real sandbox runs
 uv run pytest -m slow         # 1, the DSA pattern in every combination
 uv run pytest -m live         # 1, the real model

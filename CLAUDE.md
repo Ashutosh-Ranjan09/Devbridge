@@ -55,7 +55,9 @@ every combination.
   candidates on the system's own judgement. A person confirms a job's requirements,
   and a person reads the results.
 
-  One exception, decided by the project owner: a job's assessment results are ranked
-  **one task at a time** (hidden tests passed, then time taken; `GET /v1/jobs/{id}/results`),
-  so a recruiter can see who did best on each task. Never summed across tasks or skills,
-  never filtering anyone, and a person still picks and decides.
+  One exception, decided by the project owner: a job's assessment is scored the way an
+  online test is (`GET /v1/jobs/{id}/results`). Each task is ranked on its own (hidden
+  tests passed, then time), and the assessment has a total: each task worth 100 points,
+  summed over that job's tasks, then less time. That total is the score of one test and
+  nothing else; no skill interval, CV report or other job is ever added in, M6 never
+  sees it, nobody is filtered by it, and a person still picks and decides.

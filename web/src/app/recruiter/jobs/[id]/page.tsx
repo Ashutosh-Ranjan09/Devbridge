@@ -12,7 +12,7 @@ import { myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
 import { forApplicants, pendingStatus } from "@/lib/tasks";
-import type { Job, JobTasks, Requirements, Shortlist, ShortlistEntry, TaskResults } from "@/lib/types";
+import type { Job, JobResults, JobTasks, Requirements, Shortlist, ShortlistEntry } from "@/lib/types";
 
 export default function JobPage({ params, searchParams }: PageProps<"/recruiter/jobs/[id]">) {
   return (
@@ -171,23 +171,30 @@ type Who = { name: string; appId: string };
 /** Each task's results ranked on its own, as the assessment module ranks them: hidden
  * tests passed, then time taken. Never summed across tasks. The applicant rows below stay
  * in name order; a person picks from here and decides on the applicant's page. */
-async function ResultsByTask({ jobId, apps }: { jobId: string; apps: { id: string; candidate: { user: { name: string } } }[] }) {
+async function ResultsByTask({ jobId, apps }: {
+  jobId: string; apps: { id: string; candidate: { subjectRef: string; user: { name: string } } }[];
+}) {
   const sessions = await db.assessment.findMany({ where: { applicationId: { in: apps.map((a) => a.id) } } });
   if (!sessions.length) return null;
   const names = new Map(apps.map((a) => [a.id, a.candidate.user.name]));
   const who = new Map<string, Who>(sessions.map((s) => [s.id, { name: names.get(s.applicationId ?? "") ?? "?", appId: s.applicationId ?? "" }]));
-  let results: TaskResults[];
+  const bySubject = new Map<string, Who>(apps.map((a) => [a.candidate.subjectRef, { name: a.candidate.user.name, appId: a.id }]));
+  let answer: JobResults;
   try {
-    results = await call<TaskResults[]>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/results`);
+    answer = await call<JobResults>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/results`);
   } catch (e) {
     if (e instanceof ServiceError) return <Card><p>{e.message}</p></Card>;
     throw e;
   }
+  const results = answer.tasks;
+  const titles = new Map(results.map((t) => [t.pattern_id, t.title]));
   // Settled by the deadline with nobody pressing a button: tell M6 and the application.
   const settled = new Set(results.flatMap((t) => t.ranked.map((r) => r.session_id)));
   for (const s of sessions) if (settled.has(s.id) && !s.sentToM6At) after(() => settleAssessment(s.id).catch(() => {}));
   const view = (w: Who) => `/recruiter/jobs/${jobId}/applicants/${w.appId}`;
   return (
+    <>
+    <AssessmentTotal assessment={answer.assessment} titles={titles} who={(ref) => bySubject.get(ref)} view={view} />
     <Card>
       <h3 className="mb-1 font-semibold">Results by task</h3>
       <p className="mb-3 text-xs text-muted">
@@ -196,8 +203,8 @@ async function ResultsByTask({ jobId, apps }: { jobId: string; apps: { id: strin
       </p>
       <div className="space-y-5">
         {results.map((t) => {
-          const ranked = forApplicants(t.ranked, who);
-          const pending = forApplicants(t.pending, who);
+          const ranked = forApplicants(t.ranked, (r) => who.get(r.session_id));
+          const pending = forApplicants(t.pending, (r) => who.get(r.session_id));
           return (
             <section key={t.pattern_id}>
               <h4 className="font-medium">{t.title}</h4>
@@ -236,6 +243,64 @@ async function ResultsByTask({ jobId, apps }: { jobId: string; apps: { id: strin
           );
         })}
       </div>
+    </Card>
+    </>
+  );
+}
+
+/** The whole assessment, the way an online test totals its questions: each task worth
+ * the same points, summed over the job's tasks, then less time. Only someone who has
+ * finished every task is ranked; the rest are listed with what they are waiting on. */
+function AssessmentTotal({ assessment, titles, who, view }: {
+  assessment: JobResults["assessment"]; titles: Map<string, string>;
+  who: (ref: string) => Who | undefined; view: (w: Who) => string;
+}) {
+  if (!assessment.tasks.length) return null;
+  const ranked = forApplicants(assessment.ranked, (r) => who(r.candidate_ref));
+  const waiting = forApplicants(assessment.in_progress, (r) => who(r.candidate_ref));
+  const name = (p: string) => titles.get(p) ?? p;
+  return (
+    <Card>
+      <h3 className="mb-1 font-semibold">Assessment total</h3>
+      <p className="mb-3 text-xs text-muted">
+        Each task is worth {assessment.points_per_task} points (its share of hidden tests passed), added up over{" "}
+        {assessment.tasks.map(name).join(" and ")}; equal totals go to less time taken. A task that expired with
+        nothing submitted scores 0.
+      </p>
+      {ranked.length === 0 && <p className="text-sm text-muted">Nobody has finished every task yet.</p>}
+      {ranked.length > 0 && (
+        <table className="w-full text-left text-sm">
+          <thead className="text-muted">
+            <tr>
+              <th className="py-1 pr-2">#</th><th className="pr-2">Applicant</th><th className="pr-2">Total</th>
+              {assessment.tasks.map((p) => <th key={p} className="pr-2">{name(p)}</th>)}
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((r) => (
+              <tr key={r.candidate_ref} className="border-t border-line">
+                <td className="py-1 pr-2 font-mono">{r.rank}</td>
+                <td className="pr-2"><Link href={view(r.who)} className="text-accent underline">{r.who.name}</Link></td>
+                <td className="pr-2 font-medium">{r.points} / {r.out_of}</td>
+                {r.per_task.map((t) => <td key={t.pattern_id} className="pr-2">{t.points}</td>)}
+                <td>{Math.round(r.time_used_seconds / 60)} min</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {waiting.length > 0 && (
+        <p className="mt-2 text-sm text-muted">
+          Still to finish:{" "}
+          {waiting.map((w, i) => (
+            <span key={w.candidate_ref}>
+              {i > 0 && "; "}
+              <Link href={view(w.who)} className="underline">{w.who.name}</Link> ({w.tasks.map(name).join(", ")})
+            </span>
+          ))}
+        </p>
+      )}
     </Card>
   );
 }
