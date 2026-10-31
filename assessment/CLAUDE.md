@@ -13,7 +13,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-116 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+124 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).
@@ -21,10 +21,10 @@ patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA pro
 
 ```
 assess jd new jd.txt [--no-model]            propose skills, each quoted from the JD
-assess jd edit JOB --must ID[:BAR] --nice ID --drop ID
+assess jd edit JOB --must ID[:BAR] --nice ID --drop ID --task PATTERN
 assess jd confirm JOB --by NAME               locks it; a confirmed job is never edited
 assess jd export JOB --out requirements.json  → M6: python -m m6_query shortlist --requirements …
-assess start --job JOB --candidate REF        one task per assessable must-have
+assess start --job JOB --candidate REF        the job's chosen tasks
 assess start PATTERN --candidate REF          one task from a named pattern
 assess submit SESSION solution.py             sandbox → report
 assess report SESSION [--json] · events SESSION --out batch.json → M6 ingest
@@ -44,7 +44,8 @@ flat `{"error", "detail"}`, like M6's: 404 unknown id, 409 the module's own refu
 | `GET /healthz` | Docker present, sandbox image built |
 | `GET /v1/patterns` | id, skill, level, variants, twists |
 | `POST /v1/jobs` `{text, model}` · `GET /v1/jobs[/{id}]` | propose skills from a JD (synchronous, up to the model's timeout) |
-| `PATCH /v1/jobs/{id}` `{must:{id:bar}, nice, drop}` · `POST …/confirm` `{by}` | a person's edits, then the lock; bars checked 0–1 |
+| `PATCH /v1/jobs/{id}` `{must:{id:bar}, nice, drop, tasks?}` · `POST …/confirm` `{by}` | a person's edits, then the lock; bars checked 0–1; `tasks` is the patterns every applicant gets, each testing a must-have |
+| `GET /v1/jobs/{id}/tasks` | each must-have with the patterns that test it, the chosen ones ticked, and those no pattern tests |
 | `GET /v1/jobs/{id}/requirements` | the body for M6's `POST /shortlist` |
 | `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id, start_by?}` | issue tasks; asking again returns the same ones. A job's tasks are `issued` with no clock, to be started by `start_by` (default 7 days, at most 60); practice starts at once |
 | `POST /v1/sessions/{id}/begin` | the candidate presses Start: the time limit runs from now and the task is shown; again changes nothing; after `start_by`, 409 |
@@ -108,6 +109,14 @@ threads. Never share one Store between requests.
     ability estimate. How far to TRUST a result is `contracts/evidence.yaml`.
 
 ## Known limits, stated
+
+- **Tasks are chosen per job, not per candidate.** The recruiter ticks which patterns
+  every applicant gets while the job is a draft (default: each must-have's first); the
+  choice locks with the job, so two applicants to one job always face the same tasks. A
+  must-have new in an edit starts with its first pattern ticked. An unbarred must-have
+  no chosen task tests is filtered on any direct evidence (bar 0.0) at confirmation, and
+  exported `assessable: false`. A job from before the choice (`tasks: null`) issues each
+  must-have's first pattern.
 
 - **The clock starts at Start, not at Send.** A job's task waits, text withheld, until the
   candidate begins it; the recruiter chooses the start-by date. The time limit is the

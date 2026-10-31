@@ -158,6 +158,22 @@ class TestTasks:
                                               "start_by": "2030-01-01T00:00:00Z"}, headers=KEY)
         assert r.status_code == 422
 
+    def test_a_job_issues_only_the_tasks_the_recruiter_chose(self, client) -> None:
+        job = client.post("/v1/jobs", json={"text": JD, "model": False}, headers=KEY).json()
+        jid = job["job_id"]
+        client.patch(f"/v1/jobs/{jid}", json={"must": {"rate_limiting": None, "algorithms": None}}, headers=KEY)
+        offered = client.get(f"/v1/jobs/{jid}/tasks", headers=KEY).json()
+        assert offered["chosen"] == ["rate_limiter", "top_k_frequent"]
+        assert [o["pattern_id"] for o in offered["must"]["algorithms"]] == ["top_k_frequent"]
+        r = client.patch(f"/v1/jobs/{jid}", json={"tasks": ["top_k_frequent"]}, headers=KEY)
+        assert r.status_code == 200 and r.json()["tasks"] == ["top_k_frequent"]
+        bad = client.patch(f"/v1/jobs/{jid}", json={"tasks": ["no_such_task"]}, headers=KEY)
+        assert bad.status_code == 409 and "tests none" in bad.json()["detail"]
+        client.post(f"/v1/jobs/{jid}/confirm", json={"by": "A. Recruiter"}, headers=KEY)
+        issued = client.post("/v1/sessions", json={"candidate_ref": "subject:asha", "job_id": jid,
+                                                   "model": False}, headers=KEY).json()
+        assert [t["pattern_id"] for t in issued["tasks"]] == ["top_k_frequent"]
+
     def test_job_or_pattern_not_both(self, client) -> None:
         r = client.post("/v1/sessions", json={"candidate_ref": "s", "job_id": "j",
                                               "pattern_id": "rate_limiter"}, headers=KEY)

@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { createJob, decide, editJob, sendAssessment } from "@/app/recruiter/actions";
-import type { JobSkill } from "@/lib/types";
+import type { JobSkill, JobTasks } from "@/lib/types";
 
 import { Button, Field } from "./ui";
 
@@ -39,8 +39,11 @@ export function NewJobForm({ orgs }: { orgs: { id: string; name: string }[] }) {
   );
 }
 
-/** The proposed skills, for a person to fix before confirming. */
-export function SkillEditor({ jobId, skills, catalogue }: { jobId: string; skills: JobSkill[]; catalogue: string[] }) {
+/** The proposed skills, and the tasks every applicant gets, for a person to fix before
+ * confirming. */
+export function SkillEditor({ jobId, skills, catalogue, tasks }: {
+  jobId: string; skills: JobSkill[]; catalogue: string[]; tasks: JobTasks;
+}) {
   const [state, action, pending] = useActionState(editJob.bind(null, jobId), undefined);
   const listed = skills.filter((s) => s.skill_id !== null);
   const typed = state?.values; // what was typed, after a refusal; else the job as stored
@@ -101,26 +104,70 @@ export function SkillEditor({ jobId, skills, catalogue }: { jobId: string; skill
           <option value="nice">as a nice-to-have</option>
         </select>
       </div>
+      <TaskPicker tasks={tasks} typed={typed} />
       {state?.message && <p className="text-sm">{state.message}</p>}
       <Button pending={pending}>Save</Button>
     </form>
   );
 }
 
+/** Which tasks every applicant gets: the same for all of them, so results compare. */
+function TaskPicker({ tasks, typed }: { tasks: JobTasks; typed?: Record<string, string> }) {
+  const options = Object.entries(tasks.must).flatMap(([skill, list]) => list.map((o) => ({ ...o, skill })));
+  const name = (o: { skill: string; pattern_id: string }) => `task:${o.skill}:${o.pattern_id}`;
+  // After a refusal, what was ticked; else the job as stored.
+  const ticked = (o: (typeof options)[number]) => (typed ? name(o) in typed : o.chosen);
+  const [picked, setPicked] = useState(() => new Set(options.filter(ticked).map(name)));
+  const minutes = options.filter((o) => picked.has(name(o))).reduce((sum, o) => sum + o.time_limit_minutes, 0);
+  return (
+    <fieldset className="space-y-2 border-t border-line pt-4">
+      <input type="hidden" name="tasks" value="1" />
+      <legend className="font-medium">Tasks every applicant gets</legend>
+      {options.length === 0 && <p className="text-sm text-muted">No task tests any of these must-haves yet.</p>}
+      {options.map((o) => (
+        <label key={name(o)} className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name={name(o)} defaultChecked={ticked(o)}
+            onChange={(e) => setPicked((s) => { const n = new Set(s); if (e.target.checked) n.add(name(o)); else n.delete(name(o)); return n; })} />
+          <span><code>{o.skill}</code>: {o.title} <span className="text-muted">· {o.level} · {o.time_limit_minutes} min</span></span>
+        </label>
+      ))}
+      {options.length > 0 && (
+        <p className="text-sm text-muted">
+          {picked.size === 0 ? "No tasks: nothing will be sent to applicants." : `${picked.size} task${picked.size > 1 ? "s" : ""}, ${minutes} minutes in all.`}
+          {" "}An unbarred must-have no ticked task tests needs direct evidence of any level instead.
+        </p>
+      )}
+      {tasks.not_assessable.length > 0 && (
+        <p className="text-sm text-muted">No task tests: {tasks.not_assessable.join(", ")}.</p>
+      )}
+    </fieldset>
+  );
+}
+
 /** Once tasks are sent the button goes: sending again returns the same tasks, so a
  * second click would only look like a second assessment. The form stays mounted so the
  * send's own message (which must-haves no task tests) survives the page refreshing. */
-export function SendAssessment({ jobId, applicationId, sent, startBy }: {
+export function SendAssessment({ jobId, applicationId, sent, startBy, sends }: {
   jobId: string; applicationId: string; sent: boolean;
   startBy: { default: string; min: string; max: string }; // India's days, YYYY-MM-DD, from the server
+  sends: { title: string; minutes: number }[] | null;      // the job's tasks; null: assessment did not say
 }) {
   const [state, action, pending] = useActionState(sendAssessment.bind(null, jobId, applicationId), undefined);
+  if (!sent && sends?.length === 0) {
+    return <p className="text-sm text-muted">This job has no tasks, so there is nothing to send.</p>;
+  }
   return (
     <form action={action} className="space-y-2">
       {sent ? (
         !state?.message && <p className="text-sm text-muted">Sent. Sending again would return the same tasks.</p>
       ) : (
         <>
+          {sends && (
+            <p className="text-sm">
+              Sends: {sends.map((t) => t.title).join(", ")}{" "}
+              <span className="text-muted">({sends.reduce((sum, t) => sum + t.minutes, 0)} minutes in all)</span>
+            </p>
+          )}
           <label className="block max-w-xs">
             <span className="mb-1 block text-sm font-medium">Start by</span>
             <input type="date" name="startBy" defaultValue={state?.values?.startBy ?? startBy.default}

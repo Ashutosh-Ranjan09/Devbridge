@@ -9,7 +9,16 @@ import jsonschema
 import pytest
 
 from assess.config import REPO
-from assess.jd import JobError, by_rules, confirm, edit, extract, requirements
+from assess.jd import (
+    JobError,
+    by_rules,
+    chosen_tasks,
+    confirm,
+    edit,
+    extract,
+    requirements,
+    task_options,
+)
 from assess.models import JobStatus, Priority
 from assess.skills import skill_list
 from assess.store import Store
@@ -150,6 +159,48 @@ class TestConfirmation:
         assert by_id(job)["rate_limiting"].bar is None
         doc = requirements(job)
         assert {m["skill_id"]: m["bar"] for m in doc["must"]}["rate_limiting"] is None
+
+
+class TestTasks:
+    """The recruiter picks the tasks every applicant gets; the same for all of them."""
+
+    def job(self):
+        return edit(extract(JD, None), must={"python": 0.3, "rate_limiting": None, "algorithms": None})
+
+    def test_by_default_each_must_have_gets_its_first_pattern(self) -> None:
+        job = self.job()
+        assert chosen_tasks(job) == ["rate_limiter", "top_k_frequent"]
+        assert task_options(job)["python"] == [], "a must-have no pattern tests offers nothing"
+
+    def test_the_recruiter_s_choice_is_what_applicants_get(self) -> None:
+        job = edit(self.job(), tasks=["top_k_frequent"])
+        assert chosen_tasks(job) == ["top_k_frequent"]
+        assert chosen_tasks(edit(job, tasks=[])) == [], "choosing none is a choice"
+
+    def test_a_task_for_no_must_have_is_refused(self) -> None:
+        with pytest.raises(JobError, match="tests none of this job's must-haves"):
+            edit(edit(extract(JD, None), must={"python": 0.3}), tasks=["rate_limiter"])
+
+    def test_dropping_a_must_have_takes_its_task_with_it(self) -> None:
+        job = edit(self.job(), tasks=["rate_limiter", "top_k_frequent"])
+        assert chosen_tasks(edit(job, nice=["algorithms"])) == ["rate_limiter"]
+        assert chosen_tasks(edit(job, drop=["rate_limiting"])) == ["top_k_frequent"]
+
+    def test_a_new_must_have_starts_with_its_first_task_ticked(self) -> None:
+        job = edit(edit(extract(JD, None), must={"python": 0.3, "rate_limiting": None}), tasks=["rate_limiter"])
+        assert chosen_tasks(edit(job, must={"algorithms": None})) == ["rate_limiter", "top_k_frequent"]
+        assert chosen_tasks(edit(job, must={"algorithms": None}, tasks=[])) == ["top_k_frequent"]
+
+    def test_confirming_writes_the_choice_down(self) -> None:
+        assert confirm(self.job(), "r").tasks == ["rate_limiter", "top_k_frequent"]
+        assert confirm(edit(self.job(), tasks=["rate_limiter"]), "r").tasks == ["rate_limiter"]
+
+    def test_a_must_have_left_untested_is_filtered_on_any_evidence_not_left_unbarred(self) -> None:
+        """Unticked, `algorithms` is never tested: unbarred it would filter nobody."""
+        job = confirm(edit(self.job(), tasks=["rate_limiter"]), "r")
+        assert by_id(job)["algorithms"].bar == 0.0 and by_id(job)["rate_limiting"].bar is None
+        assessable = {m["skill_id"]: m["assessable"] for m in requirements(job)["must"]}
+        assert {k: assessable[k] for k in ("rate_limiting", "algorithms")} == {"rate_limiting": True, "algorithms": False}
 
 
 class TestExport:

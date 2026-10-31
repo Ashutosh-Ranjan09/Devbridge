@@ -9,7 +9,7 @@ import { confirmJob, setOpen } from "@/app/recruiter/actions";
 import { db } from "@/lib/db";
 import { myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
-import type { Job, Requirements, Shortlist, ShortlistEntry } from "@/lib/types";
+import type { Job, JobTasks, Requirements, Shortlist, ShortlistEntry } from "@/lib/types";
 
 export default function JobPage({ params, searchParams }: PageProps<"/recruiter/jobs/[id]">) {
   return (
@@ -28,8 +28,12 @@ async function JobView({ params, searchParams }: {
   const me = await requireRecruiter();
   const row = await myJob(me.orgIds, (await params).id);
   let job: Job;
+  let tasks: JobTasks;
   try {
-    job = await call<Job>("assess", `/v1/jobs/${encodeURIComponent(row.id)}`);
+    [job, tasks] = await Promise.all([
+      call<Job>("assess", `/v1/jobs/${encodeURIComponent(row.id)}`),
+      call<JobTasks>("assess", `/v1/jobs/${encodeURIComponent(row.id)}/tasks`),
+    ]);
   } catch (e) {
     if (e instanceof ServiceError) return <Card><p>{e.message}</p></Card>;
     throw e;
@@ -51,9 +55,9 @@ async function JobView({ params, searchParams }: {
     return (
       <div className="space-y-4">
         {head}
-        <Card><SkillEditor jobId={row.id} skills={job.skills} catalogue={catalogue} /></Card>
+        <Card><SkillEditor jobId={row.id} skills={job.skills} catalogue={catalogue} tasks={tasks} /></Card>
         <Card>
-          <ActionButton action={confirmJob.bind(null, row.id)} label="Confirm these skills"
+          <ActionButton action={confirmJob.bind(null, row.id)} label="Confirm these skills and tasks"
             note="Confirming locks them: a confirmed job is never edited." />
         </Card>
       </div>
@@ -78,6 +82,7 @@ async function JobView({ params, searchParams }: {
           ))}
         </ul>
         {nice.length > 0 && <p className="mt-2 text-sm">Nice to have: {nice.map((s) => s.skill_id).join(", ")}</p>}
+        <TasksSummary tasks={tasks} />
         <div className="mt-4">
           <ActionButton action={setOpen.bind(null, row.id, !row.open)} label={row.open ? "Close applications" : "Open for applications"}
             note={row.open ? "Candidates can see and apply to it." : "Not listed for candidates."} />
@@ -140,5 +145,17 @@ async function Applicants({ jobId, skills, only }: { jobId: string; skills: stri
         })}
       </ul>
     </Card>
+  );
+}
+
+/** The tasks every applicant gets, as confirmed. */
+function TasksSummary({ tasks }: { tasks: JobTasks }) {
+  const chosen = Object.values(tasks.must).flat().filter((o) => o.chosen);
+  const minutes = chosen.reduce((sum, o) => sum + o.time_limit_minutes, 0);
+  return (
+    <p className="mt-2 text-sm">
+      Tasks every applicant gets:{" "}
+      {chosen.length ? `${chosen.map((o) => o.title).join(", ")} (${minutes} minutes in all)` : "none"}
+    </p>
   );
 }

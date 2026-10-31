@@ -247,8 +247,9 @@ def jd_edit(
     must: Annotated[list[str] | None, typer.Option(help="ID or ID:BAR, e.g. rate_limiting:0.4")] = None,
     nice: Annotated[list[str] | None, typer.Option(help="Skill id to make a nice-to-have.")] = None,
     drop: Annotated[list[str] | None, typer.Option(help="Skill id to remove.")] = None,
+    task: Annotated[list[str] | None, typer.Option(help="A pattern every applicant gets (repeat; replaces the choice).")] = None,
 ) -> None:
-    """Change priorities, bars and skills of a proposed job."""
+    """Change priorities, bars, skills and tasks of a proposed job."""
     from assess.jd import JobError, edit
     from assess.jd import render as render_job
 
@@ -261,7 +262,7 @@ def jd_edit(
         except ValueError:
             fail(f"bar must be a number between 0 and 1: {item}")
     try:
-        job = edit(_job(store, job_id), must=bars, nice=nice or [], drop=drop or [])
+        job = edit(_job(store, job_id), must=bars, nice=nice or [], drop=drop or [], tasks=task)
         store.save_job(job)
     except (JobError, ValueError) as exc:
         fail(str(exc))

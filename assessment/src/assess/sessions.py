@@ -21,18 +21,18 @@ import datetime
 import secrets
 import sqlite3
 
+from assess import jd
 from assess.config import settings
 from assess.models import (
     JobStatus,
     Outcome,
     Pattern,
-    Priority,
     Result,
     Session,
     SessionStatus,
     Variant,
 )
-from assess.patterns import for_skill, load
+from assess.patterns import load
 from assess.providers import LLMProvider
 from assess.sandbox import Run, run_candidate
 from assess.scoring import build_result
@@ -223,18 +223,12 @@ def start_for_job(
         raise SessionError(f"no job {job_id}")
     if job.status is not JobStatus.CONFIRMED:
         raise SessionError(f"{job_id} is not confirmed; tasks are issued only for confirmed requirements")
-    started: list[tuple[Session, Variant]] = []
-    not_assessable: list[str] = []
-    for skill in job.skills:
-        if skill.skill_id is None or skill.priority is not Priority.MUST:
-            continue
-        patterns = for_skill(skill.skill_id)
-        if not patterns:
-            not_assessable.append(skill.skill_id)
-            continue
-        started.append(start(store, patterns[0].id, candidate_ref, job_id=job_id,
-                             context=job.text, provider=provider, now=now,
-                             begin=begin, start_by=start_by))
+    # The recruiter's choice, the same for every applicant (each must-have's first
+    # pattern for a job from before the choice existed).
+    started = [start(store, pattern_id, candidate_ref, job_id=job_id, context=job.text,
+                     provider=provider, now=now, begin=begin, start_by=start_by)
+               for pattern_id in jd.chosen_tasks(job)]
+    not_assessable = [skill for skill, options in jd.task_options(job).items() if not options]
     return started, not_assessable
 
 

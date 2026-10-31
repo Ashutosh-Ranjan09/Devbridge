@@ -65,9 +65,16 @@ export async function editJob(id: string, _: FormState, form: FormData): Promise
     if (form.get("addPriority") === "nice") nice.push(added);
     else must[added] = null;
   }
+  // The ticked tasks (`task:<skill>:<pattern>`), for skills still must-haves after this
+  // save: one made nice or dropped here takes its tasks with it.
+  const tasks = form.has("tasks") ? [...form.keys()]
+    .filter((k) => k.startsWith("task:"))
+    .map((k) => k.split(":"))
+    .filter(([, skill]) => skill in must)
+    .map(([, , pattern]) => pattern) : undefined;
   if (Object.keys(errors).length) return { errors, values: typed(form) };
   try {
-    await call<Job>("assess", `/v1/jobs/${encodeURIComponent(id)}`, { method: "PATCH", body: { must, nice, drop } });
+    await call<Job>("assess", `/v1/jobs/${encodeURIComponent(id)}`, { method: "PATCH", body: { must, nice, drop, tasks } });
   } catch (e) {
     return refused(e, form);
   }

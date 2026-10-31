@@ -105,6 +105,24 @@ class JobEdit(Model):
     must: dict[str, Bar | None] = Field(default_factory=dict)   # id → bar; None keeps it
     nice: list[str] = Field(default_factory=list)
     drop: list[str] = Field(default_factory=list)
+    tasks: list[str] | None = None         # pattern ids every applicant gets; None leaves them
+
+
+class TaskOption(Model):
+    pattern_id: str
+    title: str
+    level: str
+    time_limit_minutes: int
+    chosen: bool
+
+
+class JobTasks(Model):
+    """What a job's applicants are assessed on: each must-have with the patterns that
+    test it, the chosen ones ticked, and the must-haves no pattern tests."""
+
+    chosen: list[str]
+    must: dict[str, list[TaskOption]]
+    not_assessable: list[str]
 
 
 class Confirmation(Model):
@@ -280,7 +298,7 @@ def get_job(_: Auth, db: Db, job_id: str) -> Job:
 @app.patch("/v1/jobs/{job_id}")
 def edit_job(_: Auth, db: Db, job_id: str, body: JobEdit) -> Job:
     try:
-        job = jd.edit(_job(db, job_id), must=body.must, nice=body.nice, drop=body.drop)
+        job = jd.edit(_job(db, job_id), must=body.must, nice=body.nice, drop=body.drop, tasks=body.tasks)
         db.save_job(job)
     except ValueError as exc:              # JobError, and the store's own refusal
         raise RefusedError(409, "refused", str(exc)) from exc
@@ -295,6 +313,23 @@ def confirm_job(_: Auth, db: Db, job_id: str, body: Confirmation) -> Job:
     except ValueError as exc:
         raise RefusedError(409, "refused", str(exc)) from exc
     return job
+
+
+@app.get("/v1/jobs/{job_id}/tasks")
+def job_tasks(_: Auth, db: Db, job_id: str) -> JobTasks:
+    """The tasks every applicant gets, and the choice the recruiter has. Chosen while the
+    job is a draft; fixed once confirmed, like its skills."""
+    job = _job(db, job_id)
+    chosen = jd.chosen_tasks(job)
+    options = jd.task_options(job)
+    return JobTasks(
+        chosen=chosen,
+        must={skill: [TaskOption(pattern_id=p.id, title=p.title, level=p.level.value,
+                                 time_limit_minutes=p.time_limit_minutes, chosen=p.id in chosen)
+                      for p in patterns]
+              for skill, patterns in options.items() if patterns},
+        not_assessable=[skill for skill, patterns in options.items() if not patterns],
+    )
 
 
 @app.get("/v1/jobs/{job_id}/requirements")

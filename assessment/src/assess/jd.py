@@ -23,8 +23,8 @@ import re
 import secrets
 from typing import Any
 
-from assess.models import Job, JobSkill, JobStatus, Priority
-from assess.patterns import for_skill
+from assess.models import Job, JobSkill, JobStatus, Pattern, Priority
+from assess.patterns import for_skill, load
 from assess.providers import LLMProvider
 from assess.skills import SkillList, skill_list
 
@@ -166,12 +166,15 @@ def edit(
     must: dict[str, float | None] | None = None,
     nice: list[str] | None = None,
     drop: list[str] | None = None,
+    tasks: list[str] | None = None,
 ) -> Job:
     """A person's changes to a proposed job. `must` maps id → bar (None keeps it);
-    an id not yet in the job is added, quoted as added by the reviewer."""
+    an id not yet in the job is added, quoted as added by the reviewer. `tasks`, when
+    given, is the patterns every applicant will get; each must test a must-have."""
     if job.status is JobStatus.CONFIRMED:
         raise JobError(f"{job.job_id} is confirmed; a confirmed job is never edited — enter a new one")
     skills = skill_list()
+    before = set(task_options(job))
     rows = {s.skill_id: s for s in job.skills if s.skill_id}
     others = [s for s in job.skills if not s.skill_id]
     for sid in drop or []:
@@ -193,7 +196,42 @@ def edit(
             "priority": priority, "needs_review": False,
             "bar": bar if bar is not None else (current.bar if priority is Priority.MUST else None),
         })
-    return job.model_copy(update={"skills": [*rows.values(), *others]})
+    updated = job.model_copy(update={"skills": [*rows.values(), *others]})
+    options = task_options(updated)
+    offered = {p.id for patterns in options.values() for p in patterns}
+    if tasks is not None:
+        unknown = sorted(set(tasks) - offered)
+        if unknown:
+            raise JobError(f"{', '.join(unknown)}: tests none of this job's must-haves")
+        chosen = list(dict.fromkeys(tasks))
+    elif updated.tasks is not None:
+        chosen = [t for t in updated.tasks if t in offered]   # a must-have dropped takes its tasks
+    else:
+        return updated                     # never chosen: each must-have's first pattern
+    # A must-have new in this edit starts with its first task ticked, as every one did;
+    # otherwise it would silently be tested by nothing.
+    for skill in options.keys() - before:
+        if options[skill] and not any(p.id in chosen for p in options[skill]):
+            chosen.append(options[skill][0].id)
+    return updated.model_copy(update={"tasks": chosen})
+
+
+def task_options(job: Job) -> dict[str, list[Pattern]]:
+    """Each must-have on the list, and the patterns that test it (none: not assessable)."""
+    return {s.skill_id: for_skill(s.skill_id) for s in job.skills
+            if s.skill_id and s.priority is Priority.MUST}
+
+
+def chosen_tasks(job: Job) -> list[str]:
+    """What every applicant gets: the recruiter's choice, or each must-have's first pattern."""
+    if job.tasks is not None:
+        return job.tasks
+    return [options[0].id for options in task_options(job).values() if options]
+
+
+def tested(job: Job) -> set[str]:
+    """The must-haves a chosen task tests."""
+    return {load(pid).skill for pid in chosen_tasks(job)}
 
 
 def confirm(job: Job, by: str) -> Job:
@@ -204,15 +242,17 @@ def confirm(job: Job, by: str) -> Job:
         raise JobError("a job needs at least one must-have skill on the list to shortlist anyone")
     if not by.strip():
         raise JobError("say who confirmed it")
-    # An unbarred must-have a pattern can test stays unbarred: it is to be ASSESSED,
+    # An unbarred must-have a chosen task tests stays unbarred: it is to be ASSESSED,
     # not filtered on — nobody has evidence for a skill before they are tested on it,
-    # so a bar would shortlist no one. An unbarred one nothing can test filters on
-    # any direct evidence at all (0.0).
-    skills = [s.model_copy(update={"bar": 0.0}) if s in musts and s.bar is None and not s.assessable
+    # so a bar would shortlist no one. An unbarred one no chosen task tests (none exists,
+    # or the recruiter left it out) filters on any direct evidence at all (0.0).
+    assessed = tested(job)
+    skills = [s.model_copy(update={"bar": 0.0}) if s in musts and s.bar is None and s.skill_id not in assessed
               else s for s in job.skills]
     return job.model_copy(update={
         "skills": skills, "status": JobStatus.CONFIRMED, "confirmed_by": by.strip(),
         "confirmed_at": datetime.datetime.now(datetime.UTC),
+        "tasks": chosen_tasks(job),          # written down: what applicants get is exact
     })
 
 
@@ -220,13 +260,14 @@ def requirements(job: Job) -> dict[str, Any]:
     """The confirmed job as schemas/job-requirements.schema.json — what M6 reads."""
     if job.status is not JobStatus.CONFIRMED or job.confirmed_at is None or job.confirmed_by is None:
         raise JobError(f"{job.job_id} is not confirmed; only a confirmed job is exported")
+    assessed = tested(job)                   # a chosen task tests it, not merely one exists
     return {
         "schema_version": "1.0.0",
         "job_id": job.job_id,
         "confirmed_at": job.confirmed_at.isoformat(),
         "confirmed_by": job.confirmed_by,
         "skill_list_version": skill_list().version,
-        "must": [{"skill_id": s.skill_id, "bar": s.bar, "assessable": s.assessable}
+        "must": [{"skill_id": s.skill_id, "bar": s.bar, "assessable": s.skill_id in assessed}
                  for s in job.skills if s.skill_id and s.priority is Priority.MUST],
         "nice": [s.skill_id for s in job.skills if s.skill_id and s.priority is Priority.NICE],
         "not_on_list": [s.surface for s in job.skills if not s.skill_id],
@@ -245,6 +286,9 @@ def render(job: Job) -> str:
         flags = " · review" if s.needs_review else ""
         flags += " · assessable" if s.assessable else ""
         lines.append(f"  {s.priority.value:4}  {tag:22}{bar}{flags}\n        \"{s.quote[:110]}\"")
+    chosen = chosen_tasks(job)
+    lines.append(f"  tasks every applicant gets: {', '.join(chosen) or 'none'}"
+                 + ("" if job.tasks is not None else " (each must-have's first pattern)"))
     return "\n".join(lines)
 
 

@@ -93,6 +93,19 @@ describe("jobs", () => {
     expect(sent[0].body).toEqual({ must: { python: 0.4, sql: null, rate_limiting: null }, nice: ["redis"], drop: ["kafka"] });
   });
 
+  it("the ticked tasks are sent, except those of a skill no longer a must-have", async () => {
+    await aJob();
+    modules({ "PATCH http://assess.test/v1/jobs/job_1": [200, {}] });
+    await editJob("job_1", undefined, form({
+      "priority:rate_limiting": "must", "bar:rate_limiting": "",
+      "priority:algorithms": "nice", "bar:algorithms": "",
+      tasks: "1", "task:rate_limiting:rate_limiter": "on", "task:algorithms:top_k_frequent": "on",
+    }));
+    expect((sent[0].body as { tasks: string[] }).tasks).toEqual(["rate_limiter"]);
+    await editJob("job_1", undefined, form({ "priority:rate_limiting": "must", "bar:rate_limiting": "", tasks: "1" }));
+    expect((sent[1].body as { tasks: string[] }).tasks).toEqual([]); // none ticked is a choice
+  });
+
   it("a bar outside 0–1 is refused before anything is sent, and the other edits survive", async () => {
     await aJob();
     modules({});

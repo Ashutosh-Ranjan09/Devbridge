@@ -71,10 +71,10 @@ class TestLoading:
     def test_visible_examples_are_required_and_must_match_their_names(self, copy: Path) -> None:
         """The Run button needs examples, declared like the hidden tests."""
         edit_yaml(copy, lambda d: d["tests"]["visible"].append("example_burst"))
-        with pytest.raises(PatternError, match="tests_visible.py defines"):
+        with pytest.raises(PatternError, match=r"tests_visible\.py defines"):
             load("rate_limiter", copy)
         (copy / "rate_limiter" / "tests_visible.py").unlink()
-        with pytest.raises(PatternError, match="missing tests_visible.py"):
+        with pytest.raises(PatternError, match=r"missing tests_visible\.py"):
             load("rate_limiter", copy)
 
     def test_a_reference_failing_a_visible_example_is_caught(self, copy: Path) -> None:

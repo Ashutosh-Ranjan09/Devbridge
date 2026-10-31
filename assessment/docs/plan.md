@@ -223,6 +223,12 @@ words in the JD, quotes the sentence, and proposes `nice` — every item `needs_
 list, and set a **bar** (0–1) per must-have. `confirm` locks the job: a confirmed job is
 never edited, only superseded by a new one.
 
+**Tasks** — the recruiter also chooses which patterns every applicant gets (`Job.tasks`),
+from those testing a must-have; by default each must-have's first. Per job, never per
+candidate: two applicants to one role must face the same tasks or their results do not
+compare. The first version issued every must-have's first pattern with no say, which
+would have sent one candidate three tasks the moment a skill had three patterns.
+
 **Export** — `assess jd export JOB` writes `requirements.json` against
 `schemas/job-requirements.schema.json`: must-haves with bars, nice-to-haves.
 

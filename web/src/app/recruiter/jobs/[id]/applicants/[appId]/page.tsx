@@ -15,7 +15,7 @@ import { START_BY_MAX_DAYS } from "@/lib/definitions";
 import { dayIn, taskStatus } from "@/lib/tasks";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
-import type { Attempts, FullResult, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
+import type { Attempts, FullResult, JobTasks, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
 
 export default function ApplicantPage({ params }: PageProps<"/recruiter/jobs/[id]/applicants/[appId]">) {
   return (
@@ -40,8 +40,9 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
   ]);
 
   const quiet = <T,>(p: Promise<T>) => p.catch((e: unknown) => (e instanceof ServiceError ? e : Promise.reject(e)));
-  const [requirements, profile, report, marks, rules, tasks] = await Promise.all([
+  const [requirements, jobTasks, profile, report, marks, rules, tasks] = await Promise.all([
     quiet(call<Requirements>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/requirements`)),
+    quiet(call<JobTasks>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/tasks`)),
     quiet(call<Profile>("m6", `/developers/${encodeURIComponent(ref)}/profile`)),
     latest ? quiet(call<Report | Running>("m5", `/v1/verifications/${encodeURIComponent(latest.id)}`)) : null,
     latest ? marksFor(latest.id) : undefined,
@@ -114,6 +115,8 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
         ))}
         {!app.decision && (
           <SendAssessment jobId={jobId} applicationId={app.id} sent={tasks.length > 0}
+            sends={jobTasks instanceof ServiceError ? null
+              : Object.values(jobTasks.must).flat().filter((o) => o.chosen).map((o) => ({ title: o.title, minutes: o.time_limit_minutes }))}
             startBy={{ default: dayIn(7), min: dayIn(0), max: dayIn(START_BY_MAX_DAYS - 1) }} />
         )}
       </Card>

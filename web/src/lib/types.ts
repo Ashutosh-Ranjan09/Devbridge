@@ -142,6 +142,15 @@ export type Job = {
   dropped_unquoted: number;
   confirmed_by: string | null;
   confirmed_at: string | null;
+  tasks?: string[] | null; // pattern ids every applicant gets; null: each must-have's first
+};
+
+/** GET /v1/jobs/{id}/tasks: each must-have with the tasks that test it, the chosen ones
+ * ticked, and the must-haves no task tests. The same for every applicant. */
+export type JobTasks = {
+  chosen: string[];
+  must: Record<string, { pattern_id: string; title: string; level: string; time_limit_minutes: number; chosen: boolean }[]>;
+  not_assessable: string[];
 };
 
 /** schemas/job-requirements.schema.json, passed to M6 unchanged. */

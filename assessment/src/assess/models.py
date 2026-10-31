@@ -237,3 +237,7 @@ class Job(Model):
     dropped_unquoted: int = 0              # model items whose quote was not in the JD
     confirmed_by: str | None = None
     confirmed_at: datetime.datetime | None = None
+    # Pattern ids every applicant gets, chosen by the recruiter before confirming; the
+    # same for everyone, so results compare. None: a job from before the choice existed,
+    # which issues each must-have's first pattern.
+    tasks: list[str] | None = None
