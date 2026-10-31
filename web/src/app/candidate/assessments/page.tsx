@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { StartPractice } from "@/components/candidate";
 import { Card, Loading, Page } from "@/components/ui";
-import { requireCandidate } from "@/lib/candidate";
+import { requireCandidate, TASK_JOB, taskFor } from "@/lib/candidate";
 import { db } from "@/lib/db";
 import { call, ServiceError } from "@/lib/services";
 import type { Pattern, Task } from "@/lib/types";
@@ -20,7 +20,7 @@ export default function AssessmentsPage() {
 
 async function Assessments() {
   const me = await requireCandidate();
-  const rows = await db.assessment.findMany({ where: { candidateId: me.id }, orderBy: { createdAt: "desc" } });
+  const rows = await db.assessment.findMany({ where: { candidateId: me.id }, orderBy: { createdAt: "desc" }, include: TASK_JOB });
   let patterns: Pattern[];
   let tasks: (Task | null)[];
   try {
@@ -32,22 +32,39 @@ async function Assessments() {
     if (e instanceof ServiceError) return <Card><p>{e.message}</p></Card>;
     throw e;
   }
+  // One group per job, headed by its company: a job's tasks are sent together and read
+  // together. Newest job first (the Map keeps the order rows arrive in), practice last.
+  const groups = new Map<string, { heading: string; items: number[] }>();
+  rows.forEach((r, i) => {
+    const job = r.application?.job;
+    const key = job?.id ?? "practice";
+    const g = groups.get(key) ?? { heading: taskFor(job), items: [] };
+    g.items.push(i);
+    groups.set(key, g);
+  });
+  const ordered = [...groups].sort(([a], [b]) => Number(a === "practice") - Number(b === "practice"));
   return (
     <div className="space-y-4">
       {rows.length > 0 && (
         <Card>
           <h2 className="mb-2 font-semibold">Yours</h2>
-          <ul className="space-y-1">
-            {rows.map((r, i) => (
-              <li key={r.id} className="flex flex-wrap gap-x-3">
-                <Link href={`/candidate/assessments/${r.id}`} className="text-accent underline">
-                  {tasks[i]?.title ?? r.id}
-                </Link>
-                <span className="text-sm text-muted">{tasks[i]?.status ?? "unavailable"}</span>
-                <span className="text-sm text-muted">{r.applicationId ? "for a job" : "practice"}</span>
-              </li>
+          <div className="space-y-3">
+            {ordered.map(([key, g]) => (
+              <section key={key}>
+                <h3 className="mb-1 text-sm font-medium text-muted">{g.heading}</h3>
+                <ul className="space-y-1">
+                  {g.items.map((i) => (
+                    <li key={rows[i].id} className="flex flex-wrap gap-x-3">
+                      <Link href={`/candidate/assessments/${rows[i].id}`} className="text-accent underline">
+                        {tasks[i]?.title ?? rows[i].id}
+                      </Link>
+                      <span className="text-sm text-muted">{tasks[i]?.status ?? "unavailable"}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         </Card>
       )}
       <Card>

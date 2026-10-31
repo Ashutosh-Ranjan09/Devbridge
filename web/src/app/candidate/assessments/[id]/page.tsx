@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Countdown, Editor } from "@/components/candidate";
 import { Markdown } from "@/components/markdown";
 import { Card, Loading, Page } from "@/components/ui";
-import { myAssessment, requireCandidate } from "@/lib/candidate";
+import { myAssessment, requireCandidate, taskFor } from "@/lib/candidate";
 import { call, ServiceError } from "@/lib/services";
 import { forwardAssessment } from "@/lib/sync";
 import type { CandidateResult, Task } from "@/lib/types";
@@ -43,7 +43,9 @@ async function Assessment({ params }: { params: Promise<{ id: string }> }) {
           <h2 className="text-lg font-semibold">{task.title}</h2>
           {task.status === "open" && <Countdown deadline={task.deadline} />}
         </div>
-        <p className="mb-3 text-sm text-muted">{task.skill} · {task.level} · {task.time_limit_minutes} minutes</p>
+        <p className="mb-3 text-sm text-muted">
+          For {taskFor(row.application?.job)} · {task.skill} · {task.level} · {task.time_limit_minutes} minutes
+        </p>
         <Markdown>{task.story}</Markdown>
         <div className="mt-4"><Markdown>{task.requirements}</Markdown></div>
       </Card>
