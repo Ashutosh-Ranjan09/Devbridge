@@ -13,7 +13,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-95 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+105 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).
@@ -46,8 +46,9 @@ flat `{"error", "detail"}`, like M6's: 404 unknown id, 409 the module's own refu
 | `POST /v1/jobs` `{text, model}` · `GET /v1/jobs[/{id}]` | propose skills from a JD (synchronous, up to the model's timeout) |
 | `PATCH /v1/jobs/{id}` `{must:{id:bar}, nice, drop}` · `POST …/confirm` `{by}` | a person's edits, then the lock; bars checked 0–1 |
 | `GET /v1/jobs/{id}/requirements` | the body for M6's `POST /shortlist` |
-| `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id}` | issue tasks; asking again returns the same ones |
-| `GET /v1/sessions/{id}` | the task — never the hidden tests, seed or parameters |
+| `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id, start_by?}` | issue tasks; asking again returns the same ones. A job's tasks are `issued` with no clock, to be started by `start_by` (default 7 days, at most 60); practice starts at once |
+| `POST /v1/sessions/{id}/begin` | the candidate presses Start: the time limit runs from now and the task is shown; again changes nothing; after `start_by`, 409 |
+| `GET /v1/sessions/{id}` | the task — never the hidden tests, seed or parameters, and before Start not its story, requirements or starter. Past its start-by date or deadline (plus grace) it reads, and is stored, `expired` |
 | `POST /v1/sessions/{id}/submit` `{code}` | sandbox run, synchronous; returns the candidate view |
 | `GET /v1/sessions/{id}/result[?view=full]` | `candidate` by default: test names and passed, no failure detail (it quotes the hidden tests); `full` for the person reading results |
 | `GET /v1/sessions/{id}/events` | the batch for M6's `POST /evidence/batch` |
@@ -99,6 +100,11 @@ threads. Never share one Store between requests.
     ability estimate. How far to TRUST a result is `contracts/evidence.yaml`.
 
 ## Known limits, stated
+
+- **The clock starts at Start, not at Send.** A job's task waits, text withheld, until the
+  candidate begins it; the recruiter chooses the start-by date. The time limit is the
+  pattern's and the same for everyone (guardrail 3); the recruiter never changes it.
+  `assess start --job` begins at once: an operator there means to take the task now.
 
 - **Help is not prevented.** Unique variants stop copying from another candidate; the
   time limit narrows outside help; nothing stops an AI assistant. A follow-up step

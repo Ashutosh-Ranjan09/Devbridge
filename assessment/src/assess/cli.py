@@ -112,8 +112,9 @@ def start_cmd(
     store = Store()
     try:
         if job is not None:
+            # Begun at once: an operator issuing a task here means to take it now.
             issued, missing = start_for_job(store, job, candidate,
-                                            provider=default_provider() if model else None)
+                                            provider=default_provider() if model else None, begin=True)
         else:
             assert pattern_id is not None
             issued, missing = [start(store, pattern_id, candidate, seed=seed)], []

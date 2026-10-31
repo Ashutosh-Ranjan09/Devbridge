@@ -77,6 +77,21 @@ export async function startPractice(patternId: string): Promise<FormState> {
   redirect(`/candidate/assessments/${id}`);
 }
 
+/** Start a job's task: the clock runs from now and the task is shown. Pressing again on
+ * a task already begun changes nothing (assessment's rule). */
+export async function beginTask(id: string): Promise<FormState> {
+  const me = await requireCandidate();
+  await myAssessment(me.id, id);
+  try {
+    await call<Task>("assess", `/v1/sessions/${encodeURIComponent(id)}/begin`, { method: "POST" });
+  } catch (e) {
+    // 409: the start-by date passed. The module's message says when.
+    if (e instanceof ServiceError) return { message: e.message };
+    throw e;
+  }
+  redirect(`/candidate/assessments/${id}`);
+}
+
 export async function submitSolution(id: string, _: FormState, form: FormData): Promise<FormState> {
   const me = await requireCandidate();
   await myAssessment(me.id, id);

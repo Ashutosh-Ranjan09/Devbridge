@@ -3,6 +3,7 @@ than the candidate view."""
 
 from __future__ import annotations
 
+import datetime
 import json
 from collections.abc import Iterator
 
@@ -128,6 +129,30 @@ class TestTasks:
         r = client.post("/v1/sessions", json={"candidate_ref": "subject:asha", "job_id": job_id,
                                               "model": False}, headers=KEY).json()
         assert [t["skill"] for t in r["tasks"]] == ["rate_limiting"]
+
+    def test_a_job_s_task_is_withheld_until_the_candidate_starts_it(self, client) -> None:
+        job_id = confirmed_job(client)
+        t = client.post("/v1/sessions", json={"candidate_ref": "subject:asha", "job_id": job_id,
+                                              "model": False}, headers=KEY).json()["tasks"][0]
+        assert t["status"] == "issued" and t["start_by"] and t["deadline"] is None
+        assert t["story"] is None and t["requirements"] is None and t["starter"] is None
+        b = client.post(f"/v1/sessions/{t['session_id']}/begin", headers=KEY).json()
+        assert b["status"] == "open" and b["deadline"] and b["story"] and b["starter"]
+
+    def test_a_chosen_start_by_is_kept_and_a_past_one_refused(self, client) -> None:
+        job_id = confirmed_job(client)
+        when = (datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=3)).isoformat()
+        t = client.post("/v1/sessions", json={"candidate_ref": "subject:asha", "job_id": job_id, "model": False,
+                                              "start_by": when}, headers=KEY).json()["tasks"][0]
+        assert datetime.datetime.fromisoformat(t["start_by"]) == datetime.datetime.fromisoformat(when)
+        r = client.post("/v1/sessions", json={"candidate_ref": "subject:ravi", "job_id": job_id, "model": False,
+                                              "start_by": "2020-01-01T00:00:00Z"}, headers=KEY)
+        assert r.status_code == 409 and "already passed" in r.json()["detail"]
+
+    def test_start_by_is_for_a_job_s_tasks_only(self, client) -> None:
+        r = client.post("/v1/sessions", json={"candidate_ref": "s", "pattern_id": "rate_limiter",
+                                              "start_by": "2030-01-01T00:00:00Z"}, headers=KEY)
+        assert r.status_code == 422
 
     def test_job_or_pattern_not_both(self, client) -> None:
         r = client.post("/v1/sessions", json={"candidate_ref": "s", "job_id": "j",

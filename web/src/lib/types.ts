@@ -96,13 +96,16 @@ export type Task = {
   title: string;
   skill: string;
   level: string;
-  story: string;
-  requirements: string;
-  starter: string;
+  // null until the candidate presses Start: read at leisure, the time limit measures nothing
+  story: string | null;
+  requirements: string | null;
+  starter: string | null;
   time_limit_minutes: number;
-  started_at: string;
-  deadline: string;
-  status: "open" | "submitted" | "expired";
+  issued_at: string;
+  start_by: string | null; // a job's task: the last moment to press Start
+  started_at: string | null;
+  deadline: string | null;
+  status: "issued" | "open" | "submitted" | "expired";
 };
 
 /** The candidate view. Never `view=full`: its failure details quote the hidden tests. */

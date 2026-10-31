@@ -53,6 +53,7 @@ def score(tests: list[TestResult]) -> Score:
 def build_result(
     pattern: Pattern, variant: Variant, session: Session, run: Run, submitted_at: datetime.datetime
 ) -> Result:
+    assert session.started_at is not None, "only a begun session is submitted"
     scored = run.outcome.scored
     tests = tests_for(pattern, run) if scored else []
     return Result(

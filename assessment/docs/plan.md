@@ -184,7 +184,15 @@ pass/fail field, no grade.
 
 SQLite at `assessment/.data/assess.db` (gitignored). Tables: `jobs`, `variants`,
 `sessions`, `results`. A result is written once and never updated. A session is
-`open` → `submitted` (or `expired`). One session per (candidate, pattern, job).
+`issued` → `open` → `submitted`, or `expired`. One session per (candidate, pattern, job).
+
+A job's task is `issued` with no clock and a start-by date the recruiter chose (7 days
+by default, at most 60); its story, requirements and starter are withheld until the
+candidate presses Start, which sets `started_at` and the deadline. The first version
+started the clock when the task was issued, so a candidate lost the minutes between a
+recruiter pressing Send and opening the page, and could find a task expired unseen.
+Practice is issued and begun in one step. Expiry is decided whenever a session is read,
+not only when a late submission arrives: before, an abandoned task said `open` forever.
 
 ## 9. The JD layer
 

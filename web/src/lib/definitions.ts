@@ -1,5 +1,7 @@
 import * as z from "zod";
 
+import { endOfDay } from "./tasks";
+
 const email = z.string().trim().toLowerCase().pipe(z.email({ error: "Enter a valid email." }));
 const name = z.string().trim().min(2, { error: "At least 2 characters." }).max(100);
 // Length, not character classes: a long passphrase is stronger than a short password
@@ -110,6 +112,18 @@ export const BarSchema = z
     }
     return n;
   });
+
+/** The day a job's tasks can be started until. Assessment refuses past and far-off dates
+ * too; checking here returns the form with the date kept instead of a module's message. */
+export const START_BY_MAX_DAYS = 60;
+export const StartBySchema = z.object({
+  startBy: z
+    .string({ error: "Pick a date." })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Pick a date." })
+    .refine((d) => endOfDay(d).getTime() > Date.now(), { error: "That day has already passed." })
+    .refine((d) => endOfDay(d).getTime() <= Date.now() + START_BY_MAX_DAYS * 86_400_000,
+      { error: `At most ${START_BY_MAX_DAYS} days ahead.` }),
+});
 
 export const DecisionSchema = z.object({
   outcome: z.enum(["ADVANCE", "REJECT", "HIRE"], { error: "Choose an outcome." }),

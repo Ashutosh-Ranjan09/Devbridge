@@ -8,10 +8,10 @@ import sqlite3
 import pytest
 
 from assess import sessions
-from assess.models import Outcome, SandboxInfo, SessionStatus
+from assess.models import Outcome, SandboxInfo, Session, SessionStatus
 from assess.patterns import load
 from assess.sandbox import Run
-from assess.sessions import SessionError, start, submit
+from assess.sessions import SessionError, begin, current, start, submit
 from assess.store import Store
 from tests.test_sandbox import rows
 
@@ -63,6 +63,62 @@ class TestStarting:
     def test_the_deadline_is_the_pattern_s_time_limit(self, store) -> None:
         s, v = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
         assert s.deadline - s.started_at == datetime.timedelta(minutes=v.time_limit_minutes)
+
+
+class TestTheClock:
+    """A job's task waits for Start; the time limit runs from there, never from Send."""
+
+    def job_task(self, store, **kw):
+        return start(store, "rate_limiter", "subject:asha", job_id="job_1", seed=1, now=T, begin=False, **kw)
+
+    def test_a_job_s_task_has_no_clock_until_it_is_started(self, store) -> None:
+        s, _ = self.job_task(store)
+        assert (s.status, s.started_at, s.deadline) == (SessionStatus.ISSUED, None, None)
+        assert s.start_by == T + datetime.timedelta(days=7)
+
+    def test_start_runs_the_time_limit_from_then_and_only_once(self, store) -> None:
+        s, v = self.job_task(store)
+        later = T + datetime.timedelta(days=2)
+        b = begin(store, s.session_id, now=later)
+        assert b.status is SessionStatus.OPEN and b.started_at == later
+        assert b.deadline == later + datetime.timedelta(minutes=v.time_limit_minutes)
+        again = begin(store, s.session_id, now=later + datetime.timedelta(minutes=10))
+        assert again.started_at == later, "pressing Start again must not reset the clock"
+
+    def test_submitting_before_start_is_refused(self, store, sandbox) -> None:
+        s, _ = self.job_task(store)
+        with pytest.raises(SessionError, match="not been started"):
+            submit(store, s.session_id, "x", now=T)
+
+    def test_not_started_by_the_date_it_expires_and_cannot_be_started(self, store) -> None:
+        s, _ = self.job_task(store)
+        assert s.start_by is not None
+        after = s.start_by + datetime.timedelta(seconds=1)
+        assert current(store, s.session_id, now=after).status is SessionStatus.EXPIRED
+        with pytest.raises(SessionError, match="start-by date passed"):
+            begin(store, s.session_id, now=after)
+
+    def test_the_recruiter_s_date_is_used_and_checked(self, store) -> None:
+        chosen = T + datetime.timedelta(days=3)
+        s, _ = self.job_task(store, start_by=chosen)
+        assert s.start_by == chosen
+        for bad, why in ((T - datetime.timedelta(hours=1), "already passed"),
+                         (T + datetime.timedelta(days=61), "more than 60 days")):
+            with pytest.raises(SessionError, match=why):
+                start(store, "rate_limiter", "subject:ravi", job_id="job_1", now=T, begin=False, start_by=bad)
+
+    def test_an_open_task_past_its_deadline_reads_expired_without_a_submission(self, store) -> None:
+        """Before, only a late submission wrote "expired": an abandoned task said "open" forever."""
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        assert s.deadline is not None
+        assert current(store, s.session_id, now=s.deadline + datetime.timedelta(seconds=60)).status is SessionStatus.OPEN
+        assert current(store, s.session_id, now=s.deadline + datetime.timedelta(minutes=5)).status is SessionStatus.EXPIRED
+        assert store.session(s.session_id).status is SessionStatus.EXPIRED  # written down
+
+    def test_a_session_stored_before_issuing_and_starting_were_split_still_loads(self) -> None:
+        old = {"session_id": "as_1", "variant_id": "v", "candidate_ref": "s",
+               "started_at": T.isoformat(), "deadline": T.isoformat(), "status": "open"}
+        assert Session.model_validate(old).issued_at == T
 
 
 class TestSubmitting:

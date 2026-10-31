@@ -10,6 +10,8 @@ import { db } from "@/lib/db";
 import { myApplication, requireRecruiter } from "@/lib/recruiter";
 import { alsoChecked, m5Rules } from "@/lib/m5";
 import { marksFor } from "@/lib/review";
+import { START_BY_MAX_DAYS } from "@/lib/definitions";
+import { dayIn, taskStatus } from "@/lib/tasks";
 import { call, ServiceError } from "@/lib/services";
 import type { FullResult, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
 
@@ -77,7 +79,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
         {tasks.length === 0 && <p className="mb-3 text-sm text-muted">None sent yet.</p>}
         {tasks.map(({ id, task, result }) => (
           <div key={id} className="mb-4">
-            <p className="font-medium">{task?.title ?? id} <span className="text-sm text-muted">{task?.status ?? "unavailable"}</span></p>
+            <p className="font-medium">{task?.title ?? id} <span className="text-sm text-muted">{taskStatus(task)}</span></p>
             {result && (
               <>
                 <p className="text-sm">
@@ -98,7 +100,10 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
             )}
           </div>
         ))}
-        {!app.decision && <SendAssessment jobId={jobId} applicationId={app.id} sent={tasks.length > 0} />}
+        {!app.decision && (
+          <SendAssessment jobId={jobId} applicationId={app.id} sent={tasks.length > 0}
+            startBy={{ default: dayIn(7), min: dayIn(0), max: dayIn(START_BY_MAX_DAYS - 1) }} />
+        )}
       </Card>
 
       <Card>

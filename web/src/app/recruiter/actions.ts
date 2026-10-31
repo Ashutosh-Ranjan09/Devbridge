@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import * as z from "zod";
 
 import { db } from "@/lib/db";
-import { BarSchema, DecisionSchema, type FormState, NewJobSchema, typed } from "@/lib/definitions";
+import { BarSchema, DecisionSchema, type FormState, NewJobSchema, StartBySchema, typed } from "@/lib/definitions";
 import { myApplication, myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
+import { endOfDay } from "@/lib/tasks";
 import type { Job, Task } from "@/lib/types";
 
 /** Every action re-checks the recruiter and that the job is one of their organisation's:
@@ -109,15 +110,21 @@ export async function sendAssessment(jobId: string, applicationId: string, _: Fo
   const me = await requireRecruiter();
   const app = await myApplication(me.orgIds, jobId, applicationId);
   if (app.decision) return { message: "Already decided." };
+  const parsed = StartBySchema.safeParse({ startBy: form.get("startBy") ?? undefined });
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values: typed(form) };
   let issued: { tasks: Task[]; not_assessable: string[] };
   try {
-    // One task per assessable must-have; asking again returns the same tasks.
+    // One task per assessable must-have; asking again returns the same tasks. Each waits
+    // for the candidate to press Start, until the end of the chosen day.
     issued = await call("assess", "/v1/sessions", {
-      body: { candidate_ref: app.candidate.subjectRef, job_id: jobId, model: form.get("model") === "on" },
+      body: {
+        candidate_ref: app.candidate.subjectRef, job_id: jobId, model: form.get("model") === "on",
+        start_by: endOfDay(parsed.data.startBy).toISOString(),
+      },
       timeoutMs: 240_000,
     });
   } catch (e) {
-    return refused(e);
+    return refused(e, form);
   }
   for (const t of issued.tasks) {
     await db.assessment.upsert({

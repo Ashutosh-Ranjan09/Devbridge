@@ -126,11 +126,13 @@ class Store:
         return session
 
     def set_status(self, session: Session, status: SessionStatus) -> Session:
-        updated = session.model_copy(update={"status": status})
+        return self.update_session(session.model_copy(update={"status": status}))
+
+    def update_session(self, session: Session) -> Session:
         with self.tx() as db:
             db.execute("UPDATE sessions SET status = ?, doc = ? WHERE session_id = ?",
-                       (status.value, updated.model_dump_json(), session.session_id))
-        return updated
+                       (session.status.value, session.model_dump_json(), session.session_id))
+        return session
 
     def session(self, session_id: str) -> Session | None:
         row = self.db.execute("SELECT doc FROM sessions WHERE session_id = ?", (session_id,)).fetchone()

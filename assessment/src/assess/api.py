@@ -27,7 +27,7 @@ from assess.config import settings
 from assess.events import NotEvidenceError, batch
 from assess.models import Job, Model, Outcome, Result, Score, Session, SessionStatus, Variant
 from assess.patterns import PatternError, all_patterns, load
-from assess.sessions import SessionError, start, start_for_job, submit
+from assess.sessions import SessionError, begin, current, start, start_for_job, submit
 from assess.store import Store
 from assess.variants import VariantError
 
@@ -106,11 +106,14 @@ class NewSessions(Model):
     job_id: str | None = None
     pattern_id: str | None = None
     model: bool = True                     # with job_id: let the model fit tasks to the JD
+    start_by: datetime.datetime | None = None  # with job_id: the last moment to press Start
 
     @model_validator(mode="after")
     def _one_source(self) -> NewSessions:
         if (self.job_id is None) == (self.pattern_id is None):
             raise ValueError("give job_id or pattern_id, not both")
+        if self.start_by is not None and self.job_id is None:
+            raise ValueError("start_by is for a job's tasks; practice begins at once")
         return self
 
 
@@ -119,19 +122,23 @@ class Submission(Model):
 
 
 class Task(Model):
-    """What a candidate is shown. Never the hidden tests, the seed or the parameters."""
+    """What a candidate is shown. Never the hidden tests, the seed or the parameters.
+    Before Start, not the story, requirements or starter either: read at leisure, a
+    task's time limit would measure nothing."""
 
     session_id: str
     pattern_id: str
     title: str
     skill: str
     level: str
-    story: str
-    requirements: str
-    starter: str
+    story: str | None
+    requirements: str | None
+    starter: str | None
     time_limit_minutes: int
-    started_at: datetime.datetime
-    deadline: datetime.datetime
+    issued_at: datetime.datetime
+    start_by: datetime.datetime | None
+    started_at: datetime.datetime | None
+    deadline: datetime.datetime | None
     status: SessionStatus
     fitted_by_model: bool
 
@@ -165,11 +172,15 @@ class CandidateResult(Model):
 
 def _task(session: Session, variant: Variant) -> Task:
     pattern = load(variant.pattern_id)
+    shown = session.started_at is not None
     return Task(
         session_id=session.session_id, pattern_id=variant.pattern_id, title=pattern.title,
-        skill=pattern.skill, level=pattern.level.value, story=variant.story,
-        requirements=variant.requirements, starter=variant.starter,
-        time_limit_minutes=variant.time_limit_minutes, started_at=session.started_at,
+        skill=pattern.skill, level=pattern.level.value,
+        story=variant.story if shown else None,
+        requirements=variant.requirements if shown else None,
+        starter=variant.starter if shown else None,
+        time_limit_minutes=variant.time_limit_minutes, issued_at=session.issued_at,
+        start_by=session.start_by, started_at=session.started_at,
         deadline=session.deadline, status=session.status,
         fitted_by_model=variant.chosen_by == "model",
     )
@@ -255,9 +266,10 @@ def job_requirements(_: Auth, db: Db, job_id: str) -> dict[str, Any]:
 
 
 def _session(db: Store, session_id: str) -> Session:
-    if (session := db.session(session_id)) is None:
+    """The session as it stands now: past its start-by date or deadline, expired."""
+    if db.session(session_id) is None:
         raise RefusedError(404, "not_found", f"no session {session_id}")
-    return session
+    return current(db, session_id)
 
 
 def _result(db: Store, session_id: str) -> Result:
@@ -288,7 +300,8 @@ def new_sessions(_: Auth, db: Db, body: NewSessions) -> Issued:
     try:
         if body.job_id is not None:
             issued, missing = start_for_job(db, body.job_id, body.candidate_ref,
-                                            provider=default_provider() if body.model else None)
+                                            provider=default_provider() if body.model else None,
+                                            start_by=body.start_by)
         else:
             assert body.pattern_id is not None
             issued, missing = [start(db, body.pattern_id, body.candidate_ref)], []
@@ -303,6 +316,20 @@ def new_sessions(_: Auth, db: Db, body: NewSessions) -> Issued:
 @app.get("/v1/sessions/{session_id}")
 def get_session(_: Auth, db: Db, session_id: str) -> Task:
     session = _session(db, session_id)
+    variant = db.variant(session.variant_id, session.job_id)
+    assert variant is not None
+    return _task(session, variant)
+
+
+@app.post("/v1/sessions/{session_id}/begin")
+def begin_task(_: Auth, db: Db, session_id: str) -> Task:
+    """The candidate presses Start: the clock runs from now and the task is shown. Again
+    on a begun task, the same task; after its start-by date, 409."""
+    _session(db, session_id)
+    try:
+        session = begin(db, session_id)
+    except SessionError as exc:
+        raise RefusedError(409, "refused", str(exc)) from exc
     variant = db.variant(session.variant_id, session.job_id)
     assert variant is not None
     return _task(session, variant)

@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     sandbox_wall_seconds: float = 30.0
     # Accepted after the deadline before a submission is refused rather than scored.
     grace_seconds: int = 120
+    # A job's task waits for the candidate to press Start, until its start-by date: this
+    # many days after it is sent unless the recruiter chose one, and never further out
+    # than the maximum.
+    start_by_days: int = 7
+    start_by_max_days: int = 60
 
     patterns_dir: Path = ROOT / "patterns"
     skills_dir: Path = REPO / "schemas" / "skills"

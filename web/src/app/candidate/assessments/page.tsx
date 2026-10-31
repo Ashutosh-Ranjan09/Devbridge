@@ -6,6 +6,7 @@ import { Card, Loading, Page } from "@/components/ui";
 import { requireCandidate, TASK_JOB, taskFor } from "@/lib/candidate";
 import { db } from "@/lib/db";
 import { call, ServiceError } from "@/lib/services";
+import { taskStatus } from "@/lib/tasks";
 import type { Pattern, Task } from "@/lib/types";
 
 export default function AssessmentsPage() {
@@ -43,6 +44,12 @@ async function Assessments() {
     groups.set(key, g);
   });
   const ordered = [...groups].sort(([a], [b]) => Number(a === "practice") - Number(b === "practice"));
+  // Each task is practised once (assessment's rule), so one already started is reopened.
+  const practised = new Map<string, { id: string; status: Task["status"] }>();
+  rows.forEach((r, i) => {
+    const t = tasks[i];
+    if (!r.applicationId && t) practised.set(t.pattern_id, { id: r.id, status: t.status });
+  });
   return (
     <div className="space-y-4">
       {rows.length > 0 && (
@@ -58,7 +65,7 @@ async function Assessments() {
                       <Link href={`/candidate/assessments/${rows[i].id}`} className="text-accent underline">
                         {tasks[i]?.title ?? rows[i].id}
                       </Link>
-                      <span className="text-sm text-muted">{tasks[i]?.status ?? "unavailable"}</span>
+                      <span className="text-sm text-muted">{taskStatus(tasks[i])}</span>
                     </li>
                   ))}
                 </ul>
@@ -71,20 +78,34 @@ async function Assessments() {
         <h2 className="mb-1 font-semibold">Practice</h2>
         <p className="mb-3 text-sm text-muted">
           Your own variant of the task, as hard as everyone else&apos;s. The clock starts when you press Start,
-          you get one submission, and the result is added to your skill graph.
+          you get one submission, and the result is added to your skill graph. Each task can be practised once.
         </p>
         <ul className="space-y-3">
-          {patterns.map((p) => (
-            <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="font-medium">{p.title}</p>
-                <p className="text-sm text-muted">{p.skill} · {p.level} · {p.time_limit_minutes} minutes</p>
-              </div>
-              <StartPractice patternId={p.id} />
-            </li>
-          ))}
+          {patterns.map((p) => {
+            const mine = practised.get(p.id);
+            return (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium">{p.title}</p>
+                  <p className="text-sm text-muted">{p.skill} · {p.level} · {p.time_limit_minutes} minutes</p>
+                </div>
+                {mine ? (
+                  <Link href={`/candidate/assessments/${mine.id}`}
+                    className="rounded-md border border-accent px-4 py-2 font-medium text-accent">
+                    {PRACTISED[mine.status]}
+                  </Link>
+                ) : (
+                  <StartPractice patternId={p.id} />
+                )}
+              </li>
+            );
+          })}
         </ul>
       </Card>
     </div>
   );
 }
+
+const PRACTISED: Record<Task["status"], string> = {
+  issued: "Open", open: "Continue", submitted: "See result", expired: "Expired",
+};

@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -104,19 +104,35 @@ class Variant(Model):
 
 
 class SessionStatus(StrEnum):
+    ISSUED = "issued"                      # a job's task, sent and not begun: no clock, its text withheld
     OPEN = "open"
     SUBMITTED = "submitted"
     EXPIRED = "expired"
 
 
 class Session(Model):
+    """A task given to one candidate. A job's task is ISSUED with a start-by date and no
+    clock: the time limit runs from the candidate pressing Start, never from a recruiter
+    pressing Send, or a candidate who was offline would find it half gone. Practice
+    begins as it is issued."""
+
     session_id: str
     variant_id: str
     candidate_ref: str
     job_id: str | None = None
-    started_at: datetime.datetime
-    deadline: datetime.datetime
+    issued_at: datetime.datetime
+    start_by: datetime.datetime | None = None       # a job's task: not started by then, it has expired
+    started_at: datetime.datetime | None = None     # the clock; None until begun
+    deadline: datetime.datetime | None = None
     status: SessionStatus = SessionStatus.OPEN
+
+    @model_validator(mode="before")
+    @classmethod
+    def _issued_when_started(cls, data: Any) -> Any:
+        # Stored before issuing and starting were separate: every session began as issued.
+        if isinstance(data, dict) and "issued_at" not in data and data.get("started_at"):
+            return {**data, "issued_at": data["started_at"]}
+        return data
 
 
 # ── runs and results ───────────────────────────────────────────────────────

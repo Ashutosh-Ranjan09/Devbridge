@@ -110,7 +110,10 @@ export function SkillEditor({ jobId, skills, catalogue }: { jobId: string; skill
 /** Once tasks are sent the button goes: sending again returns the same tasks, so a
  * second click would only look like a second assessment. The form stays mounted so the
  * send's own message (which must-haves no task tests) survives the page refreshing. */
-export function SendAssessment({ jobId, applicationId, sent }: { jobId: string; applicationId: string; sent: boolean }) {
+export function SendAssessment({ jobId, applicationId, sent, startBy }: {
+  jobId: string; applicationId: string; sent: boolean;
+  startBy: { default: string; min: string; max: string }; // India's days, YYYY-MM-DD, from the server
+}) {
   const [state, action, pending] = useActionState(sendAssessment.bind(null, jobId, applicationId), undefined);
   return (
     <form action={action} className="space-y-2">
@@ -118,6 +121,17 @@ export function SendAssessment({ jobId, applicationId, sent }: { jobId: string; 
         !state?.message && <p className="text-sm text-muted">Sent. Sending again would return the same tasks.</p>
       ) : (
         <>
+          <label className="block max-w-xs">
+            <span className="mb-1 block text-sm font-medium">Start by</span>
+            <input type="date" name="startBy" defaultValue={state?.values?.startBy ?? startBy.default}
+              min={startBy.min} max={startBy.max} aria-invalid={state?.errors?.startBy ? true : undefined}
+              className="w-full rounded-md border border-line bg-background px-3 py-2 outline-none focus:border-accent" />
+            {state?.errors?.startBy?.map((e) => <span key={e} className="mt-1 block text-sm text-danger">{e}</span>)}
+          </label>
+          <p className="text-xs text-muted">
+            The candidate can press Start until the end of this day (IST). Each task&apos;s time limit runs from then,
+            the same for every candidate.
+          </p>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="model" defaultChecked />
             Fit each task&apos;s story to this job description (the model chooses only from each task&apos;s allowed values)

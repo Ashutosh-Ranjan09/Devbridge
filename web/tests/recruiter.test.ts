@@ -9,6 +9,7 @@ const { applyToJob, submitSolution } = await import("@/app/candidate/actions");
 const { db } = await import("@/lib/db");
 const { myApplication, myJob } = await import("@/lib/recruiter");
 const { createSession } = await import("@/lib/session");
+const { dayIn, endOfDay } = await import("@/lib/tasks");
 
 type Sent = { url: string; method: string; body: unknown };
 let sent: Sent[] = [];
@@ -152,8 +153,10 @@ describe("applicants", () => {
 
   it("an assessment is issued for the applicant's subject_ref and this job", async () => {
     modules({ "POST http://assess.test/v1/sessions": [200, { tasks: [{ session_id: "as_9" }], not_assessable: ["python"] }] });
-    const state = await sendAssessment("job_1", appId, undefined, form({}));
-    expect(sent[0].body).toEqual({ candidate_ref: "subject:aaaa", job_id: "job_1", model: false });
+    const state = await sendAssessment("job_1", appId, undefined, form({ startBy: dayIn(7) }));
+    expect(sent[0].body).toEqual({
+      candidate_ref: "subject:aaaa", job_id: "job_1", model: false, start_by: endOfDay(dayIn(7)).toISOString(),
+    });
     expect(state?.message).toMatch(/Not assessable.*python/);
     expect(await db.assessment.findUniqueOrThrow({ where: { id: "as_9" } })).toMatchObject({ applicationId: appId, candidateId: asha });
     expect((await db.application.findUniqueOrThrow({ where: { id: appId } })).status).toBe("ASSESSMENT_SENT");
@@ -162,9 +165,19 @@ describe("applicants", () => {
   it("sending twice keeps one row per task: assessment returns the same sessions", async () => {
     const issued = { tasks: [{ session_id: "as_9" }, { session_id: "as_10" }], not_assessable: [] };
     modules({ "POST http://assess.test/v1/sessions": [200, issued] });
-    await sendAssessment("job_1", appId, undefined, form({}));
-    await sendAssessment("job_1", appId, undefined, form({}));
+    await sendAssessment("job_1", appId, undefined, form({ startBy: dayIn(7) }));
+    await sendAssessment("job_1", appId, undefined, form({ startBy: dayIn(7) }));
     expect((await db.assessment.findMany({ orderBy: { id: "asc" } })).map((a) => a.id)).toEqual(["as_10", "as_9"]);
+  });
+
+  it("a start-by date that has passed, or is too far off, is refused before anything is sent", async () => {
+    modules({});
+    for (const [day, why] of [[dayIn(-1), /already passed/], [dayIn(90), /At most 60 days/], ["", /Pick a date/]] as const) {
+      const state = await sendAssessment("job_1", appId, undefined, form({ startBy: day, model: "on" }));
+      expect(state?.errors?.startBy?.join(" ")).toMatch(why);
+      expect(state?.values).toEqual({ startBy: day, model: "on" }); // the form comes back as typed
+    }
+    expect(sent).toEqual([]);
   });
 
   it("the candidate submitting moves the application on", async () => {

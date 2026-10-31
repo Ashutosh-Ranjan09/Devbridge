@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 
-import { startPractice, submitSolution, uploadCv } from "@/app/candidate/actions";
+import { beginTask, startPractice, submitSolution, uploadCv } from "@/app/candidate/actions";
 
 import { Button, Field } from "./ui";
 
@@ -52,6 +52,16 @@ export function Refresh({ seconds }: { seconds: number }) {
     return () => clearInterval(timer);
   }, [router, seconds]);
   return null;
+}
+
+export function BeginTask({ sessionId, minutes }: { sessionId: string; minutes: number }) {
+  const [state, action, pending] = useActionState(beginTask.bind(null, sessionId), undefined);
+  return (
+    <form action={action}>
+      <Button pending={pending}>Start ({minutes} minutes)</Button>
+      {state?.message && <p className="mt-1 text-sm text-danger">{state.message}</p>}
+    </form>
+  );
 }
 
 export function StartPractice({ patternId }: { patternId: string }) {

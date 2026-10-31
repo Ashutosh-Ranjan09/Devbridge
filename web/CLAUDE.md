@@ -50,6 +50,7 @@ src/lib/m5.ts           m5Rules() (M5's catalogue) · alsoChecked(): the CLI's "
 src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest admin mark on each
 src/lib/limits.ts       failed logins per email: lockedFor() · recordFailure() · clearFailures()
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
+src/lib/tasks.ts        a task's state in words (taskStatus) and its dates, in India's time (dayIn · endOfDay · when)
 src/app/(auth)/         login, signup, reset/[token] (an admin's one-time link), and their server actions
 src/app/account/        any role: who you are, and changing your password (other sessions end)
 src/app/candidate/      overview · cv (upload, report) · skills (profile, explain) ·
@@ -141,6 +142,8 @@ tests/                  Vitest: actions against a temporary database; service ca
 - `create-admin` shows the password as it is typed (it stays out of shell history).
 - A session is not rotated on use; it lasts seven days or until logout.
 - A running verification is polled every 4 s by re-rendering the page.
+- Dates are India's: a recruiter's start-by day ends at 23:59 IST, and dates show in IST,
+  wherever the server runs.
 - M5 without `CVV_DATABASE_URL` keeps reports in memory: after a restart, a report page
   says M5 does not know the verification.
 - Every session read calls `connection()`: Next 16 prefetches linked pages by

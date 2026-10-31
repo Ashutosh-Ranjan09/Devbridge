@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { form, jar, NotFound, redirectOf, resetDb } from "./next";
 
-const { startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
+const { beginTask, startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
 const { myVerification } = await import("@/lib/candidate");
 const { db } = await import("@/lib/db");
 const { createSession } = await import("@/lib/session");
@@ -183,6 +183,23 @@ describe("assessments", () => {
     });
     expect(await redirectOf(submitSolution("as_1", undefined, form({ code: "x = 1" })))).toBe("/candidate/assessments/as_1");
     expect((await db.assessment.findUniqueOrThrow({ where: { id: "as_1" } })).sentToM6At).toBeNull();
+  });
+
+  it("Start begins the candidate's own task, and a passed start-by date is said", async () => {
+    await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
+    modules({ "POST http://assess.test/v1/sessions/as_1/begin": [200, { session_id: "as_1", status: "open" }] });
+    expect(await redirectOf(beginTask("as_1"))).toBe("/candidate/assessments/as_1");
+    expect(sent.map((s) => `${s.method} ${s.url}`)).toEqual(["POST http://assess.test/v1/sessions/as_1/begin"]);
+    modules({ "POST http://assess.test/v1/sessions/as_1/begin": [409, { error: "refused", detail: "the start-by date passed" }] });
+    expect((await beginTask("as_1"))?.message).toMatch(/start-by date passed/);
+  });
+
+  it("nobody starts another candidate's task", async () => {
+    const ravi = await candidate("ravi@example.com", "subject:bbbb");
+    await db.assessment.create({ data: { id: "as_ravi", candidateId: ravi } });
+    modules({});
+    await expect(beginTask("as_ravi")).rejects.toBeInstanceOf(NotFound);
+    expect(sent).toEqual([]);
   });
 
   it("nobody submits to another candidate's session", async () => {
