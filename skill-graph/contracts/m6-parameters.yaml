@@ -2,7 +2,7 @@
 # Single source of truth for the scoring engine AND the sensitivity sweep.
 # Code reads `value`; the sweep reads `sweep`. Nothing here is fitted.
 # Decisions and reasoning: M6-DECISIONS.md
-contract_version: "1.0.0"
+contract_version: "1.1.0"
 
 space:
   # O2 — the filter runs on the logit of ability; display transforms back.
@@ -108,21 +108,21 @@ observed_value:
       sweep: [0.10, 0.30]
     ceiling:
       easy:
-        value: 0.65
-        sweep: [0.55, 0.75]
+        value: 0.80
+        sweep: [0.72, 0.86]
       medium:
-        value: 0.78
-        sweep: [0.70, 0.85]
+        value: 0.86
+        sweep: [0.80, 0.90]
       hard:
-        value: 0.88
-        sweep: [0.80, 0.93]
+        value: 0.92
+        sweep: [0.88, 0.95]
     rationale: >
-      observed = floor + (ceiling[level] - floor) x passed / total. Every test passed on
-      a medium task observes 0.78 — set a little above a Codeforces Specialist's 0.739
-      under the approximated table, because it is the skill itself, measured directly,
-      not a proxy for it. The measured table puts that Specialist at 0.834, so the
-      relation no longer holds; revisit with calibration data rather than by hand. Nothing
-      passed observes the floor, below the prior's 0.25: a task the candidate could not
+      observed = floor + (ceiling[level] - floor) x passed / total. Each ceiling sits just
+      above the most a Codeforces peak in the matching band observes under the measured
+      table (0.50 + 0.40 x ECDF): easy above a Pupil (1200-1399, at most 0.785), medium
+      above a Specialist (1400-1599, at most 0.853), hard above every rating (at most
+      0.90). A task fully passed is the skill itself, measured directly, not a proxy for
+      it, so it outranks a rating in the same band. Nothing passed observes the floor, below the prior's 0.25: a task the candidate could not
       do is evidence against the skill. Constants are documented priors for the sweep,
       not fitted; pass rates per pattern (assessment's calibration report) are the
       data to revisit them with.

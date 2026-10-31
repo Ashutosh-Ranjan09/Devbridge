@@ -235,9 +235,15 @@ M6 changes, as its own CLAUDE.md anticipated: `assessment_result` in the event s
 
 ```
 observed = floor + (ceiling[level] − floor) × passed / total
-floor 0.20 · ceiling: easy 0.65 · medium 0.78 · hard 0.88
+floor 0.20 · ceiling: easy 0.80 · medium 0.86 · hard 0.92   (parameters 1.1.0)
 strength 0.75 · reliability_base 0.85      (observed under a time limit; help not ruled out)
 ```
+
+Each ceiling sits just above the most a Codeforces peak in the matching band observes
+under M6's measured rating table: easy above a Pupil, medium above a Specialist, hard
+above any rating. They were 0.65 · 0.78 · 0.88, set against the approximated table, under
+which a 1495 peak observed 0.739; measured, it observes 0.834 and outranked a fully passed
+medium task.
 
 Only scored outcomes produce an event. `sandbox_unavailable` produces none.
 

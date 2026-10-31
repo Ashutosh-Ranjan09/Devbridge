@@ -192,10 +192,22 @@ def test_an_assessment_is_priced_by_level_and_share_passed():
     full = m.observed(event("assessment_result", level="medium", passed=6, total=6))
     none = m.observed(event("assessment_result", level="medium", passed=0, total=6))
     half = m.observed(event("assessment_result", level="medium", passed=3, total=6))
-    assert abs(full - 0.78) < 1e-9 and abs(none - 0.20) < 1e-9
-    assert abs(half - (0.20 + 0.58 / 2)) < 1e-9
+    assert abs(full - 0.86) < 1e-9 and abs(none - 0.20) < 1e-9
+    assert abs(half - (0.20 + 0.66 / 2)) < 1e-9
     hard = m.observed(event("assessment_result", level="hard", passed=6, total=6))
     assert hard > full, "a harder task fully passed is stronger evidence"
+
+
+def test_a_fully_passed_task_beats_a_rating_in_its_band():
+    """The skill measured directly outranks the proxy: easy above any Pupil peak
+    (1200-1399), medium above any Specialist (1400-1599), hard above every rating.
+    Pins the relation, so a new rating table or ceiling cannot quietly reverse it."""
+    m = model()
+    rating = lambda r: m.observed(event("platform_rating", max_rating=r))
+    task = lambda level: m.observed(event("assessment_result", level=level, passed=5, total=5))
+    assert task("easy") > rating(1399)
+    assert task("medium") > rating(1599)
+    assert task("hard") > rating(4000)
 
 
 def test_an_assessment_without_its_facts_is_refused_not_guessed():

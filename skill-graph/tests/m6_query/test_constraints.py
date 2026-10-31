@@ -124,4 +124,4 @@ def test_explain_always_reports_what_was_excluded():
 def test_every_score_carries_the_parameter_version_that_produced_it():
     """A number without the parameters behind it cannot be reproduced or
     disputed."""
-    assert service().explain(SUBJECT, "typescript", AS_OF)["parameter_version"] == "1.0.0"
+    assert service().explain(SUBJECT, "typescript", AS_OF)["parameter_version"] == "1.1.0"

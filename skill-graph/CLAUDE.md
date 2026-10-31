@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 594 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 595 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "594 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "595 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -90,7 +90,7 @@ observed value   per kind from m6-parameters.yaml observed_value   # display spa
                  claim_corroborated 0.68; artifact_live 0.58; credential 0.70;
                  cv_claim by proficiency 0.30/0.45/0.60/0.75; claim_contradicted 0.15;
                  assessment_result = 0.20 + (ceiling[level] − 0.20)·passed/total,
-                   ceilings easy 0.65 · medium 0.78 · hard 0.88
+                   ceilings easy 0.80 · medium 0.86 · hard 0.92
 obs variance     σ²obs = S0 / (reliability × relevance × strength),  S0 = 0.10
 update           k = σ²/(σ²+σ²obs);  μ += k(logit(obs) − μ);  σ² ×= (1 − k)
 decay (Δt days)  σ² += λ_tier·Δt;   μ += (μ0 − μ)(1 − e^(−Δt·λ/k_h)),  k_h = 0.35
@@ -169,9 +169,10 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   peak rating): a 1495 peak is the 84th percentile and observes 0.834, not the approximated 0.739.
   The published trace, the decisions page and the guide PDF used the approximation; it is frozen
   in `contracts/reference/reference-distributions-approximated.yaml`, and the tests that
-  reproduce those numbers run under `published_trace()`. So a Specialist now observes above a
-  fully passed medium assessment (0.78): `assessment_result`'s ceilings were set against 0.739
-  and are a decision to revisit, not retuned here.
+  reproduce those numbers run under `published_trace()`. `assessment_result`'s ceilings were
+  then raised (parameters 1.1.0) so a fully passed task beats a rating in the matching band:
+  easy 0.80 above a Pupil (≤ 0.785), medium 0.86 above a Specialist (≤ 0.853), hard 0.92
+  above any rating (≤ 0.90).
 - **A report's `skill_resolution` is read first.** M5 maps every skill name to an id from
   the shared list, or none (rules, cache, then a closed-choice model call). 6.0 uses that,
   and its own `normalise_skill` — spelling variants checked against `knows()` — only for a
