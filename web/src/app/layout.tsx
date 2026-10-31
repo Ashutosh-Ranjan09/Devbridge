@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { logout } from "@/app/(auth)/actions";
+import { SessionWatch } from "@/components/session-watch";
 import { currentUser, HOME } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -35,10 +36,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 async function Account() {
   const user = await currentUser();
   if (!user) {
-    return <Link href="/login" className="text-sm text-accent underline">Log in</Link>;
+    return (
+      <>
+        <SessionWatch userId={null} />
+        <Link href="/login" className="text-sm text-accent underline">Log in</Link>
+      </>
+    );
   }
   return (
     <div className="flex items-center gap-4 text-sm">
+      <SessionWatch userId={user.id} />
       <Link href={HOME[user.role]}>{user.name}</Link>
       <span className="text-muted">{user.role.toLowerCase()}</span>
       <Link href="/account" className="text-accent underline">Account</Link>

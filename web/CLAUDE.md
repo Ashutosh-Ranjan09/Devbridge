@@ -64,6 +64,7 @@ src/app/error.tsx       an unexpected failure: a retry button and the server log
 src/components/         ui · report (M5's buckets, in M5's order) · interval · markdown · musts
                         (an applicant's must-haves, as M6's shortlist answered) · action-button ·
                         candidate, recruiter, admin (the client components: forms, refresh, countdown, editor)
+                        · session-watch (a login or logout in another tab reloads this one: one browser, one cookie)
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
