@@ -12,7 +12,7 @@ and says explicitly what it could not check. A person decides what any of it mea
 
 **31 of the 43 catalogued checks are built — every one in scope — and the pipeline
 runs end to end** on `docs/CV-SDE-AR.pdf`: 30 registered rules plus the narrative
-(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 622 tests, ~11,400 lines across 33
+(C5), in ~20s on `qwen3:1.7b` or ~75s on Claude. 630 tests, ~11,400 lines across 33
 modules, ruff and `mypy --strict` clean.
 
 The other twelve are not pending. **C1–C4 are out of scope** for this project — a
@@ -32,6 +32,7 @@ cvv.pipeline.verify(path)  ->  ClaimGraph, EvidenceBundle, FindingsReport
 
 cvv verify cv.pdf [--brief] [--worksheet] [--json] [--offline] [--save DIR] [--subject REF]
 cvv evaluate cv.pdf [--baseline DIR] [--save-baseline DIR]
+cvv gold [DIR]                     # extraction vs hand-labelled claims: P/R/F1 per kind
 cvv serve [--host] [--port]        # the HTTP surface, docs at /docs
 cvv rules | inspect | config | aliases [--promote NAME]
 ```
@@ -329,8 +330,9 @@ URLs, and when it does the fix is the scraper, not the report.
 turn "the dependency is installed" into "the dependency is used for the thing
 claimed", and is deliberately deferred: it opens a prompt-injection surface whose
 contents the candidate chooses, for a gain the manifest check already approximates.
-Beyond that the gap is measurement — every number above comes from one real CV, there
-is no gold set, and extraction accuracy is unmeasured.
+Beyond that the gap is measurement — every number above comes from one real CV, and
+extraction accuracy rests on a gold set of ONE: the harness exists (`cvv gold`), and the synthetic CV is its only labelled document, on which extraction scored 20/20 claims and every field (Claude, 31 Oct). Labelling real CVs (kept under `out/`, ignored
+by git, since a gold file quotes the person) is what turns it into a measurement.
 
 Read [`docs/plan.md`](docs/plan.md) for the phases and the full check catalogue.
 

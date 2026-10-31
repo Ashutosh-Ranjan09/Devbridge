@@ -55,6 +55,7 @@ uv run cvv verify cv.pdf --worksheet    # what a human still has to do
 uv run cvv verify cv.pdf --json         # the findings, as JSON
 uv run cvv verify cv.pdf --save out/    # every stage, and the report M6 reads
 uv run cvv evaluate cv.pdf              # corrupt one fact and see what notices
+uv run cvv gold                         # extraction against hand-labelled claims (data/gold/)
 uv run cvv rules                        # the live check catalogue
 uv run cvv aliases                      # what the model decided skill names mean
 uv run cvv inspect cv.pdf               # read a document without calling a model
@@ -258,7 +259,7 @@ guardrails in their working form.
 ## Development
 
 ```bash
-uv run pytest                                   # 622 tests, no server needed
+uv run pytest                                   # 630 tests, no server needed
 CVV_DATABASE_URL=postgresql:///cvv uv run pytest   # + the Postgres half
 uv run pytest -m live                           # needs Ollama and the network
 uv run ruff check . && uv run mypy
@@ -281,7 +282,9 @@ Every phase is complete for what is reachable. What remains is honest to state:
   format that silently disabled every employment check and a decisive finding fired on
   a thirteen-day notice period. More CVs is still the highest-value thing this project
   could be given.
-- **No gold set.** Extraction *accuracy* is unmeasured; only rule detection is.
+- **A gold set of one.** `cvv gold` scores extraction against hand-labelled claims
+  (precision, recall, F1 per kind, and each field); only the synthetic CV is labelled. Real
+  CVs' gold files quote the person, so they belong under `out/`.
 - **`qwen3:1.7b` is a small model.** Several failures documented in `CLAUDE.md` are
   its limits, not the design's. The Claude backend is the larger model; its runs are
   not seeded, so they are not reproducible run to run.

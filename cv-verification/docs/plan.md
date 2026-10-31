@@ -31,7 +31,8 @@ persistence are built too (`cvv serve`, `CVV_DATABASE_URL`).
 Every check in scope is built — 31 of the 43. C1-C4 are out of scope for this project;
 W2 and H1-H6 are human by design; G12 is EXCLUDED — see `CLAUDE.md`, which carries the
 current table. P5 reads CodeChef's public profile page, since no API exists. What phase
-5 still lacks is the gold set, so extraction accuracy is unmeasured.
+5 still lacks is labelled documents: the gold harness (`cvv gold`) exists, with only the
+synthetic CV labelled.
 
 ### Phase 0 — contracts
 
@@ -307,7 +308,8 @@ Wire the counter when the component lands, not in phase 5.
 
 Two instruments. A **gold set** of hand-labelled CVs measures extraction precision,
 recall and F1 per claim kind — ~100 in the original plan, 10–20 as the realistic
-target for this project, and not yet built. A **mutation engine** (`cvv evaluate`,
+target for this project. The harness is built (`cvv gold`); one document, the synthetic
+CV, is labelled. A **mutation engine** (`cvv evaluate`,
 built) injects known falsifications into clean CVs and measures per-check detection.
 
 Headline metrics: extraction recall per kind · handle-extraction recall · span-grounding

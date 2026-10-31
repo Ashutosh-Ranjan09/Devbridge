@@ -37,7 +37,7 @@ because the reasoning is worth more than the conclusion.
 | | |
 |---|---|
 | source | 33 modules, 11,468 lines |
-| tests | 23 files, **622 passing** (632 with Postgres, 5 live) |
+| tests | 23 files, **630 passing** (640 with Postgres, 5 live) |
 | quality | `ruff` clean · `mypy --strict` clean across all 33 files |
 | model backends | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | reference data | 4 curated JSON tables |
@@ -1144,9 +1144,11 @@ draft is what should be regenerated.
 
 ### Not built, and honest about it
 
-- **No gold set.** Phase 5 specifies *two* instruments: a mutation engine (built) and a
-  gold set of hand-labelled CVs measuring extraction precision/recall/F1 per claim kind
-  (not built). **Extraction accuracy is unmeasured**; only rule detection is.
+- **A gold set of one.** Phase 5 specifies *two* instruments: a mutation engine (built)
+  and a gold set of hand-labelled CVs measuring extraction precision/recall/F1 per claim
+  kind. The harness is built (`cvv gold`, `gold.py`); only the synthetic CV is labelled
+  (20/20 claims and every field, Claude, 31 Oct), so extraction accuracy on real CVs is
+  still unmeasured.
 - **Three documents is a small corpus**, and one is synthetic. Each new document has
   found a real bug within minutes.
 - **`qwen3:1.7b` is a small model.** Several documented failures are its limits rather

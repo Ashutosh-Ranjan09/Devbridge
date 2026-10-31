@@ -206,6 +206,41 @@ def evaluate(
 
 
 @app.command()
+def gold(
+    directory: Annotated[
+        Path | None,
+        typer.Argument(help="Gold files (*.json). Default data/gold/; keep real CVs' under out/."),
+    ] = None,
+    model: Annotated[str | None, typer.Option(help="Ollama model id.")] = None,
+) -> None:
+    """Score extraction against hand-labelled claims: precision, recall and F1 per kind.
+
+    `evaluate` measures the rules on claims extraction already returned; this measures
+    extraction itself, against what a person found in the CV.
+    """
+    from cvv.gold import GOLD_DIR, GoldError, load, render, score
+
+    folder = directory or GOLD_DIR
+    files = sorted(folder.glob("*.json"))
+    if not files:
+        typer.secho(f"no gold files in {folder}", fg="red", err=True)
+        raise typer.Exit(2)
+    root = Path(__file__).resolve().parents[2]
+    results = []
+    for f in files:
+        doc_path = root / json.loads(f.read_text())["document"]
+        document = read(doc_path)
+        try:
+            labelled = load(f, document.text)
+        except GoldError as exc:
+            typer.secho(str(exc), fg="red", err=True)
+            raise typer.Exit(2) from exc
+        graph, _ = extract(document, provider=default_provider(model))
+        results.append(score(graph, labelled, doc_path.name))
+    typer.echo(render(results))
+
+
+@app.command()
 def aliases(
     promote: Annotated[
         list[str] | None,

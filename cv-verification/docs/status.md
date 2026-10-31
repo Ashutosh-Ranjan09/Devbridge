@@ -13,14 +13,14 @@
 | | Today | Notes |
 |---|---|---|
 | **Checks** | **31 / 31 in scope** | 30 rules + the narrative (C5). 43 catalogued − G12 excluded − C1–C4 out of scope − W2, H1–H6 human. D13 and D14 added 29 Oct: hidden text, extraction coverage |
-| **Tests** | **622** passing · 632 with Postgres | 0 failing; 5 live tests deselected by default |
+| **Tests** | **630** passing · 640 with Postgres | 0 failing; 5 live tests deselected by default |
 | **Gates** | ruff ✅ · `mypy --strict` ✅ | 33 source files |
-| **Size** | 33 modules · 11,468 lines · 23 test files · 6,577 test lines | |
+| **Size** | 34 modules · 11,468 lines · 23 test files · 6,577 test lines | |
 | **Model backends** | 2 | Ollama (`qwen3:1.7b`, default) · Claude via the local Claude Code wrapper |
 | **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 11 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 94, since 4 Sep | **no remote** |
+| **Commits** | 95, since 4 Sep | **no remote** |
 
 ---
 
@@ -42,7 +42,7 @@
 ```
 ruff check src tests                  PASS
 mypy --strict                         33 files, no issues
-pytest                                622 passed · 10 skipped (Postgres-only) · 0 failed
+pytest                                630 passed · 10 skipped (Postgres-only) · 0 failed
 cvv evaluate docs/CV-SDE-AR.pdf       18/18 detection · 0 collateral
 ```
 
@@ -113,9 +113,9 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 94 commits, now all three modules and the web layer, exist on one laptop |
+| 1 | **No git remote** | 🔴 high | 95 commits, now all three modules and the web layer, exist on one laptop |
 | 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
-| 3 | **Extraction accuracy unmeasured** | 🟠 medium | no gold set |
+| 3 | **Extraction accuracy barely measured** | 🟠 medium | `cvv gold` exists; one labelled document, and it is the synthetic one |
 | 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |
 | 5 | **Scraper drift** | 🟡 low | a CodeChef redesign turns P5 into a gap, never a false finding; the fix is the scraper |
 
@@ -131,7 +131,7 @@ is ever made public.
 | 1 | Private git remote | 10 min | removes the largest risk |
 | 2 | Re-run the two September documents | 15 min | a measurement table from one version of the system |
 | 3 | Decide the contract (§ Decisions 1) | a conversation | retires the extension list |
-| 4 | **Gold set** — 10–20 hand-labelled CVs | days | extraction metrics for the thesis |
+| 4 | **Gold set** — label 10–20 CVs for `cvv gold` (the harness is built) | days | extraction metrics for the thesis |
 | 5 | Honest-variation tests in `cvv evaluate` | a day | the seven fairness bugs were invisible to a harness that only corrupts |
 
 Known and left alone for a college project: SSRF on the probe, `document_url` and
