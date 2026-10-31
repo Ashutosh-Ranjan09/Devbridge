@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import sqlite3
 
 import pytest
@@ -11,7 +12,16 @@ from assess import sessions
 from assess.models import Outcome, SandboxInfo, Session, SessionStatus
 from assess.patterns import load
 from assess.sandbox import Run
-from assess.sessions import SessionError, begin, current, start, submit
+from assess.sessions import (
+    NotPythonError,
+    SessionError,
+    begin,
+    current,
+    finish,
+    run_examples,
+    start,
+    submit,
+)
 from assess.store import Store
 from tests.test_sandbox import rows
 
@@ -27,8 +37,8 @@ def store(tmp_path) -> Store:
 @pytest.fixture
 def sandbox(monkeypatch: pytest.MonkeyPatch):
     """A stand-in sandbox: no Docker, and the outcome a test chooses."""
-    state = {"run": Run(Outcome.PASSED, rows(), INFO)}
-    monkeypatch.setattr(sessions, "run_candidate", lambda pattern, params, source: state["run"])
+    state = {"run": Run(Outcome.PASSED, rows(), INFO), "examples": Run(Outcome.PASSED, [], INFO)}
+    monkeypatch.setattr(sessions, "run_candidate", lambda pattern, params, source, suite="hidden": state["examples" if suite == "visible" else "run"])
     return state
 
 
@@ -129,11 +139,76 @@ class TestSubmitting:
         assert store.submission(s.session_id) == "print('mine')"
         assert store.session(s.session_id).status is SessionStatus.SUBMITTED
 
-    def test_one_submission_per_session(self, store, sandbox) -> None:
+    def test_three_attempts_the_last_counts_and_a_fourth_is_refused(self, store, sandbox) -> None:
+        sandbox["run"] = Run(Outcome.TESTS_FAILED, rows({"exact_boundary"}), INFO)
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        for n in (1, 2):
+            assert submit(store, s.session_id, f"x = {n}", now=T).attempt == n
+            assert store.result(s.session_id) is None, "not final while attempts are left"
+        sandbox["run"] = Run(Outcome.TESTS_FAILED, rows({"exact_boundary", "window_slides"}), INFO)
+        third = submit(store, s.session_id, "x = 3", now=T)
+        assert store.result(s.session_id) == third and third.score.passed == 4, "the last counts, worse or not"
+        assert store.submission(s.session_id) == "x = 3"
+        assert [r.attempt for r, _ in store.attempts(s.session_id)] == [1, 2, 3]
+        with pytest.raises(SessionError, match="final"):
+            submit(store, s.session_id, "x = 4", now=T)
+
+    def test_an_attempt_passing_every_test_is_final_at_once(self, store, sandbox) -> None:
         s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
         submit(store, s.session_id, "x", now=T)
-        with pytest.raises(SessionError, match="one submission"):
-            submit(store, s.session_id, "x", now=T)
+        assert store.session(s.session_id).status is SessionStatus.SUBMITTED
+
+    def test_code_that_does_not_parse_is_refused_and_costs_nothing(self, store, sandbox) -> None:
+        """The cut-off paste: refused with its line, before the sandbox; no attempt used."""
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        with pytest.raises(NotPythonError, match="line 2"):
+            submit(store, s.session_id, 'x = 1\ny = {"wind\n', now=T)
+        with pytest.raises(NotPythonError):
+            run_examples(store, s.session_id, "def f(:\n", now=T)
+        assert store.attempts(s.session_id) == [] and store.session(s.session_id).status is SessionStatus.OPEN
+
+    def test_finish_counts_the_last_attempt_and_needs_one(self, store, sandbox) -> None:
+        sandbox["run"] = Run(Outcome.TESTS_FAILED, rows({"exact_boundary"}), INFO)
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        with pytest.raises(SessionError, match="nothing submitted"):
+            finish(store, s.session_id, now=T)
+        first = submit(store, s.session_id, "x", now=T)
+        assert finish(store, s.session_id, now=T) == first == store.result(s.session_id)
+        assert finish(store, s.session_id, now=T) == first, "finishing again changes nothing"
+
+    def test_the_deadline_counts_the_last_attempt_or_expires_a_task_with_none(self, store, sandbox) -> None:
+        sandbox["run"] = Run(Outcome.TESTS_FAILED, rows({"exact_boundary"}), INFO)
+        a, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        b, _ = start(store, "rate_limiter", "subject:ravi", seed=2, now=T)
+        tried = submit(store, a.session_id, "x", now=T)
+        late = T + datetime.timedelta(hours=2)
+        assert current(store, a.session_id, now=late).status is SessionStatus.SUBMITTED
+        assert store.result(a.session_id) == tried
+        assert current(store, b.session_id, now=late).status is SessionStatus.EXPIRED
+
+    def test_run_tries_the_examples_and_stores_nothing(self, store, sandbox) -> None:
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        for _ in range(5):
+            assert run_examples(store, s.session_id, "x = 1", now=T).outcome is Outcome.PASSED
+        assert store.attempts(s.session_id) == [] and store.result(s.session_id) is None
+
+    def test_run_is_refused_once_the_result_is_final(self, store, sandbox) -> None:
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        submit(store, s.session_id, "x", now=T)                 # passes every test: final
+        with pytest.raises(SessionError, match="only while it is open"):
+            run_examples(store, s.session_id, "x", now=T)
+
+    def test_a_result_stored_before_attempts_existed_becomes_attempt_one(self, store, tmp_path, sandbox) -> None:
+        s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)
+        doc = submit(store, s.session_id, "x", now=T).model_dump(mode="json")
+        doc.pop("attempt")                                      # the old shape had no attempt
+        older = Store(tmp_path / "older.db")                    # rows as the old code wrote them
+        with older.tx() as db:
+            db.execute("INSERT INTO submissions VALUES (?, ?)", ("as_old", "print(1)"))
+            db.execute("INSERT INTO results VALUES (?, ?, ?, ?)", ("as_old", "rate_limiter", 1, json.dumps(doc)))
+        reopened = Store(tmp_path / "older.db")
+        [(attempt, source)] = reopened.attempts("as_old")
+        assert attempt.attempt == 1 and source == "print(1)"
 
     def test_late_is_refused_not_scored(self, store, sandbox) -> None:
         s, _ = start(store, "rate_limiter", "subject:asha", seed=1, now=T)

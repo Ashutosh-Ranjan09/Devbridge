@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 
-import { beginTask, startPractice, submitSolution, uploadCv } from "@/app/candidate/actions";
+import { beginTask, finishTask, runExamples, startPractice, submitSolution, uploadCv } from "@/app/candidate/actions";
 
 import { Button, Field } from "./ui";
 
@@ -92,9 +92,15 @@ export function Countdown({ deadline }: { deadline: string }) {
 }
 
 /** The code editor: a textarea that keeps an unsent draft in this browser, so a refresh
- * does not lose work. Tab indents instead of leaving the field. */
-export function Editor({ sessionId, starter }: { sessionId: string; starter: string }) {
+ * does not lose work, and brings it back after either action (React resets a form once
+ * its action has run). Tab indents instead of leaving the field. Run tries the visible
+ * examples, as often as wanted, never scored; Submit runs the hidden tests, one attempt
+ * of `maxAttempts`. */
+export function Editor({ sessionId, starter, attempt, maxAttempts }: {
+  sessionId: string; starter: string; attempt: number; maxAttempts: number; // `attempt`: the next one
+}) {
   const [state, action, pending] = useActionState(submitSolution.bind(null, sessionId), undefined);
+  const [run, runAction, running] = useActionState(runExamples.bind(null, sessionId), undefined);
   const area = useRef<HTMLTextAreaElement>(null);
   const key = `draft:${sessionId}`;
 
@@ -103,7 +109,7 @@ export function Editor({ sessionId, starter }: { sessionId: string; starter: str
       const draft = localStorage.getItem(key);
       if (draft && area.current) area.current.value = draft;
     } catch {}
-  }, [key]);
+  }, [key, state, run]);
 
   function save() {
     try {
@@ -119,19 +125,64 @@ export function Editor({ sessionId, starter }: { sessionId: string; starter: str
     save();
   }
 
+  const examples = run?.examples;
   return (
     <form action={action} className="space-y-3">
       <textarea
-        ref={area} name="code" defaultValue={state?.values?.code ?? starter} onInput={save} onKeyDown={tab}
-        spellCheck={false} autoCapitalize="off" autoComplete="off" rows={24}
+        ref={area} name="code" defaultValue={run?.values?.code ?? state?.values?.code ?? starter}
+        onInput={save} onKeyDown={tab} spellCheck={false} autoCapitalize="off" autoComplete="off" rows={24}
         className="w-full rounded-md border border-line bg-background p-3 font-mono text-sm"
       />
-      {state?.errors?.code?.map((e) => <p key={e} className="text-sm text-danger">{e}</p>)}
+      {[...(state?.errors?.code ?? []), ...(run?.errors?.code ?? [])].map((e) => <p key={e} className="text-sm text-danger">{e}</p>)}
       {state?.message && <p className="text-sm text-danger">{state.message}</p>}
-      <div className="flex items-center gap-3">
-        <Button pending={pending}>Submit</Button>
-        <span className="text-sm text-muted">One submission. It runs against hidden tests in a sandbox.</span>
+      {run?.message && <p className="text-sm text-danger">{run.message}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" formAction={runAction} disabled={running || pending}
+          className="rounded-md border border-accent px-4 py-2 font-medium text-accent disabled:opacity-60">
+          {running ? "Running…" : "Run examples"}
+        </button>
+        <Button pending={pending}>Submit (attempt {attempt} of {maxAttempts})</Button>
       </div>
+      <p className="text-xs text-muted">
+        Run tries the visible examples as often as you like; it is not scored and uses no attempt. Submit runs the
+        hidden tests. Your last attempt counts.
+      </p>
+      {examples && (
+        <div className="rounded-md border border-line p-3 text-sm">
+          <p className="font-medium">
+            Examples: {examples.examples.filter((x) => x.passed).length} of {examples.examples.length} passed{" "}
+            <span className="font-normal text-muted">(not scored)</span>
+          </p>
+          {examples.note && <p className="mt-1 font-mono text-xs">{examples.note}</p>}
+          <ul className="mt-2 space-y-1">
+            {examples.examples.map((x) => (
+              <li key={x.name}>
+                <span className={x.passed ? "text-ok" : "text-danger"}>{x.passed ? "✓" : "✗"}</span>{" "}
+                <code>{x.name.replace(/^example_/, "").replaceAll("_", " ")}</code>
+                {x.detail && <span className="block pl-5 font-mono text-xs text-muted">{x.detail}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </form>
+  );
+}
+
+/** Count the last attempt now. It cannot be undone, so the browser asks first. */
+export function FinishTask({ sessionId, attempt }: { sessionId: string; attempt: number }) {
+  const [state, action, pending] = useActionState(finishTask.bind(null, sessionId), undefined);
+  return (
+    <form action={action} className="space-y-1">
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending}
+          onClick={(e) => { if (!confirm(`Finish now? Attempt ${attempt} becomes your result.`)) e.preventDefault(); }}
+          className="rounded-md border border-line px-4 py-2 font-medium disabled:opacity-60">
+          {pending ? "Working…" : "Finish now"}
+        </button>
+        <span className="text-sm text-muted">Attempt {attempt} becomes your result, and no more can be made.</span>
+      </div>
+      {state?.message && <p className="text-sm text-danger">{state.message}</p>}
     </form>
   );
 }

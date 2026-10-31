@@ -18,7 +18,8 @@ from assess.config import settings
 from assess.models import Pattern, Scalar
 from assess.skills import skill_list
 
-FILES = ("pattern.yaml", "starter.py", "requirements.md", "story.md", "tests_hidden.py", "reference.py")
+FILES = ("pattern.yaml", "starter.py", "requirements.md", "story.md", "tests_hidden.py", "tests_visible.py",
+         "reference.py")
 
 
 class PatternError(ValueError):
@@ -39,13 +40,15 @@ def load(pattern_id: str, root: Path | None = None) -> Pattern:
         raise PatternError(f"{pattern_id}: pattern.yaml says id {pattern.id!r}")
     if not skill_list().knows(pattern.skill):
         raise PatternError(f"{pattern_id}: skill {pattern.skill!r} is not on the shared skill list")
-    defined = set(re.findall(r"^def test_(\w+)\(", (directory / "tests_hidden.py").read_text(), re.M))
-    declared = {*pattern.tests.core, *pattern.tests.twist}
-    if defined != declared:
-        raise PatternError(
-            f"{pattern_id}: pattern.yaml declares {sorted(declared)} but tests_hidden.py "
-            f"defines {sorted(defined)}"
-        )
+    for file, declared in (("tests_hidden.py", {*pattern.tests.core, *pattern.tests.twist}),
+                           ("tests_visible.py", set(pattern.tests.visible))):
+        defined = set(re.findall(r"^def test_(\w+)\(", (directory / file).read_text(), re.M))
+        if defined != declared:
+            raise PatternError(
+                f"{pattern_id}: pattern.yaml declares {sorted(declared)} but {file} defines {sorted(defined)}"
+            )
+    if not pattern.tests.visible:
+        raise PatternError(f"{pattern_id}: no visible examples — the candidate's Run button would test nothing")
     if not list((directory / "mutants").glob("*.py")):
         raise PatternError(f"{pattern_id}: no mutants — nothing shows the tests reject a wrong answer")
     return pattern

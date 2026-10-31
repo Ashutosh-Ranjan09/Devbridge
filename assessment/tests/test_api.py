@@ -11,7 +11,7 @@ import jsonschema
 import pytest
 from fastapi.testclient import TestClient
 
-from assess import api, sessions
+from assess import api, junit, sessions
 from assess.config import REPO
 from assess.models import Outcome
 from assess.sandbox import Run
@@ -40,8 +40,12 @@ def client(tmp_path) -> Iterator[TestClient]:
 @pytest.fixture
 def sandbox(monkeypatch: pytest.MonkeyPatch) -> dict[str, Run]:
     """No Docker: the outcome a test chooses (as in test_sessions)."""
-    state = {"run": Run(Outcome.TESTS_FAILED, rows({"exact_boundary"}), INFO)}
-    monkeypatch.setattr(sessions, "run_candidate", lambda pattern, params, source: state["run"])
+    state = {"run": Run(Outcome.TESTS_FAILED, rows({"exact_boundary"}), INFO),
+             "examples": Run(Outcome.TESTS_FAILED, [
+                 junit.CaseResult("example_within_the_limit", "c", True, None),
+                 junit.CaseResult("example_over_the_limit", "c", False,
+                                  "AssertionError: request 11 inside the window: got 200, expected 429")], INFO)}
+    monkeypatch.setattr(sessions, "run_candidate", lambda pattern, params, source, suite="hidden": state["examples" if suite == "visible" else "run"])
     return state
 
 
@@ -169,23 +173,48 @@ class TestSubmitting:
         session_id = task(client)
         r = client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = 1"}, headers=KEY)
         assert r.status_code == 200
+        assert (r.json()["attempt"], r.json()["final"], r.json()["attempts_left"]) == (1, False, 2)
         failed = [t for t in r.json()["tests"] if not t["passed"]]
         assert [t["name"] for t in failed] == ["exact_boundary"]
         assert "detail" not in failed[0] and "broke" not in r.text   # the detail is "exact_boundary broke"
-        full = client.get(f"/v1/sessions/{session_id}/result?view=full", headers=KEY).json()
+        mine = client.get(f"/v1/sessions/{session_id}/attempts", headers=KEY).json()
+        assert "broke" not in json.dumps(mine) and mine["counted"] is None
+        full = client.get(f"/v1/sessions/{session_id}/attempts?view=full", headers=KEY).json()
         assert "exact_boundary broke" in json.dumps(full)
 
-    def test_the_default_result_is_the_candidate_view(self, client, sandbox) -> None:
+    def test_the_result_waits_for_the_session_to_be_final(self, client, sandbox) -> None:
         session_id = task(client)
         client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = 1"}, headers=KEY)
+        assert client.get(f"/v1/sessions/{session_id}/result", headers=KEY).status_code == 404
+        assert client.get(f"/v1/sessions/{session_id}/events", headers=KEY).status_code == 404
+        assert client.post(f"/v1/sessions/{session_id}/finish", headers=KEY).status_code == 200
         r = client.get(f"/v1/sessions/{session_id}/result", headers=KEY).json()
-        assert set(r) == set(api.CandidateResult.model_fields)
+        assert set(r) == set(api.CandidateResult.model_fields) and r["attempt"] == 1
+        assert client.get(f"/v1/sessions/{session_id}/attempts", headers=KEY).json()["counted"] == 1
 
-    def test_one_submission_per_session(self, client, sandbox) -> None:
+    def test_three_attempts_then_final(self, client, sandbox) -> None:
         session_id = task(client)
-        client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = 1"}, headers=KEY)
-        r = client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = 2"}, headers=KEY)
+        answers = [client.post(f"/v1/sessions/{session_id}/submit", json={"code": f"x = {n}"}, headers=KEY).json()
+                   for n in (1, 2, 3)]
+        assert [(a["attempt"], a["final"], a["attempts_left"]) for a in answers] == [(1, False, 2), (2, False, 1), (3, True, 0)]
+        r = client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = 4"}, headers=KEY)
         assert r.status_code == 409
+        assert client.get(f"/v1/sessions/{session_id}", headers=KEY).json()["attempts_used"] == 3
+
+    def test_code_that_does_not_parse_is_422_and_uses_no_attempt(self, client, sandbox) -> None:
+        session_id = task(client)
+        r = client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = (\n"}, headers=KEY)
+        assert r.status_code == 422 and r.json()["error"] == "syntax_error" and "line" in r.json()["detail"]
+        assert client.get(f"/v1/sessions/{session_id}", headers=KEY).json()["attempts_used"] == 0
+
+    def test_run_shows_each_example_with_what_it_expected(self, client, sandbox) -> None:
+        session_id = task(client)
+        r = client.post(f"/v1/sessions/{session_id}/run", json={"code": "x = 1"}, headers=KEY).json()
+        got = {e["name"]: (e["passed"], e["detail"]) for e in r["examples"]}
+        assert got["example_within_the_limit"] == (True, None)
+        assert got["example_over_the_limit"] == (False, "request 11 inside the window: got 200, expected 429")
+        assert got["example_twist"][0] is False, "an example that did not run is shown, not dropped"
+        assert client.get(f"/v1/sessions/{session_id}", headers=KEY).json()["attempts_used"] == 0
 
     def test_an_unrunnable_submission_is_not_a_score(self, client, sandbox) -> None:
         """Guardrail 4 over HTTP: 503, the session stays open, no result, no evidence."""
@@ -199,6 +228,7 @@ class TestSubmitting:
     def test_events_are_a_valid_batch_for_m6(self, client, sandbox) -> None:
         session_id = task(client)
         client.post(f"/v1/sessions/{session_id}/submit", json={"code": "x = 1"}, headers=KEY)
+        client.post(f"/v1/sessions/{session_id}/finish", headers=KEY)
         doc = client.get(f"/v1/sessions/{session_id}/events", headers=KEY).json()
         schema = json.loads((REPO / "schemas" / "evidence-event.schema.json").read_text())
         jsonschema.validate(doc, schema)

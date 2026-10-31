@@ -89,9 +89,10 @@ tests/                  Vitest: actions against a temporary database; service ca
    person wrote here is theirs to keep here — a decision's reason, an admin's mark, the
    note a candidate types beside a CV (`Verification.note`: shown beside the report as
    their own unchecked words, never sent to a module or a model).
-7. **A candidate sees the candidate view.** `view=full` on an assessment result
-   (failure details, which quote the hidden tests) is for the recruiters of that job
-   and admins only.
+7. **A candidate sees the candidate view.** `view=full` on an assessment's attempts or
+   result (failure details, which quote the hidden tests) is for the recruiters of that
+   job and admins only, and only once the result is final. The Run button's examples are
+   visible tests, so their details are the candidate's to see.
 8. **Passwords and sessions:** bcrypt cost 12; one message for a wrong email and a wrong
    password, with a comparison either way; the session table stores the token's
    SHA-256, never the token; the cookie is httpOnly, SameSite=Lax, Secure in production.
@@ -111,7 +112,9 @@ tests/                  Vitest: actions against a temporary database; service ca
 11. **Evidence reaches M6 unchanged and at least once.** `lib/sync.ts` forwards a report
     or a result exactly as the module returned it; M6's ingest is idempotent, so a retry
     is safe, and `sentToM6At` is set only once M6 has accepted it. A module being down
-    delays the evidence (`after()`, retried from the skills page), never a page.
+    delays the evidence (`after()`, retried from the skills page), never a page. An
+    assessment goes only once final (`settleAssessment`): until then the candidate may
+    replace it with another attempt.
 12. **A recruiter reaches a candidate only through an application** to their organisation's
     job (`myApplication`). Applicants are listed by name; whether someone clears a bar is
     M6's `clears`, shown as it came; filtering to those who clear every bar is a link the

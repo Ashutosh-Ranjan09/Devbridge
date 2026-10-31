@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { form, jar, NotFound, redirectOf, resetDb } from "./next";
 
-const { beginTask, startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
+const { beginTask, finishTask, runExamples, startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
 const { myVerification } = await import("@/lib/candidate");
 const { db } = await import("@/lib/db");
 const { createSession } = await import("@/lib/session");
@@ -155,13 +155,64 @@ describe("assessments", () => {
     await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
     const batch = { batch_id: "evb_1", subject_ref: "subject:aaaa", events: [] };
     modules({
-      "POST http://assess.test/v1/sessions/as_1/submit": [200, { outcome: "passed" }],
+      "POST http://assess.test/v1/sessions/as_1/submit": [200, { outcome: "passed", final: true }],
       "GET http://assess.test/v1/sessions/as_1/events": [200, batch],
       "POST http://m6.test/evidence/batch": [202, { accepted: ["ev_1"] }],
     });
     expect(await redirectOf(submitSolution("as_1", undefined, form({ code: "x = 1" })))).toBe("/candidate/assessments/as_1");
     expect(JSON.parse(String(sent[2].body))).toEqual(batch);
     expect((await db.assessment.findUniqueOrThrow({ where: { id: "as_1" } })).sentToM6At).not.toBeNull();
+  });
+
+  it("an attempt that is not final stays with the candidate: nothing goes to M6", async () => {
+    await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
+    modules({ "POST http://assess.test/v1/sessions/as_1/submit": [200, { outcome: "tests_failed", attempt: 1, final: false, attempts_left: 2 }] });
+    expect(await redirectOf(submitSolution("as_1", undefined, form({ code: "x = 1" })))).toBe("/candidate/assessments/as_1");
+    expect(sent.map((s) => s.url)).toEqual(["http://assess.test/v1/sessions/as_1/submit"]);
+    expect((await db.assessment.findUniqueOrThrow({ where: { id: "as_1" } })).sentToM6At).toBeNull();
+  });
+
+  it("finishing makes the last attempt count and sends it to M6", async () => {
+    await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
+    modules({
+      "POST http://assess.test/v1/sessions/as_1/finish": [200, { outcome: "tests_failed", attempt: 2 }],
+      "GET http://assess.test/v1/sessions/as_1/events": [200, { batch_id: "evb_1" }],
+      "POST http://m6.test/evidence/batch": [202, { accepted: ["ev_1"] }],
+    });
+    expect(await redirectOf(finishTask("as_1"))).toBe("/candidate/assessments/as_1");
+    expect((await db.assessment.findUniqueOrThrow({ where: { id: "as_1" } })).sentToM6At).not.toBeNull();
+  });
+
+  it("Run returns the examples to the form with the code, and stores nothing", async () => {
+    await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
+    const examples = { outcome: "tests_failed", note: null,
+      examples: [{ name: "example_over_the_limit", passed: false, detail: "got 200, expected 429" }] };
+    modules({ "POST http://assess.test/v1/sessions/as_1/run": [200, examples] });
+    const state = await runExamples("as_1", undefined, form({ code: "x = 1" }));
+    expect(state).toEqual({ examples, values: { code: "x = 1" } });
+    expect((await db.assessment.findUniqueOrThrow({ where: { id: "as_1" } })).sentToM6At).toBeNull();
+  });
+
+  it("code that does not parse is said with its line, and the code comes back", async () => {
+    await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
+    const refusal = { error: "syntax_error", detail: "line 37: unterminated string literal. Not submitted; no attempt used" };
+    modules({
+      "POST http://assess.test/v1/sessions/as_1/submit": [422, refusal],
+      "POST http://assess.test/v1/sessions/as_1/run": [422, refusal],
+    });
+    const submitted = await submitSolution("as_1", undefined, form({ code: 'x = "wind' }));
+    expect(submitted?.message).toMatch(/line 37.*no attempt used/);
+    expect(submitted?.values?.code).toBe('x = "wind');
+    expect((await runExamples("as_1", undefined, form({ code: 'x = "wind' })))?.message).toMatch(/line 37/);
+  });
+
+  it("nobody runs code on another candidate's task", async () => {
+    const ravi = await candidate("ravi@example.com", "subject:bbbb");
+    await db.assessment.create({ data: { id: "as_ravi", candidateId: ravi } });
+    modules({});
+    await expect(runExamples("as_ravi", undefined, form({ code: "x" }))).rejects.toBeInstanceOf(NotFound);
+    await expect(finishTask("as_ravi")).rejects.toBeInstanceOf(NotFound);
+    expect(sent).toEqual([]);
   });
 
   it("an unrunnable sandbox is said, and nothing goes to M6", async () => {
@@ -178,7 +229,7 @@ describe("assessments", () => {
   it("M6 being down does not lose the submission; it stays pending", async () => {
     await db.assessment.create({ data: { id: "as_1", candidateId: asha } });
     modules({
-      "POST http://assess.test/v1/sessions/as_1/submit": [200, { outcome: "passed" }],
+      "POST http://assess.test/v1/sessions/as_1/submit": [200, { outcome: "passed", final: true }],
       "GET http://assess.test/v1/sessions/as_1/events": [200, { batch_id: "evb_1" }],
     });
     expect(await redirectOf(submitSolution("as_1", undefined, form({ code: "x = 1" })))).toBe("/candidate/assessments/as_1");

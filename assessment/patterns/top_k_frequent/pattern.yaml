@@ -52,3 +52,5 @@ tests:
   core: [picks_most_frequent, most_frequent_first, ties_alphabetical, fewer_than_k,
          empty_input, input_not_modified, large_input]
   twist: [twist_behaviour]
+  # The Run button's examples, read straight off the requirements; never scored.
+  visible: [example_most_frequent_first, example_ties_in_string_order, example_twist]

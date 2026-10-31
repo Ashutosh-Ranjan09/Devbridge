@@ -54,3 +54,5 @@ twists:
 tests:
   core: [allows_up_to_limit, rejects_one_over, keys_independent, exact_boundary, window_slides]
   twist: [twist_behaviour]
+  # The Run button's examples, read straight off the requirements; never scored.
+  visible: [example_within_the_limit, example_over_the_limit, example_twist]

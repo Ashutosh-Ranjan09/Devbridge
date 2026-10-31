@@ -51,13 +51,15 @@ def score(tests: list[TestResult]) -> Score:
 
 
 def build_result(
-    pattern: Pattern, variant: Variant, session: Session, run: Run, submitted_at: datetime.datetime
+    pattern: Pattern, variant: Variant, session: Session, run: Run, submitted_at: datetime.datetime,
+    attempt: int = 1,
 ) -> Result:
     assert session.started_at is not None, "only a begun session is submitted"
     scored = run.outcome.scored
     tests = tests_for(pattern, run) if scored else []
     return Result(
         session_id=session.session_id,
+        attempt=attempt,
         candidate_ref=session.candidate_ref,
         pattern_id=pattern.id,
         pattern_version=pattern.version,
@@ -83,7 +85,7 @@ def render(result: Result) -> str:
     lines = [
         f"{result.pattern_id} v{result.pattern_version} · {result.level.value} · skill {result.skill}",
         f"variant {result.variant_id}  ({', '.join(f'{k}={v}' for k, v in p.items())})",
-        f"candidate {result.candidate_ref} · time used {result.time_used_seconds // 60} min "
+        f"candidate {result.candidate_ref} · attempt {result.attempt} · time used {result.time_used_seconds // 60} min "
         f"{result.time_used_seconds % 60:02d} s of {result.time_limit_minutes} min",
         f"outcome {result.outcome.value}" + (f" — {result.note}" if result.note else ""),
         "",

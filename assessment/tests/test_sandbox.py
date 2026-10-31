@@ -129,6 +129,18 @@ class TestRealSandbox:
         src = "open('/work/tests_hidden.py', 'w').write('')\n"
         assert run_candidate(pattern, variant.params, src).outcome is Outcome.IMPORT_ERROR
 
+    def test_run_executes_the_visible_examples(self, pattern, variant) -> None:
+        ref = run_candidate(pattern, variant.params, (pattern.directory / "reference.py").read_text(), "visible")
+        assert ref.outcome is Outcome.PASSED and {r.test for r in ref.rows} == set(pattern.tests.visible)
+        starter = run_candidate(pattern, variant.params, (pattern.directory / "starter.py").read_text(), "visible")
+        assert starter.outcome is Outcome.TESTS_FAILED and not any(r.passed for r in starter.rows)
+
+    def test_the_dsa_examples_run_too(self) -> None:
+        p = load("top_k_frequent")
+        params = {"item_kind": "error_code", "k": 5, "twist": "excluding"}
+        run = run_candidate(p, params, (p.directory / "reference.py").read_text(), "visible")
+        assert run.outcome is Outcome.PASSED and len(run.rows) == 3
+
     def test_the_dsa_reference_passes_inside_the_limits(self) -> None:
         """The large input must fit 2 s on half a CPU — validation ran on the full one."""
         p = load("top_k_frequent")

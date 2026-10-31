@@ -6,10 +6,12 @@ import * as z from "zod";
 
 import { requireCandidate, myAssessment } from "@/lib/candidate";
 import { db } from "@/lib/db";
-import { CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, NoteSchema, SubmissionSchema, typed } from "@/lib/definitions";
+import {
+  CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, NoteSchema, type RunState, SubmissionSchema, typed,
+} from "@/lib/definitions";
 import { call, ServiceError } from "@/lib/services";
-import { forwardAssessment } from "@/lib/sync";
-import type { CandidateResult, Task } from "@/lib/types";
+import { settleAssessment } from "@/lib/sync";
+import type { CandidateResult, Examples, Submitted, Task } from "@/lib/types";
 
 /** Every action starts with requireCandidate(): an action is a POST endpoint anyone can
  * call, whether or not they came from the page. */
@@ -92,6 +94,27 @@ export async function beginTask(id: string): Promise<FormState> {
   redirect(`/candidate/assessments/${id}`);
 }
 
+/** The Run button: the visible examples, as often as the candidate likes. Nothing is
+ * stored and no attempt is used, so the answer comes back to the form, not the page. */
+export async function runExamples(id: string, _: RunState, form: FormData): Promise<RunState> {
+  const me = await requireCandidate();
+  await myAssessment(me.id, id);
+  const parsed = SubmissionSchema.safeParse({ code: form.get("code") });
+  const code = String(form.get("code") ?? "");
+  if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values: { code } };
+  try {
+    const examples = await call<Examples>("assess", `/v1/sessions/${encodeURIComponent(id)}/run`, {
+      body: { code: parsed.data.code },
+      timeoutMs: 90_000, // the sandbox's 30 s, plus starting a container
+    });
+    return { examples, values: { code } };
+  } catch (e) {
+    // 422: the code does not parse (the line is in the message). 503: the sandbox is down.
+    if (e instanceof ServiceError) return { message: e.message, values: { code } };
+    throw e;
+  }
+}
+
 export async function submitSolution(id: string, _: FormState, form: FormData): Promise<FormState> {
   const me = await requireCandidate();
   await myAssessment(me.id, id);
@@ -100,30 +123,36 @@ export async function submitSolution(id: string, _: FormState, form: FormData): 
   // a candidate whose submission the sandbox could not run must not lose their work.
   const code = String(form.get("code") ?? "");
   if (!parsed.success) return { errors: z.flattenError(parsed.error).fieldErrors, values: { code } };
+  let answer: Submitted;
   try {
-    await call<CandidateResult>("assess", `/v1/sessions/${encodeURIComponent(id)}/submit`, {
+    answer = await call<Submitted>("assess", `/v1/sessions/${encodeURIComponent(id)}/submit`, {
       body: { code: parsed.data.code },
       timeoutMs: 90_000, // the sandbox's 30 s, plus starting a container
     });
   } catch (e) {
-    // 503: the sandbox could not run, nothing was measured, the session is still open.
-    // 409: already submitted, or past the deadline. The module's message says which.
+    // 422: does not parse, no attempt used. 503: the sandbox could not run, nothing used.
+    // 409: final already, or past the deadline. The module's message says which.
     if (e instanceof ServiceError) return { message: e.message, values: { code } };
     throw e;
   }
-  // A job's task, once submitted, is the recruiter's to read.
-  const row = await db.assessment.findUniqueOrThrow({ where: { id } });
-  if (row.applicationId) {
-    await db.application.updateMany({
-      where: { id: row.applicationId, status: "ASSESSMENT_SENT" },
-      data: { status: "SUBMITTED" },
-    });
-  }
-  // The result is stored by the assessment module either way; if M6 is down, the
-  // skills page tries again later.
-  await forwardAssessment(id).catch(() => {});
+  if (answer.final) await settleAssessment(id);
   redirect(`/candidate/assessments/${id}`);
 }
+
+/** Done before the attempts run out: the last attempt counts now. */
+export async function finishTask(id: string): Promise<FormState> {
+  const me = await requireCandidate();
+  await myAssessment(me.id, id);
+  try {
+    await call<CandidateResult>("assess", `/v1/sessions/${encodeURIComponent(id)}/finish`, { method: "POST" });
+  } catch (e) {
+    if (e instanceof ServiceError) return { message: e.message };
+    throw e;
+  }
+  await settleAssessment(id);
+  redirect(`/candidate/assessments/${id}`);
+}
+
 
 export async function applyToJob(jobId: string): Promise<FormState> {
   const me = await requireCandidate();

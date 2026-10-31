@@ -184,7 +184,10 @@ describe("applicants", () => {
     await db.assessment.create({ data: { id: "as_9", candidateId: asha, applicationId: appId } });
     await db.application.update({ where: { id: appId }, data: { status: "ASSESSMENT_SENT" } });
     await as(asha);
-    modules({ "POST http://assess.test/v1/sessions/as_9/submit": [200, { outcome: "passed" }] });
+    modules({ "POST http://assess.test/v1/sessions/as_9/submit": [200, { outcome: "tests_failed", final: false }] });
+    await redirectOf(submitSolution("as_9", undefined, form({ code: "x = 1" })));
+    expect((await db.application.findUniqueOrThrow({ where: { id: appId } })).status).toBe("ASSESSMENT_SENT"); // still theirs to change
+    modules({ "POST http://assess.test/v1/sessions/as_9/submit": [200, { outcome: "passed", final: true }] });
     await redirectOf(submitSolution("as_9", undefined, form({ code: "x = 1" })));
     expect((await db.application.findUniqueOrThrow({ where: { id: appId } })).status).toBe("SUBMITTED");
   });

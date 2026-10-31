@@ -13,7 +13,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-105 tests, plus 10 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+116 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
 patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
 (skill `algorithms`).
@@ -49,8 +49,11 @@ flat `{"error", "detail"}`, like M6's: 404 unknown id, 409 the module's own refu
 | `POST /v1/sessions` `{candidate_ref, job_id \| pattern_id, start_by?}` | issue tasks; asking again returns the same ones. A job's tasks are `issued` with no clock, to be started by `start_by` (default 7 days, at most 60); practice starts at once |
 | `POST /v1/sessions/{id}/begin` | the candidate presses Start: the time limit runs from now and the task is shown; again changes nothing; after `start_by`, 409 |
 | `GET /v1/sessions/{id}` | the task — never the hidden tests, seed or parameters, and before Start not its story, requirements or starter. Past its start-by date or deadline (plus grace) it reads, and is stored, `expired` |
-| `POST /v1/sessions/{id}/submit` `{code}` | sandbox run, synchronous; returns the candidate view |
-| `GET /v1/sessions/{id}/result[?view=full]` | `candidate` by default: test names and passed, no failure detail (it quotes the hidden tests); `full` for the person reading results |
+| `POST /v1/sessions/{id}/run` `{code}` | the visible examples in the sandbox, each with its detail; stored nowhere, no attempt used, unlimited while open |
+| `POST /v1/sessions/{id}/submit` `{code}` | the hidden tests: one attempt of `max_attempts` (3); returns the candidate view, `final` and `attempts_left`. Code that does not parse: 422 `syntax_error`, no attempt used |
+| `POST /v1/sessions/{id}/finish` | the candidate is done: the last attempt counts now |
+| `GET /v1/sessions/{id}/attempts[?view=full]` | every attempt; `counted` (the last) once final |
+| `GET /v1/sessions/{id}/result[?view=full]` | the counted result, once final (404 before): `candidate` by default, test names and passed, no failure detail (it quotes the hidden tests); `full` for the person reading results |
 | `GET /v1/sessions/{id}/events` | the batch for M6's `POST /evidence/batch` |
 
 Who may ask for `view=full` is the web layer's decision; what each view holds is this
@@ -81,8 +84,10 @@ threads. Never share one Store between requests.
    pattern does not load. Calibration measures whether they really are equal; a flagged
    twist is moved out by a person, which bumps the version. Versions are never mixed.
 4. **A run that could not happen is not a score.** `sandbox_unavailable` leaves the
-   session open and emits no evidence. Everything else the candidate caused is scored,
-   `import_error`, `timeout` and `resource_limit` as zero, with the reason.
+   session open, uses no attempt and emits no evidence. Code that does not parse is
+   refused before the sandbox (`compile()` only, nothing runs) and uses no attempt: a
+   cut-off paste is an accident, not an answer. Everything else the candidate caused is
+   scored, `import_error`, `timeout` and `resource_limit` as zero, with the reason.
 5. **Candidate code runs only in Docker** — no network, read-only mount, memory, CPU
    and process limits, non-root, 2 s per test, 30 s per run. Trusted code (reference,
    mutants) is validated locally. Never route candidate code through `validation.py`.
@@ -93,8 +98,11 @@ threads. Never share one Store between requests.
    pattern, a skill M6 does not know: each is reported where a reader will see it.
 8. **The shortlist filters on must-haves and never ranks.** Ordering by several skills
    needs a weighted sum — the overall score both other modules refuse.
-9. **Results are immutable.** Triggers refuse UPDATE and DELETE on results and
-   submissions; the code that was scored is stored beside its result.
+9. **Results are immutable.** Triggers refuse UPDATE and DELETE on results, submissions
+   and attempts; the code that was scored is stored beside each attempt. Up to three
+   attempts; the LAST counts, written to `results` once the session is final (the last
+   attempt, one passing every test, Finish, or the deadline). Events and calibration read
+   only that, so M6 never hears of an attempt the candidate could still replace.
 10. **This module emits facts; M6 prices them.** The event carries level, tests passed
     and total; `observed_value.assessment_result` in M6's parameters turns that into an
     ability estimate. How far to TRUST a result is `contracts/evidence.yaml`.
@@ -124,7 +132,9 @@ threads. Never share one Store between requests.
 `patterns/<id>/`: `pattern.yaml` (skill must be on the shared list; twists one rating),
 `starter.py`, `requirements.md` and `story.md` with `{param}` and `{param_label}`
 placeholders, `tests_hidden.py` reading `params.json` (test names must equal the
-declared groups), `reference.py` implementing every twist at once, and `mutants/` —
+declared groups), `tests_visible.py` — the Run button's examples, read straight off the
+requirements and leaving every edge to the hidden tests (names in `tests.visible`; the
+reference must pass them too) — `reference.py` implementing every twist at once, and `mutants/` —
 `twist_<twist>__*.py` for a twist-only bug. Then `assess validate <id>` until it says
 valid.
 

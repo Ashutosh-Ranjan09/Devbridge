@@ -65,6 +65,7 @@ def batch(result: Result) -> dict[str, Any]:
                 "core": f"{result.score.core_passed}/{result.score.core_total}",
                 "twist": f"{result.score.twist_passed}/{result.score.twist_total}",
                 "outcome": result.outcome.value,
+                "attempt": result.attempt,             # which submission counted: the last
                 "time_used_seconds": result.time_used_seconds,
             },
         }],

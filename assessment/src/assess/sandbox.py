@@ -29,6 +29,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from assess import junit
 from assess.config import settings
@@ -54,13 +55,18 @@ def docker_error(stderr: str) -> str:
     return (lines[-1] if lines else "docker could not start the run")[:300]
 
 
-def run_candidate(pattern: Pattern, params: dict[str, Scalar], solution_source: str) -> Run:
+def run_candidate(pattern: Pattern, params: dict[str, Scalar], solution_source: str,
+                  suite: Literal["hidden", "visible"] = "hidden") -> Run:
+    """`hidden` scores a submission; `visible` is the Run button's examples, in the same
+    sandbox under the same limits, because it is the same candidate code."""
     image = settings.sandbox_image
     if shutil.which("docker") is None:
         return Run(Outcome.SANDBOX_UNAVAILABLE, [], SandboxInfo(image=image, wall_seconds=0.0, exit_code=None),
                    "docker is not installed")
 
-    expected = len(pattern.tests.core) + len(pattern.tests.twist)
+    tests_file = f"tests_{suite}.py"
+    expected = (len(pattern.tests.core) + len(pattern.tests.twist) if suite == "hidden"
+                else len(pattern.tests.visible))
     with tempfile.TemporaryDirectory(prefix="assess-run-") as tmp:
         work, out = Path(tmp) / "work", Path(tmp) / "out"
         work.mkdir()
@@ -68,7 +74,7 @@ def run_candidate(pattern: Pattern, params: dict[str, Scalar], solution_source: 
         os.chmod(work, 0o755)
         os.chmod(out, 0o777)                         # the container's user writes the result here
         (work / "solution.py").write_text(solution_source)
-        shutil.copy(pattern.directory / "tests_hidden.py", work / "tests_hidden.py")
+        shutil.copy(pattern.directory / tests_file, work / tests_file)
         (work / "params.json").write_text(json.dumps(params))
         for f in work.iterdir():
             os.chmod(f, 0o644)
@@ -83,7 +89,7 @@ def run_candidate(pattern: Pattern, params: dict[str, Scalar], solution_source: 
             "-v", f"{work}:/work:ro", "-v", f"{out}:/out:rw",
             image,
             "python", "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--timeout={PER_TEST_SECONDS}",
-            f"--junitxml=/out/{result_name}", "/work/tests_hidden.py",
+            f"--junitxml=/out/{result_name}", f"/work/{tests_file}",
         ]
         started = time.monotonic()
         try:

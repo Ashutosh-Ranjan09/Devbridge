@@ -56,6 +56,22 @@ CREATE TRIGGER IF NOT EXISTS results_no_delete BEFORE DELETE ON results
     BEGIN SELECT RAISE(ABORT, 'a result is never deleted'); END;
 CREATE TRIGGER IF NOT EXISTS submissions_no_update BEFORE UPDATE ON submissions
     BEGIN SELECT RAISE(ABORT, 'a submission is never changed'); END;
+-- Every scored submission, the code beside it. `results` holds the one that counts
+-- (the last), written once the session is final: events and calibration read only that.
+CREATE TABLE IF NOT EXISTS attempts (
+    session_id  TEXT NOT NULL,
+    attempt     INTEGER NOT NULL,
+    source      TEXT NOT NULL,
+    doc         TEXT NOT NULL,
+    PRIMARY KEY (session_id, attempt)
+);
+CREATE TRIGGER IF NOT EXISTS attempts_no_update BEFORE UPDATE ON attempts
+    BEGIN SELECT RAISE(ABORT, 'an attempt is never changed'); END;
+CREATE TRIGGER IF NOT EXISTS attempts_no_delete BEFORE DELETE ON attempts
+    BEGIN SELECT RAISE(ABORT, 'an attempt is never deleted'); END;
+-- A result from before attempts existed was its session's one attempt.
+INSERT OR IGNORE INTO attempts
+    SELECT r.session_id, 1, s.source, r.doc FROM results r JOIN submissions s USING (session_id);
 """
 
 
@@ -156,6 +172,17 @@ class Store:
             db.execute("INSERT INTO results VALUES (?, ?, ?, ?)",
                        (result.session_id, result.pattern_id, result.pattern_version,
                         result.model_dump_json()))
+
+    def save_attempt(self, result: Result, source: str) -> None:
+        with self.tx() as db:
+            db.execute("INSERT INTO attempts VALUES (?, ?, ?, ?)",
+                       (result.session_id, result.attempt, source, result.model_dump_json()))
+
+    def attempts(self, session_id: str) -> list[tuple[Result, str]]:
+        """Every scored submission of a session, first to last, with its code."""
+        rows = self.db.execute(
+            "SELECT doc, source FROM attempts WHERE session_id = ? ORDER BY attempt", (session_id,))
+        return [(Result.model_validate_json(doc), str(source)) for doc, source in rows]
 
     def result(self, session_id: str) -> Result | None:
         row = self.db.execute("SELECT doc FROM results WHERE session_id = ?", (session_id,)).fetchone()

@@ -37,6 +37,8 @@ class Twist(Model):
 class TestGroups(Model):
     core: list[str]
     twist: list[str]
+    # The Run button's examples (tests_visible.py): shown with their details, never scored.
+    visible: list[str] = Field(default_factory=list)
 
 
 class Pattern(Model):
@@ -180,6 +182,7 @@ class Result(Model):
     what happened, and how long it took."""
 
     session_id: str
+    attempt: int = Field(default=1, ge=1)  # which submission of the session this was
     candidate_ref: str
     pattern_id: str
     pattern_version: int

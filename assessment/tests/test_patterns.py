@@ -68,6 +68,22 @@ class TestLoading:
         with pytest.raises(PatternError, match="handles_bursts"):
             load("rate_limiter", copy)
 
+    def test_visible_examples_are_required_and_must_match_their_names(self, copy: Path) -> None:
+        """The Run button needs examples, declared like the hidden tests."""
+        edit_yaml(copy, lambda d: d["tests"]["visible"].append("example_burst"))
+        with pytest.raises(PatternError, match="tests_visible.py defines"):
+            load("rate_limiter", copy)
+        (copy / "rate_limiter" / "tests_visible.py").unlink()
+        with pytest.raises(PatternError, match="missing tests_visible.py"):
+            load("rate_limiter", copy)
+
+    def test_a_reference_failing_a_visible_example_is_caught(self, copy: Path) -> None:
+        """An example the reference fails would show a right answer as wrong."""
+        f = copy / "rate_limiter" / "tests_visible.py"
+        f.write_text(f.read_text().replace('expected 429"', 'expected 429"\n    assert r.status == 200'))
+        report = validate(load("rate_limiter", copy))
+        assert not report.ok and report.visible_failures
+
     def test_a_pattern_without_mutants_is_refused(self, copy: Path) -> None:
         shutil.rmtree(copy / "rate_limiter" / "mutants")
         (copy / "rate_limiter" / "mutants").mkdir()

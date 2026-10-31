@@ -194,6 +194,16 @@ recruiter pressing Send and opening the page, and could find a task expired unse
 Practice is issued and begun in one step. Expiry is decided whenever a session is read,
 not only when a late submission arrives: before, an abandoned task said `open` forever.
 
+**Run and attempts.** Run executes `tests_visible.py`, a few examples read straight off
+the requirements, in the same sandbox: unlimited while the task is open, shown with
+their details, stored nowhere. Submit runs the hidden tests and is one of three
+attempts, each stored in `attempts` with its code. The last attempt counts; the session
+is final, and its result written to `results`, at the third attempt, at one passing every
+test, at Finish, or at the deadline (with no attempt, `expired`). Code that does not
+parse is refused before either, by `compile()`, and costs nothing. The first version gave
+one submission: a candidate whose paste was cut off mid-line lost the task to a
+SyntaxError. The recruiter reads every attempt; M6 hears only the counted one.
+
 ## 9. The JD layer
 
 **Extraction** — one model call: the JD text and the shared skill list (ids and labels).

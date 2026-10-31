@@ -1,14 +1,14 @@
 import { after } from "next/server";
 import { Suspense } from "react";
 
-import { BeginTask, Countdown, Editor } from "@/components/candidate";
+import { BeginTask, Countdown, Editor, FinishTask } from "@/components/candidate";
 import { Markdown } from "@/components/markdown";
 import { Card, Loading, Page } from "@/components/ui";
 import { myAssessment, requireCandidate, taskFor } from "@/lib/candidate";
 import { call, ServiceError } from "@/lib/services";
-import { forwardAssessment } from "@/lib/sync";
+import { settleAssessment } from "@/lib/sync";
 import { when } from "@/lib/tasks";
-import type { CandidateResult, Task } from "@/lib/types";
+import type { Attempts, CandidateResult, Task } from "@/lib/types";
 
 export default function AssessmentPage({ params }: PageProps<"/candidate/assessments/[id]">) {
   return (
@@ -24,18 +24,20 @@ async function Assessment({ params }: { params: Promise<{ id: string }> }) {
   const me = await requireCandidate();
   const row = await myAssessment(me.id, (await params).id);
   let task: Task;
-  let result: CandidateResult | null = null;
+  let attempts: Attempts | null = null;
   try {
     task = await call<Task>("assess", `/v1/sessions/${encodeURIComponent(row.id)}`);
-    if (task.status === "submitted") {
+    if (task.attempts_used > 0) {
       // The candidate view only (the default). `view=full` quotes the hidden tests.
-      result = await call<CandidateResult>("assess", `/v1/sessions/${encodeURIComponent(row.id)}/result`);
+      attempts = await call<Attempts>("assess", `/v1/sessions/${encodeURIComponent(row.id)}/attempts`);
     }
   } catch (e) {
     if (e instanceof ServiceError) return <Card><p>{e.message}</p></Card>;
     throw e;
   }
-  if (result && !row.sentToM6At) after(() => forwardAssessment(row.id).catch(() => {}));
+  // Final by the deadline, with nobody pressing a button: settle it now.
+  if (task.status === "submitted" && !row.sentToM6At) after(() => settleAssessment(row.id).catch(() => {}));
+  const last = attempts?.attempts.at(-1)?.attempt ?? 0;
 
   return (
     <div className="space-y-4">
@@ -60,7 +62,13 @@ async function Assessment({ params }: { params: Promise<{ id: string }> }) {
           </div>
         )}
       </Card>
-      {task.status === "open" && task.starter !== null && <Card><Editor sessionId={task.session_id} starter={task.starter} /></Card>}
+      {task.status === "open" && task.starter !== null && (
+        <Card>
+          <Editor sessionId={task.session_id} starter={task.starter}
+            attempt={task.attempts_used + 1} maxAttempts={task.max_attempts} />
+        </Card>
+      )}
+      {task.status === "open" && last > 0 && <Card><FinishTask sessionId={task.session_id} attempt={last} /></Card>}
       {task.status === "expired" && (
         <Card>
           <p>
@@ -70,7 +78,7 @@ async function Assessment({ params }: { params: Promise<{ id: string }> }) {
           </p>
         </Card>
       )}
-      {result && <Result result={result} />}
+      {attempts && <AttemptList attempts={attempts} final={task.status === "submitted"} />}
     </div>
   );
 }
@@ -83,11 +91,33 @@ const OUTCOME: Record<CandidateResult["outcome"], string> = {
   resource_limit: "The run was stopped for using too much memory.",
 };
 
-function Result({ result }: { result: CandidateResult }) {
-  const s = result.score;
+/** Every attempt, newest first; once final, the counted one (the last) is marked. */
+function AttemptList({ attempts, final }: { attempts: Attempts; final: boolean }) {
   return (
     <Card>
-      <h2 className="mb-1 font-semibold">Result</h2>
+      <h2 className="mb-1 font-semibold">{final ? "Result" : "Your attempts"}</h2>
+      <p className="text-sm text-muted">
+        {final
+          ? `Attempt ${attempts.counted} counts: your last.`
+          : `${attempts.attempts.length} of ${attempts.max_attempts} used. Your last attempt counts.`}
+      </p>
+      <div className="mt-3 space-y-4">
+        {[...attempts.attempts].reverse().map((r) => <Result key={r.attempt} result={r} counted={r.attempt === attempts.counted} />)}
+      </div>
+      <p className="mt-3 text-xs text-muted">
+        Which tests failed, not why: the reasons quote the hidden tests. A recruiter reading your result sees them.
+      </p>
+    </Card>
+  );
+}
+
+function Result({ result, counted }: { result: CandidateResult; counted: boolean }) {
+  const s = result.score;
+  return (
+    <section>
+      <h3 className="font-medium">
+        Attempt {result.attempt} {counted && <span className="text-sm font-normal text-ok">counts</span>}
+      </h3>
       <p>{OUTCOME[result.outcome]}</p>
       {s && (
         <p className="mt-1 text-sm text-muted">
@@ -96,7 +126,7 @@ function Result({ result }: { result: CandidateResult }) {
         </p>
       )}
       {result.note && <p className="mt-2 font-mono text-sm">{result.note}</p>}
-      <ul className="mt-3 space-y-1 text-sm">
+      <ul className="mt-2 space-y-1 text-sm">
         {result.tests.map((t) => (
           <li key={t.name}>
             <span className={t.passed ? "text-ok" : "text-danger"}>{t.passed ? "✓" : "✗"}</span>{" "}
@@ -104,9 +134,6 @@ function Result({ result }: { result: CandidateResult }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs text-muted">
-        Which tests failed, not why: the reasons quote the hidden tests. A recruiter reading your result sees them.
-      </p>
-    </Card>
+    </section>
   );
 }

@@ -1,23 +1,40 @@
-"""Taking a task: issue → begin → (time passes) → submit → result.
+"""Taking a task: issue → begin → run examples, submit (up to three times) → result.
 
 One session per candidate, pattern and job — starting again returns the task already
 issued, so refreshing a page cannot fish for an easier variant. A job's task is issued
 without a clock and begins when the candidate presses Start, before its start-by date;
-practice begins as it is issued. A submission after the deadline plus the grace period
-is refused, not scored. A submission the sandbox could not run leaves the session open:
-nothing was measured, so the candidate may submit again.
+practice begins as it is issued.
+
+Run tries the code on the visible examples, as often as the candidate likes; it is
+stored nowhere. Submit runs the hidden tests and is one attempt of `max_attempts`. The
+LAST attempt counts, and the session is final — its result written, the only one events
+and calibration see — at the last attempt, at one that passes every test, when the
+candidate finishes, or when the deadline passes. Code that does not parse is refused
+before either runs and costs nothing. A submission after the deadline plus the grace
+period is refused, not scored. One the sandbox could not run uses no attempt: nothing
+was measured.
 """
 
 from __future__ import annotations
 
 import datetime
 import secrets
+import sqlite3
 
 from assess.config import settings
-from assess.models import JobStatus, Priority, Result, Session, SessionStatus, Variant
+from assess.models import (
+    JobStatus,
+    Outcome,
+    Pattern,
+    Priority,
+    Result,
+    Session,
+    SessionStatus,
+    Variant,
+)
 from assess.patterns import for_skill, load
 from assess.providers import LLMProvider
-from assess.sandbox import run_candidate
+from assess.sandbox import Run, run_candidate
 from assess.scoring import build_result
 from assess.store import Store
 from assess.variants import generate
@@ -25,6 +42,23 @@ from assess.variants import generate
 
 class SessionError(ValueError):
     """The action is not allowed for this session. The message says why."""
+
+
+class NotPythonError(SessionError):
+    """Code that does not parse. Refused before the sandbox; no attempt is used."""
+
+
+def parses(source: str) -> None:
+    """compile() parses and builds bytecode; it runs nothing, so candidate code may go
+    through it outside the sandbox. A cut-off paste is an accident, not an answer: it is
+    refused with its line and costs no attempt. Code that parses but fails on import is
+    still scored zero: that is the candidate's program."""
+    try:
+        compile(source, "solution.py", "exec", dont_inherit=True)
+    except SyntaxError as exc:
+        raise NotPythonError(f"line {exc.lineno}: {exc.msg}. Not submitted; no attempt used") from exc
+    except (ValueError, RecursionError, MemoryError) as exc:     # null bytes, absurd nesting
+        raise NotPythonError(f"the code cannot be parsed ({type(exc).__name__}). Not submitted") from exc
 
 
 def now_utc() -> datetime.datetime:
@@ -118,8 +152,34 @@ def current(store: Store, session_id: str, *, now: datetime.datetime | None = No
     if session is None:
         raise SessionError(f"no session {session_id}")
     if _lapsed(session, now or now_utc()):
-        session = store.set_status(session, SessionStatus.EXPIRED)
+        session = _close(store, session)
     return session
+
+
+def _close(store: Store, session: Session) -> Session:
+    """Time is up: the last attempt counts, or, with none, the task has expired."""
+    attempts = store.attempts(session.session_id)
+    if not attempts:
+        return store.set_status(session, SessionStatus.EXPIRED)
+    last, source = attempts[-1]
+    return _finalise(store, session, last, source)
+
+
+def _finalise(store: Store, session: Session, last: Result, source: str) -> Session:
+    store.save_result(last, source)                # the counted result: written once
+    return store.set_status(session, SessionStatus.SUBMITTED)
+
+
+def _task_of(store: Store, session: Session) -> tuple[Pattern, Variant]:
+    variant = store.variant(session.variant_id, session.job_id)
+    assert variant is not None
+    pattern = load(variant.pattern_id)
+    if pattern.version != variant.pattern_version:
+        raise SessionError(
+            f"{variant.pattern_id} is now v{pattern.version}; this task was issued from "
+            f"v{variant.pattern_version}, and its tests are not the ones on disk"
+        )
+    return pattern, variant
 
 
 def begin(store: Store, session_id: str, *, now: datetime.datetime | None = None) -> Session:
@@ -187,28 +247,58 @@ def submit(
     if session.status is SessionStatus.ISSUED:
         raise SessionError(f"{session_id} has not been started; press Start first")
     if session.status is not SessionStatus.OPEN:
-        raise SessionError(f"{session_id} is {session.status.value}; a session takes one submission")
+        raise SessionError(f"{session_id} is {session.status.value}; its result is final")
     assert session.deadline is not None, "an open session has begun"
     submitted = now or now_utc()
     if submitted > session.deadline + datetime.timedelta(seconds=settings.grace_seconds):
-        store.set_status(session, SessionStatus.EXPIRED)
+        _close(store, session)
         raise SessionError(
             f"{session_id}: submitted {(submitted - session.deadline).seconds // 60} min after the "
             "deadline — refused, not scored"
         )
+    parses(source)
+    pattern, variant = _task_of(store, session)
 
-    variant = store.variant(session.variant_id, session.job_id)
-    assert variant is not None
-    pattern = load(variant.pattern_id)
-    if pattern.version != variant.pattern_version:
-        raise SessionError(
-            f"{variant.pattern_id} is now v{pattern.version}; this task was issued from "
-            f"v{variant.pattern_version}, and its tests are not the ones on disk"
-        )
-
+    attempt = len(store.attempts(session_id)) + 1          # open means one is left
     run = run_candidate(pattern, variant.params, source)
-    result = build_result(pattern, variant, session, run, submitted)
-    if result.scored:
-        store.save_result(result, source)
-        store.set_status(session, SessionStatus.SUBMITTED)
+    result = build_result(pattern, variant, session, run, submitted, attempt=attempt)
+    if not result.scored:
+        return result                                       # nothing measured, no attempt used
+    try:
+        store.save_attempt(result, source)
+    except sqlite3.IntegrityError as exc:                   # two submissions at once
+        raise SessionError(f"{session_id}: another submission was being scored; nothing was used") from exc
+    if attempt >= settings.max_attempts or result.outcome is Outcome.PASSED:
+        _finalise(store, session, result, source)           # nothing left to try, or to improve
     return result
+
+
+def finish(store: Store, session_id: str, *, now: datetime.datetime | None = None) -> Result:
+    """The candidate is done before their attempts run out: the last attempt counts now.
+    Again on a final session, the same result."""
+    session = current(store, session_id, now=now)
+    if session.status is SessionStatus.SUBMITTED:
+        result = store.result(session_id)
+        assert result is not None
+        return result
+    if session.status is not SessionStatus.OPEN:
+        raise SessionError(f"{session_id} is {session.status.value}; there is nothing to finish")
+    attempts = store.attempts(session_id)
+    if not attempts:
+        raise SessionError(f"{session_id}: nothing submitted yet; submit at least once to finish")
+    last, source = attempts[-1]
+    _finalise(store, session, last, source)
+    return last
+
+
+def run_examples(store: Store, session_id: str, source: str, *, now: datetime.datetime | None = None) -> Run:
+    """The Run button: the visible examples, in the same sandbox. Stored nowhere, scores
+    nothing, uses no attempt; allowed until the deadline."""
+    session = current(store, session_id, now=now)
+    if session.status is SessionStatus.ISSUED:
+        raise SessionError(f"{session_id} has not been started; press Start first")
+    if session.status is not SessionStatus.OPEN:
+        raise SessionError(f"{session_id} is {session.status.value}; examples run only while it is open")
+    parses(source)
+    pattern, variant = _task_of(store, session)
+    return run_candidate(pattern, variant.params, source, suite="visible")

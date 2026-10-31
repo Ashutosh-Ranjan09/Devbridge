@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     # than the maximum.
     start_by_days: int = 7
     start_by_max_days: int = 60
+    # Hidden-test submissions per task; the last one counts.
+    max_attempts: int = 3
 
     patterns_dir: Path = ROOT / "patterns"
     skills_dir: Path = REPO / "schemas" / "skills"

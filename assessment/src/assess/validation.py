@@ -36,7 +36,7 @@ def _case_id(pattern: Pattern, params: dict[str, Scalar]) -> str:
 
 
 def run_trusted(
-    pattern: Pattern, solution: Path, params: list[dict[str, Scalar]]
+    pattern: Pattern, solution: Path, params: list[dict[str, Scalar]], tests_file: str = "tests_hidden.py"
 ) -> list[junit.CaseResult]:
     """The hidden tests against a TRUSTED solution, over a list of parameter sets, in
     one pytest run. Never call this with candidate code — that is the sandbox's job.
@@ -46,11 +46,11 @@ def run_trusted(
     with tempfile.TemporaryDirectory(prefix="assess-validate-") as tmp:
         work = Path(tmp)
         shutil.copy(solution, work / "solution.py")
-        shutil.copy(pattern.directory / "tests_hidden.py", work / "tests_hidden.py")
+        shutil.copy(pattern.directory / tests_file, work / tests_file)
         (work / "params.json").write_text(json.dumps(params))
         subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--timeout={PER_TEST_SECONDS}",
-             "--junitxml", str(work / "out.xml"), str(work / "tests_hidden.py")],
+             "--junitxml", str(work / "out.xml"), str(work / tests_file)],
             cwd=work, capture_output=True, text=True, timeout=600, check=False,
         )
         return junit.read(work / "out.xml")
@@ -64,6 +64,11 @@ class ValidationReport:
     expected_cases: int
     reference_cases: int = 0
     reference_failures: list[str] = field(default_factory=list)
+    # The Run button's examples: the reference must pass these too, or a candidate's
+    # right answer would show a failing example.
+    visible_expected: int = 0
+    visible_cases: int = 0
+    visible_failures: list[str] = field(default_factory=list)
     # mutant -> combinations in which it failed NO test, i.e. escaped
     escapes: dict[str, list[str]] = field(default_factory=dict)
     caught_by: dict[str, set[str]] = field(default_factory=dict)
@@ -73,6 +78,8 @@ class ValidationReport:
         return (
             self.reference_cases == self.expected_cases
             and not self.reference_failures
+            and self.visible_cases == self.visible_expected
+            and not self.visible_failures
             and not any(self.escapes.values())
         )
 
@@ -89,6 +96,11 @@ def validate(pattern: Pattern, params: list[dict[str, Scalar]] | None = None) ->
     ref = run_trusted(pattern, pattern.directory / "reference.py", cases)
     report.reference_cases = len(ref)
     report.reference_failures = [f"{r.test}[{r.case}]: {r.message}" for r in ref if not r.passed]
+
+    seen = run_trusted(pattern, pattern.directory / "reference.py", cases, "tests_visible.py")
+    report.visible_expected = len(cases) * len(pattern.tests.visible)
+    report.visible_cases = len(seen)
+    report.visible_failures = [f"{r.test}[{r.case}]: {r.message}" for r in seen if not r.passed]
 
     for name, path in mutants(pattern).items():
         applicable = [c for c in cases if mutant_applies(name, c)]

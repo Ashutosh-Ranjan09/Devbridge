@@ -106,11 +106,14 @@ export type Task = {
   started_at: string | null;
   deadline: string | null;
   status: "issued" | "open" | "submitted" | "expired";
+  attempts_used: number; // hidden-test submissions so far; the last one counts
+  max_attempts: number;
 };
 
 /** The candidate view. Never `view=full`: its failure details quote the hidden tests. */
 export type CandidateResult = {
   session_id: string;
+  attempt: number;
   outcome: "passed" | "tests_failed" | "import_error" | "timeout" | "resource_limit";
   score: { passed: number; total: number; core_passed: number; core_total: number; twist_passed: number; twist_total: number } | null;
   tests: { name: string; group: "core" | "twist"; passed: boolean }[];
@@ -147,6 +150,20 @@ export type Requirements = { job_id: string; must: { skill_id: string; bar: numb
 /** The full view of a result, for the person reading it: each failure's detail. */
 export type FullResult = Omit<CandidateResult, "tests"> & {
   tests: { name: string; group: "core" | "twist"; passed: boolean; detail: string | null }[];
+};
+
+/** One submission's answer: final once it is the last attempt, passes every test, or the
+ * candidate finishes. */
+export type Submitted = CandidateResult & { final: boolean; attempts_left: number };
+
+/** Every attempt so far; `counted` is the one that counts once the task is final (the last). */
+export type Attempts<R = CandidateResult> = { max_attempts: number; counted: number | null; attempts: R[] };
+
+/** The Run button's answer: the visible examples. Stored nowhere; not a score. */
+export type Examples = {
+  outcome: CandidateResult["outcome"];
+  examples: { name: string; passed: boolean; detail: string | null }[];
+  note: string | null;
 };
 
 // ── M6: POST /shortlist?subject=… ──────────────────────────────────────────

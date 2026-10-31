@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { Suspense } from "react";
 
 import { Interval } from "@/components/interval";
@@ -13,7 +14,8 @@ import { marksFor } from "@/lib/review";
 import { START_BY_MAX_DAYS } from "@/lib/definitions";
 import { dayIn, taskStatus } from "@/lib/tasks";
 import { call, ServiceError } from "@/lib/services";
-import type { FullResult, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
+import { settleAssessment } from "@/lib/sync";
+import type { Attempts, FullResult, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
 
 export default function ApplicantPage({ params }: PageProps<"/recruiter/jobs/[id]/applicants/[appId]">) {
   return (
@@ -46,11 +48,14 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
     latest ? m5Rules() : null,
     Promise.all(assessments.map(async (a) => {
       const task = await call<Task>("assess", `/v1/sessions/${encodeURIComponent(a.id)}`).catch(() => null);
-      // The full view: this is the person reading results, for their own job.
-      const result = task?.status === "submitted"
-        ? await call<FullResult>("assess", `/v1/sessions/${encodeURIComponent(a.id)}/result?view=full`).catch(() => null)
+      // The full view: this is the person reading results, for their own job. Only once
+      // final: until then the candidate may still change what counts.
+      const attempts = task?.status === "submitted"
+        ? await call<Attempts<FullResult>>("assess", `/v1/sessions/${encodeURIComponent(a.id)}/attempts?view=full`)
+          .catch(() => null)
         : null;
-      return { id: a.id, task, result };
+      if (task?.status === "submitted" && !a.sentToM6At) after(() => settleAssessment(a.id).catch(() => {}));
+      return { id: a.id, task, attempts };
     })),
   ]);
   const shortlist = requirements instanceof ServiceError ? null
@@ -77,13 +82,20 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
       <Card>
         <h3 className="mb-2 font-semibold">Assessment for this job</h3>
         {tasks.length === 0 && <p className="mb-3 text-sm text-muted">None sent yet.</p>}
-        {tasks.map(({ id, task, result }) => (
+        {tasks.map(({ id, task, attempts }) => (
           <div key={id} className="mb-4">
             <p className="font-medium">{task?.title ?? id} <span className="text-sm text-muted">{taskStatus(task)}</span></p>
-            {result && (
-              <>
+            {attempts && attempts.attempts.length > 1 && (
+              <p className="text-sm text-muted">
+                {attempts.attempts.length} attempts; the last counts. Each is shown, in order.
+              </p>
+            )}
+            {attempts?.attempts.map((result) => (
+              <div key={result.attempt} className="mt-2">
                 <p className="text-sm">
-                  {result.outcome.replace("_", " ")}
+                  <span className="font-medium">Attempt {result.attempt}</span>
+                  {result.attempt === attempts.counted && <span className="text-ok"> · counts</span>}
+                  {` · ${result.outcome.replace("_", " ")}`}
                   {result.score && ` · ${result.score.passed} of ${result.score.total} tests passed (${result.score.core_passed}/${result.score.core_total} core, ${result.score.twist_passed}/${result.score.twist_total} twist)`}
                   {` · ${Math.round(result.time_used_seconds / 60)} min of ${task?.time_limit_minutes ?? "?"}`}
                 </p>
@@ -96,8 +108,8 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
                     </li>
                   ))}
                 </ul>
-              </>
-            )}
+              </div>
+            ))}
           </div>
         ))}
         {!app.decision && (

@@ -27,7 +27,17 @@ from assess.config import settings
 from assess.events import NotEvidenceError, batch
 from assess.models import Job, Model, Outcome, Result, Score, Session, SessionStatus, Variant
 from assess.patterns import PatternError, all_patterns, load
-from assess.sessions import SessionError, begin, current, start, start_for_job, submit
+from assess.sessions import (
+    NotPythonError,
+    SessionError,
+    begin,
+    current,
+    finish,
+    run_examples,
+    start,
+    start_for_job,
+    submit,
+)
 from assess.store import Store
 from assess.variants import VariantError
 
@@ -141,6 +151,8 @@ class Task(Model):
     deadline: datetime.datetime | None
     status: SessionStatus
     fitted_by_model: bool
+    attempts_used: int                     # hidden-test submissions so far; the last one counts
+    max_attempts: int
 
 
 class Issued(Model):
@@ -160,6 +172,7 @@ class CandidateResult(Model):
     which would let the next attempt be fitted to the tests rather than the task."""
 
     session_id: str
+    attempt: int
     outcome: Outcome
     score: Score | None
     tests: list[CandidateTest]
@@ -167,10 +180,40 @@ class CandidateResult(Model):
     note: str | None                       # the candidate's own error: an import failure, a timeout
 
 
+class Submitted(CandidateResult):
+    """One attempt's answer: and whether the session is now final, or how many are left."""
+
+    final: bool
+    attempts_left: int
+
+
+class Attempts(Model):
+    """Every scored submission, first to last. `counted` is the attempt that counts once
+    the session is final (always the last), None while the candidate may still submit."""
+
+    max_attempts: int
+    counted: int | None
+    attempts: list[CandidateResult] | list[Result]
+
+
+class Example(Model):
+    name: str
+    passed: bool
+    detail: str | None                     # a visible example may say what it expected
+
+
+class Examples(Model):
+    """The Run button's answer. Stored nowhere; not a score."""
+
+    outcome: Outcome
+    examples: list[Example]
+    note: str | None
+
+
 # ── health, patterns, jobs ─────────────────────────────────────────────────
 
 
-def _task(session: Session, variant: Variant) -> Task:
+def _task(db: Store, session: Session, variant: Variant) -> Task:
     pattern = load(variant.pattern_id)
     shown = session.started_at is not None
     return Task(
@@ -183,6 +226,7 @@ def _task(session: Session, variant: Variant) -> Task:
         start_by=session.start_by, started_at=session.started_at,
         deadline=session.deadline, status=session.status,
         fitted_by_model=variant.chosen_by == "model",
+        attempts_used=len(db.attempts(session.session_id)), max_attempts=settings.max_attempts,
     )
 
 
@@ -281,7 +325,7 @@ def _result(db: Store, session_id: str) -> Result:
 
 def candidate_view(result: Result) -> CandidateResult:
     return CandidateResult(
-        session_id=result.session_id, outcome=result.outcome, score=result.score,
+        session_id=result.session_id, attempt=result.attempt, outcome=result.outcome, score=result.score,
         tests=[CandidateTest(name=t.name, group=t.group, passed=t.passed) for t in result.tests],
         time_used_seconds=result.time_used_seconds, note=result.note,
     )
@@ -310,7 +354,7 @@ def new_sessions(_: Auth, db: Db, body: NewSessions) -> Issued:
     if not issued:
         raise RefusedError(409, "nothing_assessable",
                       f"no task issued: no pattern tests {', '.join(missing) or 'any must-have'}")
-    return Issued(tasks=[_task(s, v) for s, v in issued], not_assessable=missing)
+    return Issued(tasks=[_task(db, s, v) for s, v in issued], not_assessable=missing)
 
 
 @app.get("/v1/sessions/{session_id}")
@@ -318,7 +362,7 @@ def get_session(_: Auth, db: Db, session_id: str) -> Task:
     session = _session(db, session_id)
     variant = db.variant(session.variant_id, session.job_id)
     assert variant is not None
-    return _task(session, variant)
+    return _task(db, session, variant)
 
 
 @app.post("/v1/sessions/{session_id}/begin")
@@ -332,23 +376,83 @@ def begin_task(_: Auth, db: Db, session_id: str) -> Task:
         raise RefusedError(409, "refused", str(exc)) from exc
     variant = db.variant(session.variant_id, session.job_id)
     assert variant is not None
-    return _task(session, variant)
+    return _task(db, session, variant)
+
+
+def _refusal(exc: Exception) -> RefusedError:
+    """Code that does not parse is the request's fault and costs nothing: 422. Every
+    other refusal is the module's own rule: 409."""
+    if isinstance(exc, NotPythonError):
+        return RefusedError(422, "syntax_error", str(exc))
+    return RefusedError(409, "refused", str(exc))
+
+
+@app.post("/v1/sessions/{session_id}/run")
+def run_code(_: Auth, db: Db, session_id: str, body: Submission) -> Examples:
+    """The visible examples, in the sandbox. Synchronous; stored nowhere; no attempt used."""
+    session = _session(db, session_id)
+    try:
+        run = run_examples(db, session_id, body.code)
+    except (SessionError, PatternError) as exc:
+        raise _refusal(exc) from exc
+    if run.outcome is Outcome.SANDBOX_UNAVAILABLE:
+        raise RefusedError(503, "sandbox_unavailable", f"{run.note or 'the sandbox could not run'} — try again")
+    by_name = {r.test: r for r in run.rows}
+
+    def detail(name: str) -> str | None:
+        row = by_name.get(name)
+        if row is None:
+            return run.note                    # it never ran: the import failed, or time ran out
+        if row.passed or not row.message:
+            return None
+        return row.message.removeprefix("AssertionError: ").split("\nassert ")[0]
+
+    variant = db.variant(session.variant_id, session.job_id)
+    assert variant is not None
+    # Every declared example appears, run or not, the way a result names every test.
+    examples = [Example(name=n, passed=n in by_name and by_name[n].passed, detail=detail(n))
+                for n in load(variant.pattern_id).tests.visible]
+    return Examples(outcome=run.outcome, examples=examples, note=run.note)
 
 
 @app.post("/v1/sessions/{session_id}/submit")
-def submit_code(_: Auth, db: Db, session_id: str, body: Submission) -> CandidateResult:
-    """Run the code in the sandbox. Synchronous: at most the 30 s wall clock."""
+def submit_code(_: Auth, db: Db, session_id: str, body: Submission) -> Submitted:
+    """Run the hidden tests in the sandbox: one attempt. Synchronous: at most the 30 s
+    wall clock. Code that does not parse: 422, and no attempt is used."""
     _session(db, session_id)
     try:
         result = submit(db, session_id, body.code)
     except (SessionError, PatternError) as exc:
-        raise RefusedError(409, "refused", str(exc)) from exc
+        raise _refusal(exc) from exc
     if not result.scored:
         # Guardrail 4: nothing was measured, the session stays open, nothing is stored.
         raise RefusedError(503, "sandbox_unavailable",
-                      f"{result.note or 'the sandbox could not run'} — nothing was measured; "
-                      "the session is still open, so submit again once it is fixed")
-    return candidate_view(result)
+                      f"{result.note or 'the sandbox could not run'} — nothing was measured and no "
+                      "attempt was used; submit again once it is fixed")
+    final = _session(db, session_id).status is SessionStatus.SUBMITTED
+    return Submitted(**candidate_view(result).model_dump(), final=final,
+                     attempts_left=0 if final else settings.max_attempts - result.attempt)
+
+
+@app.post("/v1/sessions/{session_id}/finish")
+def finish_task(_: Auth, db: Db, session_id: str) -> CandidateResult:
+    """The candidate is done: the last attempt counts now. Again, the same result."""
+    _session(db, session_id)
+    try:
+        return candidate_view(finish(db, session_id))
+    except SessionError as exc:
+        raise _refusal(exc) from exc
+
+
+@app.get("/v1/sessions/{session_id}/attempts", response_model=None)
+def get_attempts(_: Auth, db: Db, session_id: str,
+                 view: Literal["candidate", "full"] = "candidate") -> Attempts:
+    """Every attempt so far. `full`, for the person reading results, adds failure details."""
+    session = _session(db, session_id)
+    done = [r for r, _ in db.attempts(session_id)]
+    counted = done[-1].attempt if session.status is SessionStatus.SUBMITTED and done else None
+    shown: list[CandidateResult] | list[Result] = done if view == "full" else [candidate_view(r) for r in done]
+    return Attempts(max_attempts=settings.max_attempts, counted=counted, attempts=shown)
 
 
 @app.get("/v1/sessions/{session_id}/result", response_model=None)

@@ -23,5 +23,6 @@ export function taskStatus(task: Task | null): string {
   if (!task) return "unavailable";
   if (task.status === "issued") return task.start_by ? `not started · start by ${when(task.start_by)}` : "not started";
   if (task.status === "expired" && !task.started_at) return "expired · never started";
+  if (task.status === "open") return `open · ${task.attempts_used} of ${task.max_attempts} attempts used`;
   return task.status;
 }

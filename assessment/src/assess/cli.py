@@ -12,7 +12,7 @@ from assess.config import ROOT, settings
 from assess.models import Job
 from assess.patterns import PatternError, all_patterns, load
 from assess.scoring import render
-from assess.sessions import SessionError, start, submit
+from assess.sessions import SessionError, finish, run_examples, start, submit
 from assess.store import Store
 
 app = typer.Typer(add_completion=False, help="Unique, equally hard, sandboxed coding tasks. No verdicts.")
@@ -50,6 +50,9 @@ def validate(pattern_id: str) -> None:
                f"{r.reference_cases - len(r.reference_failures)}/{r.expected_cases} cases passed")
     for f in r.reference_failures[:10]:
         typer.secho(f"  reference FAILED {f}", fg="red")
+    typer.echo(f"  visible examples: reference passed {r.visible_cases - len(r.visible_failures)}/{r.visible_expected}")
+    for f in r.visible_failures[:10]:
+        typer.secho(f"  example FAILED {f}", fg="red")
     for name, escapes in r.escapes.items():
         state = "caught everywhere" if not escapes else f"ESCAPES in {len(escapes)}"
         typer.secho(f"  mutant {name:36} {state:22} by {', '.join(sorted(r.caught_by[name])) or '-'}",
@@ -137,19 +140,52 @@ def start_cmd(
         fail("no task issued: none of the must-have skills has a pattern")
 
 
-@app.command("submit")
-def submit_cmd(session_id: str, solution: Path) -> None:
-    """Run a solution in the sandbox and print the report."""
+@app.command("run")
+def run_cmd(session_id: str, solution: Path) -> None:
+    """Try a solution on the visible examples. Stored nowhere; uses no attempt."""
     if not solution.is_file():
         fail(f"no such file: {solution}")
     try:
-        result = submit(Store(), session_id, solution.read_text())
+        run = run_examples(Store(), session_id, solution.read_text())
+    except (SessionError, PatternError) as exc:
+        fail(str(exc))
+        return
+    for r in run.rows:
+        typer.secho(f"  {'✓' if r.passed else '✗'} {r.test}" + (f"\n      {r.message}" if r.message else ""),
+                    fg="green" if r.passed else "red")
+    typer.echo(f"{run.outcome.value}" + (f" — {run.note}" if run.note else ""))
+
+
+@app.command("submit")
+def submit_cmd(session_id: str, solution: Path) -> None:
+    """Run a solution against the hidden tests: one attempt. The last attempt counts."""
+    if not solution.is_file():
+        fail(f"no such file: {solution}")
+    store = Store()
+    try:
+        result = submit(store, session_id, solution.read_text())
     except SessionError as exc:
         fail(str(exc))
         return
     typer.echo(render(result))
     if not result.scored:
         raise typer.Exit(2)
+    final = store.result(session_id) is not None
+    typer.echo("\nfinal: this attempt counts" if final else
+               f"\n{settings.max_attempts - result.attempt} attempt(s) left; "
+               f"`assess finish {session_id}` to count this one now")
+
+
+@app.command("finish")
+def finish_cmd(session_id: str) -> None:
+    """Count the last attempt now, before the others are used."""
+    try:
+        result = finish(Store(), session_id)
+    except SessionError as exc:
+        fail(str(exc))
+        return
+    typer.echo(f"final: attempt {result.attempt} counts")
+    typer.echo(render(result))
 
 
 @app.command()

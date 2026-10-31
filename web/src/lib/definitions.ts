@@ -1,6 +1,7 @@
 import * as z from "zod";
 
 import { endOfDay } from "./tasks";
+import type { Examples } from "./types";
 
 const email = z.string().trim().toLowerCase().pipe(z.email({ error: "Enter a valid email." }));
 const name = z.string().trim().min(2, { error: "At least 2 characters." }).max(100);
@@ -40,6 +41,9 @@ export const SignupSchema = z.discriminatedUnion("role", [
 export type FormState =
   | { errors?: Record<string, string[] | undefined>; message?: string; values?: Record<string, string> }
   | undefined;
+
+/** The Run button's state: the examples it ran, or why it could not, and the code. */
+export type RunState = (NonNullable<FormState> & { examples?: Examples }) | undefined;
 
 /** What was typed, for a refused action to hand back: React resets a form after its
  * action runs, and a field with no value passed back comes back empty. */
