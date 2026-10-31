@@ -1,6 +1,6 @@
-# DevBridge — M5, M6, assessment and web
+# DevBridge — M5, M6, assessment, chat and web
 
-Three modules and a web layer, one repository. Each has its own CLAUDE.md with its
+Four modules and a web layer, one repository. Each has its own CLAUDE.md with its
 guardrails; read the one for the folder you are working in.
 
 | | Folder | Tooling |
@@ -8,7 +8,8 @@ guardrails; read the one for the folder you are working in.
 | M5 · CV verification | `cv-verification/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict`; run commands from inside the folder (`.env`, `.cache/` are relative to it) |
 | M6 · skill graph | `skill-graph/` — see its `CLAUDE.md` | stdlib + pyyaml + jsonschema · `make test` / `make all`; `PYTHONPATH=packages` |
 | Assessment | `assessment/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict` · Docker for the sandbox; settings from `assessment/.env` wherever you run it |
-| Web | `web/` — see its `CLAUDE.md`; `scripts/dev.sh` runs all four | Next.js 16 · TypeScript · Prisma 7 + SQLite · Vitest · `npm run check`; the only part a browser talks to, and it reaches the modules over HTTP |
+| Chat | `chat/` — see its `CLAUDE.md` | uv · pytest · ruff · `mypy --strict`; settings and the encryption key from `chat/.env`. Recruiter ↔ candidate, one thread per application, encrypted at rest |
+| Web | `web/` — see its `CLAUDE.md`; `scripts/dev.sh` runs all five | Next.js 16 · TypeScript · Prisma 7 + SQLite · Vitest · `npm run check`; the only part a browser talks to, and it reaches the modules over HTTP |
 | The contract | `schemas/` | read by every module; one copy, so a change reaches all of them |
 | The skill list | `schemas/skills/` | `ontology.yaml` (skills, tiers, links) and `aliases.yaml`; M5 resolves names against it, M6 scores by it, assessment tags patterns and JD skills with it |
 | Job requirements | `schemas/job-requirements.schema.json` | a confirmed job's must-haves (with bars) and nice-to-haves; assessment writes it, M6's shortlist reads it |
@@ -69,3 +70,13 @@ every combination.
   applicant and one confirmed job, never to the person; it filters nobody (the bars do),
   and only that job's recruiters see it. M6 answers alphabetically; the web lists by name
   by default, and a recruiter may sort that job's applicants by the match's middle value.
+
+## Chat
+
+`chat/` holds the conversations between a candidate and the recruiters of a company they
+applied to: one thread per application, opened only by a recruiter, so no candidate can
+write to a company first. It meets the rest only through the web, which checks who is on
+a thread and relays the live stream; it knows people by the web's user ids, never by name
+or email, and imports nothing from the other modules. Messages are encrypted at rest
+(AES-256-GCM, key in `chat/.env`) and never edited or deleted — encrypted at rest, not
+end to end, and every description must say which.

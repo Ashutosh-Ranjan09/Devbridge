@@ -6,7 +6,8 @@ import { Suspense } from "react";
 
 import { logout } from "@/app/(auth)/actions";
 import { SessionWatch } from "@/components/session-watch";
-import { currentUser, HOME } from "@/lib/auth";
+import { type CurrentUser, currentUser, HOME } from "@/lib/auth";
+import { messagesPath, unreadFor } from "@/lib/chat";
 
 export const metadata: Metadata = {
   title: "DevBridge",
@@ -48,10 +49,26 @@ async function Account() {
       <SessionWatch userId={user.id} />
       <Link href={HOME[user.role]}>{user.name}</Link>
       <span className="text-muted">{user.role.toLowerCase()}</span>
+      {user.role !== "ADMIN" && (
+        <Suspense fallback={<Link href={messagesPath(user)} className="text-accent underline">Messages</Link>}>
+          <MessagesLink user={user} />
+        </Suspense>
+      )}
       <Link href="/account" className="text-accent underline">Account</Link>
       <form action={logout}>
         <button type="submit" className="text-accent underline">Log out</button>
       </form>
     </div>
+  );
+}
+
+/** Messages, with the unread count when the chat module answers. Counted when a page is
+ * rendered; the chat page itself is live. */
+async function MessagesLink({ user }: { user: CurrentUser }) {
+  const unread = await unreadFor(user);
+  return (
+    <Link href={messagesPath(user)} className="text-accent underline">
+      Messages{unread ? ` (${unread})` : ""}
+    </Link>
   );
 }

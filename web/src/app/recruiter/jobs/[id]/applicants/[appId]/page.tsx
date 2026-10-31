@@ -4,12 +4,15 @@ import { Suspense } from "react";
 
 import { Interval } from "@/components/interval";
 import { Musts } from "@/components/musts";
+import { startChat } from "@/app/recruiter/actions";
+import { ActionButton } from "@/components/action-button";
 import { DecisionForm, SendAssessment } from "@/components/recruiter";
 import { CandidateNote, ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { db } from "@/lib/db";
 import { myApplication, requireRecruiter } from "@/lib/recruiter";
 import { alsoChecked, m5Rules } from "@/lib/m5";
+import { inboxFor } from "@/lib/chat";
 import { matchText } from "@/lib/match";
 import { marksFor } from "@/lib/review";
 import { START_BY_MAX_DAYS } from "@/lib/definitions";
@@ -41,7 +44,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
   ]);
 
   const quiet = <T,>(p: Promise<T>) => p.catch((e: unknown) => (e instanceof ServiceError ? e : Promise.reject(e)));
-  const [requirements, jobTasks, jobResults, profile, report, marks, rules, tasks] = await Promise.all([
+  const [requirements, jobTasks, jobResults, profile, report, marks, rules, tasks, chats] = await Promise.all([
     quiet(call<Requirements>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/requirements`)),
     quiet(call<JobTasks>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/tasks`)),
     assessments.length ? quiet(call<JobResults>("assess", `/v1/jobs/${encodeURIComponent(jobId)}/results`)) : null,
@@ -60,7 +63,9 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
       if (task?.status === "submitted" && !a.sentToM6At) after(() => settleAssessment(a.id).catch(() => {}));
       return { id: a.id, task, attempts };
     })),
+    quiet(inboxFor(me)),
   ]);
+  const chat = chats instanceof ServiceError ? chats : chats.find((r) => r.thread_id === app.id) ?? null;
   const shortlist = requirements instanceof ServiceError ? null
     : await quiet(call<Shortlist>("m6", `/shortlist?subject=${encodeURIComponent(ref)}`, { body: requirements }));
   const entry = shortlist && !(shortlist instanceof ServiceError)
@@ -128,6 +133,20 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
               : Object.values(jobTasks.must).flat().filter((o) => o.chosen).map((o) => ({ title: o.title, minutes: o.time_limit_minutes }))}
             startBy={{ default: dayIn(7), min: dayIn(0), max: dayIn(START_BY_MAX_DAYS - 1) }} />
         )}
+      </Card>
+
+      <Card>
+        <h3 className="mb-2 font-semibold">Chat</h3>
+        {chat instanceof ServiceError ? <p className="text-sm">{chat.message}</p>
+          : chat ? (
+            <p className="text-sm">
+              <Link href={`/recruiter/messages/${app.id}`} className="text-accent underline">Open the chat</Link>
+              {chat.unread > 0 && <span className="text-muted"> · {chat.unread} unread</span>}
+            </p>
+          ) : (
+            <ActionButton action={startChat.bind(null, jobId, app.id)} label="Start chat"
+              note="Only a recruiter can start it; the candidate can reply once you do." />
+          )}
       </Card>
 
       <Card>

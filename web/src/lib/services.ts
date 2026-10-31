@@ -1,9 +1,9 @@
 import "server-only";
 
-/** The three modules, called from the server only: the browser never sees a module's
+/** The four modules, called from the server only: the browser never sees a module's
  * address or key. Nothing here interprets an answer; it moves JSON and errors. */
 
-export type Service = "m5" | "m6" | "assess";
+export type Service = "m5" | "m6" | "assess" | "chat";
 
 const SERVICES: Record<Service, { label: string; url: string; key?: string; health: string }> = {
   m5: {
@@ -21,6 +21,12 @@ const SERVICES: Record<Service, { label: string; url: string; key?: string; heal
     label: "Assessment",
     url: process.env.ASSESS_URL ?? "http://127.0.0.1:8070",
     key: process.env.ASSESS_API_KEY,
+    health: "/healthz",
+  },
+  chat: {
+    label: "Chat",
+    url: process.env.CHAT_URL ?? "http://127.0.0.1:8090",
+    key: process.env.CHAT_API_KEY,
     health: "/healthz",
   },
 };
@@ -81,6 +87,28 @@ export async function call<T>(
     throw new ServiceError(service, response.status, code, message);
   }
   return payload as T;
+}
+
+/** A module's event stream, as the response it is: the caller hands its body to the
+ * browser unread. No timeout — it lasts as long as the page — and `signal` ends it when
+ * the browser goes. */
+export async function stream(service: Service, path: string, signal: AbortSignal): Promise<Response> {
+  const { url, key } = SERVICES[service];
+  let response: Response;
+  try {
+    response = await fetch(url + path, {
+      headers: { Accept: "text/event-stream", ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      cache: "no-store",
+      signal,
+    });
+  } catch {
+    throw new ServiceError(service, 0, "unreachable", `${SERVICES[service].label} is not answering at ${url}`);
+  }
+  if (!response.ok || !response.body) {
+    const { code, message } = errorOf(await response.json().catch(() => null), response.status);
+    throw new ServiceError(service, response.status, code, message);
+  }
+  return response;
 }
 
 export type Health = { service: Service; label: string; url: string; ok: boolean; detail: string };

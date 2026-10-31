@@ -147,6 +147,21 @@ export async function sendAssessment(jobId: string, applicationId: string, _: Fo
     : { message: "Sent." };
 }
 
+/** Opens the chat for an application: only a recruiter can, so no candidate writes to a
+ * company first. Idempotent in the chat module; ids only, never a name or an email. */
+export async function startChat(jobId: string, applicationId: string): Promise<FormState> {
+  const me = await requireRecruiter();
+  const app = await myApplication(me.orgIds, jobId, applicationId);
+  try {
+    await call("chat", "/v1/threads", {
+      body: { thread_id: app.id, candidate: app.candidateId, org: app.job.orgId, started_by: me.id },
+    });
+  } catch (e) {
+    return refused(e);
+  }
+  redirect(`/recruiter/messages/${encodeURIComponent(app.id)}`);
+}
+
 export async function decide(jobId: string, applicationId: string, _: FormState, form: FormData): Promise<FormState> {
   const me = await requireRecruiter();
   const app = await myApplication(me.orgIds, jobId, applicationId);

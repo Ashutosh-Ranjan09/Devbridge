@@ -1,7 +1,7 @@
 # DevBridge — web
 
 The pages candidates, recruiters and admins use, and the server side behind them. The
-browser talks only to this app; this app talks to M5, M6 and assessment over HTTP.
+browser talks only to this app; this app talks to M5, M6, assessment and chat over HTTP.
 
 **Next.js 16 is not the Next.js in your training data.** Read the guide in
 `node_modules/next/dist/docs/` before writing Next code (`AGENTS.md`, written by
@@ -23,7 +23,7 @@ npm run dev                       # http://localhost:3000
 npm run check · npm run build
 ```
 
-All four at once, with one key per module shared through the environment:
+All five at once, with one key per module shared through the environment:
 `../scripts/dev.sh` (or `../scripts/dev.sh prod`). Or each module in its own terminal
 (any that is down shows as such on `/admin`):
 
@@ -31,6 +31,7 @@ All four at once, with one key per module shared through the environment:
 cd cv-verification && uv run cvv serve                       # :8080, prints its key
 cd skill-graph && PYTHONPATH=packages python3 -c 'from m6 import M6; from m6.api import serve; serve(M6("evidence.db"), port=8300).serve_forever()'
 cd assessment && uv run assess serve                         # :8070, prints its key
+cd chat && uv run chat serve                                 # :8090, needs CHAT_ENCRYPTION_KEY in chat/.env
 ```
 
 ## Layout
@@ -42,7 +43,7 @@ src/lib/session.ts      create · read · delete a database session
 src/lib/auth.ts         currentUser() and requireRole(): the only cookie → person path
 src/lib/password.ts     bcrypt, cost 12
 src/lib/definitions.ts  Zod schemas for every form
-src/lib/services.ts     call() to M5 · M6 · assessment (JSON or multipart); health()
+src/lib/services.ts     call() to M5 · M6 · assessment · chat (JSON or multipart); stream() for an event stream; health()
 src/lib/types.ts        the fields of each module's answers that pages read
 src/lib/candidate.ts    requireCandidate(); myVerification() / myAssessment(): theirs, or 404
 src/lib/recruiter.ts    requireRecruiter(); myJob() / myApplication(): their organisation's, or 404
@@ -50,6 +51,8 @@ src/lib/m5.ts           m5Rules() (M5's catalogue) · alsoChecked(): the CLI's "
 src/lib/review.ts       an M5 report's lines as keys; marksFor(): the newest admin mark on each
 src/lib/limits.ts       failed logins per email: lockedFor() · recordFailure() · clearFailures()
 src/lib/sync.ts         reports and results to M6, unchanged; sentToM6At once M6 accepts
+src/lib/chat.ts         threadFor(): an application's chat if this person is on it, else null (→ 404) ·
+                        inboxFor() · unreadFor() (the header's count) · namesOn()
 src/lib/tasks.ts        a task's state in words (taskStatus) and its dates, in India's time (dayIn · endOfDay · when)
 src/app/(auth)/         login, signup, reset/[token] (an admin's one-time link), and their server actions
 src/app/account/        any role: who you are, and changing your password (other sessions end)
@@ -57,6 +60,9 @@ src/app/candidate/      overview · cv (upload, report) · skills (profile, expl
                         assessments (grouped by job; practice, Start, editor with Run and Submit, attempts, Finish) · jobs (apply, decisions) · actions.ts
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, the tasks every applicant gets, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
+src/app/{candidate,recruiter}/messages/   the inbox, and [appId]: one application's chat
+src/app/chat/actions.ts sendMessage · markRead, for both sides (startChat is the recruiter's, in recruiter/actions.ts)
+src/app/api/chat/[appId]/stream/   the live stream, relayed from the chat module for the people on the thread
 src/app/admin/          system (modules, counts) · accounts (and reset links) · candidates (each one's CV reports,
                         every line markable) · catalogue (M5's checks, the tasks) ·
                         quarantine (skills M6 holds because the list lacks them) · actions.ts
@@ -66,6 +72,7 @@ src/components/         ui · report (M5's buckets, in M5's order) · interval �
                         (an applicant's must-haves, as M6's shortlist answered) · action-button ·
                         candidate, recruiter, admin (the client components: forms, refresh, countdown, editor)
                         · session-watch (a login or logout in another tab reloads this one: one browser, one cookie)
+                        · chat (the live thread: EventSource, ✓/✓✓, send) · conversation · inbox
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
@@ -88,7 +95,8 @@ tests/                  Vitest: actions against a temporary database; service ca
    decision needs a person and a
    written reason, and is stored with both.
 4. **The modules see only `subject_ref`.** Never send a name or an email to M5, M6 or
-   assessment. Only `Candidate` maps a subject to a person.
+   assessment. Only `Candidate` maps a subject to a person. The chat module sees user,
+   application and organisation ids, never a name or an email; names are added here.
 5. **Every page and every server action checks the role itself** with `requireRole`.
    The proxy only saves a round trip; a server action can be called without the page.
 6. **This database holds who and which, never what.** No copy of a report, a skill
@@ -140,6 +148,13 @@ tests/                  Vitest: actions against a temporary database; service ca
     the admin area the name. Rows are never updated: marking again adds one, and the
     newest is current. The action checks the key against the report from M5, so only a
     real line can be marked. A mark does not reach M6 and does not change any skill.
+15. **A chat is opened by a recruiter and reached through its application.** `startChat`
+    exists only for recruiters, through `myApplication`; the chat module also refuses a
+    message to a thread nobody opened, so a candidate cannot write first. Every chat page,
+    action and the stream go through `threadFor`: the candidate who applied or a recruiter
+    of the job's company, anyone else (admins too) a 404. Bodies are shown as text with
+    their line breaks, never as HTML or Markdown. The stream is relayed, so guardrail 1
+    holds for live updates too.
 
 ## Known limits, stated
 
@@ -173,3 +188,5 @@ tests/                  Vitest: actions against a temporary database; service ca
 - "Also checked, nothing raised" is the one rule this app repeats from M5
   (`cvv.report.quietly_clean`: a check below decisive that ran clean, no note), because
   the report's closed schema has no field for it. Change both together.
+- The header's unread count is read when a page renders; the chat page itself is live.
+- The chat's live fan-out is in one process (the chat module's); see `chat/CLAUDE.md`.

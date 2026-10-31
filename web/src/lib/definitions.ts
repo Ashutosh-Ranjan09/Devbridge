@@ -53,6 +53,17 @@ export function typed(form: FormData): Record<string, string> {
   return out;
 }
 
+// ── chat ────────────────────────────────────────────────────────────────────
+
+export const MAX_MESSAGE_CHARS = 4000;
+
+export const MessageSchema = z.object({
+  // A browser sends a textarea's line breaks as \r\n; one kind of line break is stored.
+  body: z.string().trim().min(1, { error: "Write a message." })
+    .max(MAX_MESSAGE_CHARS, { error: `At most ${MAX_MESSAGE_CHARS} characters.` })
+    .transform((s) => s.replace(/\r\n?/g, "\n")),
+});
+
 // ── candidate ───────────────────────────────────────────────────────────────
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;

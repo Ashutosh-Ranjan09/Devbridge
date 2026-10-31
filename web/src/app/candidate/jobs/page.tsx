@@ -3,9 +3,12 @@ import { Suspense } from "react";
 import { applyToJob } from "@/app/candidate/actions";
 import { ActionButton } from "@/components/action-button";
 import { Card, Loading, Page } from "@/components/ui";
+import Link from "next/link";
+
 import { requireCandidate } from "@/lib/candidate";
+import { inboxFor } from "@/lib/chat";
 import { db } from "@/lib/db";
-import { call } from "@/lib/services";
+import { call, ServiceError } from "@/lib/services";
 import type { Job } from "@/lib/types";
 
 export default function JobsPage() {
@@ -25,6 +28,10 @@ async function Jobs() {
     db.application.findMany({ where: { candidateId: me.id }, include: { job: { include: { org: true } }, decision: true }, orderBy: { createdAt: "desc" } }),
   ]);
   const applied = new Set(mine.map((a) => a.jobId));
+  const chats = new Map((await inboxFor(me).catch((e: unknown) => {
+    if (e instanceof ServiceError) return [];
+    throw e;
+  })).map((r) => [r.thread_id, r.unread]));
   const skills = await Promise.all(open.map((j) => call<Job>("assess", `/v1/jobs/${encodeURIComponent(j.id)}`).catch(() => null)));
   return (
     <div className="space-y-4">
@@ -35,6 +42,11 @@ async function Jobs() {
             {mine.map((a) => (
               <li key={a.id}>
                 {a.job.title} <span className="text-sm text-muted">· {a.job.org.name} · {a.status.toLowerCase().replace("_", " ")}</span>
+                {chats.has(a.id) && (
+                  <Link href={`/candidate/messages/${a.id}`} className="ml-2 text-sm text-accent underline">
+                    Chat with the recruiter{chats.get(a.id) ? ` (${chats.get(a.id)} unread)` : ""}
+                  </Link>
+                )}
                 {a.decision && (
                   <p className="text-sm">Decision: {a.decision.outcome.toLowerCase()}. <q>{a.decision.reason}</q></p>
                 )}

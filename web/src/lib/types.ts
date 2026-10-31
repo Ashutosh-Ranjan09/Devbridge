@@ -227,6 +227,24 @@ export type Shortlist = {
   note: string;
 };
 
+// ── chat: GET /v1/threads/{id} · GET /v1/inbox ─────────────────────────────
+
+export type Side = "candidate" | "recruiter";
+
+/** The chat module knows people by the web's user ids; names are added here. */
+export type ChatMessage = { seq: number; id: string; thread_id: string; sender: string; side: Side; body: string; sent_at: string };
+
+/** The newest message each side has seen: the other side's ✓✓. */
+export type Seen = Record<Side, number>;
+
+export type ThreadView = {
+  thread: { thread_id: string; candidate: string; org: string; started_by: string; started_at: string };
+  messages: ChatMessage[];
+  seen: Seen;
+};
+
+export type InboxRow = { thread_id: string; started_at: string; last_at: string | null; unread: number };
+
 // ── admin ───────────────────────────────────────────────────────────────────
 
 /** M5's GET /v1/rules: the live catalogue of checks. */

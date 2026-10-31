@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+# Holds the encryption key: without it the messages cannot be read, and with it anyone can.
+.env
+# Threads and messages, sealed — but they name who wrote to whom. Local only.
+.data/
