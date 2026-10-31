@@ -20,7 +20,7 @@
 | **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 11 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 106, since 4 Sep | **no remote** |
+| **Commits** | 107, since 4 Sep | private GitHub remote since 1 Nov |
 
 ---
 
@@ -113,14 +113,13 @@ checkable from the API. **A new check, not a fix.**
 
 | | Risk | Severity | Why |
 |---|---|---|---|
-| 1 | **No git remote** | 🔴 high | 106 commits, now all three modules and the web layer, exist on one laptop |
-| 2 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
-| 3 | **Extraction accuracy barely measured** | 🟠 medium | `cvv gold` exists; one labelled document, and it is the synthetic one |
-| 4 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |
-| 5 | **Scraper drift** | 🟡 low | a CodeChef redesign turns P5 into a gap, never a false finding; the fix is the scraper |
+| 1 | **Personal data in git history** | 🔴 high | two CVs, the design PDF's worked example, and cached API responses — blocks any public push. `.cache/` is no longer tracked (`c663d73`), but its old files stay in history |
+| 2 | **Extraction accuracy barely measured** | 🟠 medium | `cvv gold` exists; one labelled document, and it is the synthetic one |
+| 3 | **One document measured since October** | 🟠 medium | every new document so far has found a real bug |
+| 4 | **Scraper drift** | 🟡 low | a CodeChef redesign turns P5 into a gap, never a false finding; the fix is the scraper |
 
-**Recommended order:** a private remote first; a history rewrite only if the repository
-is ever made public.
+The remote is private (GitHub, since 1 Nov), so the history rewrite is needed only if the
+repository is ever made public.
 
 ---
 
@@ -128,11 +127,10 @@ is ever made public.
 
 | | Work | Effort | Unblocks |
 |---|---|---|---|
-| 1 | Private git remote | 10 min | removes the largest risk |
-| 2 | Re-run the two September documents | 15 min | a measurement table from one version of the system |
-| 3 | Decide the contract (§ Decisions 1) | a conversation | retires the extension list |
-| 4 | **Gold set** — label 10–20 CVs for `cvv gold` (the harness is built) | days | extraction metrics for the thesis |
-| 5 | Honest-variation tests in `cvv evaluate` | a day | the seven fairness bugs were invisible to a harness that only corrupts |
+| 1 | Re-run the two September documents | 15 min | a measurement table from one version of the system |
+| 2 | Decide the contract (§ Decisions 1) | a conversation | retires the extension list |
+| 3 | **Gold set** — label 10–20 CVs for `cvv gold` (the harness is built) | days | extraction metrics for the thesis |
+| 4 | Honest-variation tests in `cvv evaluate` | a day | the seven fairness bugs were invisible to a harness that only corrupts |
 
 Known and left alone for a college project: SSRF on the probe, `document_url` and
 webhooks; no retention or delete; Postgres rows that can stay `pending`; webhooks that

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://devbridge.dev/schemas/job-requirements/1.0.0",
   "title": "JobRequirements",
-  "description": "A job's CONFIRMED skill requirements: written by the assessment module after a person confirmed them, read by M6 to shortlist candidates. Must-haves are filters, each with its own bar; nice-to-haves are shown, never combined into a ranking.",
+  "description": "A job's CONFIRMED skill requirements: written by the assessment module after a person confirmed them, read by M6 to shortlist candidates. Must-haves are filters, each with its own bar; nice-to-haves are shown, never combined into a ranking. M6 averages both into a job match per applicant (weights in its m6-parameters.yaml), which filters and orders nobody.",
   "type": "object",
   "required": [
     "schema_version",

@@ -66,7 +66,12 @@ Dependencies point one way. Ports are deliberately narrow:
    are validated by the sweep and recovery simulation, and are never tuned to make one candidate look right.
 2. **No overall score.** No number summarises a person. `/developers/{ref}/score|rating|trust|overall`
    returns **400** with a reason. `test_constraints.py` scans responses and method names for
-   aggregate-shaped keys, so don't add one, even for demo prep.
+   aggregate-shaped keys, so don't add one, even for demo prep. **One exception, the project
+   owner's:** each shortlist entry's `job_match` — that job's skills averaged (weights in
+   `job_match`, a skill with no evidence at the prior), a range with `evidence_for` / `of`.
+   It describes an applicant against one job, never a person; it moves nobody between
+   `candidates` and `others` and the lists stay alphabetical. A test holds that it appears
+   on shortlist entries and nowhere else.
 3. **Intervals, never bare points.** The published `score` is the **lower bound**, and every row
    carries `interval`. Two candidates are ordered only when their intervals don't overlap, so search
    returns **tiers**, alphabetical inside a tier.
@@ -154,7 +159,8 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   `POST /shortlist?subject=…` (repeatable) answers for those people only, a job's applicants:
   the qualified in `candidates`, the rest in `others`, none on record in `no_evidence`. Every
   entry carries `clears` per must-have (true, false, or null for an unbarred one), so the web
-  layer shows M6's own decision and never re-derives it. Without `subject`, only the qualified.
+  layer shows M6's own decision and never re-derives it, and a `job_match` (constraint 2's
+  exception); `job_match_basis` says how every match was made. Without `subject`, only the qualified.
 - Design artifacts: publish each revision as a **new** artifact. Never overwrite one, because the revision history matters.
 
 ## Known gaps / gotchas

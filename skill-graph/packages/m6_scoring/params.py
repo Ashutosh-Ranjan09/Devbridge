@@ -157,6 +157,13 @@ class Parameters:
     def z(self) -> float:
         return float(_value(self._raw["display"]["z"]))
 
+    # ── job match ───────────────────────────────────────────────────────────
+    @property
+    def match_weights(self) -> dict[str, float]:
+        """How much a must-have and a nice-to-have count in a job match."""
+        w = self._raw["job_match"]["weights"]
+        return {"must": float(_value(w["must"])), "nice": float(_value(w["nice"]))}
+
     # ── the sweep's view ────────────────────────────────────────────────────
     def sweepable(self) -> Iterator[Sweepable]:
         """Every parameter declaring a `sweep` range, found by walking the tree.

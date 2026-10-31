@@ -81,7 +81,10 @@ tests/                  Vitest: actions against a temporary database; service ca
    by a skill, with one exception: a job's assessment, scored like an online test, in the
    assessment module's order — "Assessment total" (each task 100 points, summed over the
    job's tasks, then time) and "Results by task" (each task on its own). Shown to that
-   job's recruiters only; nothing else is ever summed. A decision needs a person and a
+   job's recruiters only. And M6's **job match** per applicant (that job's skills averaged,
+   must-haves counting more, as a range with what it rests on), shown beside the skills
+   in a list still ordered by name; never a filter. Nothing else is ever summed. A
+   decision needs a person and a
    written reason, and is stored with both.
 4. **The modules see only `subject_ref`.** Never send a name or an email to M5, M6 or
    assessment. Only `Candidate` maps a subject to a person.

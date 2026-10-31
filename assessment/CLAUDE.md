@@ -101,7 +101,8 @@ threads. Never share one Store between requests.
 7. **Unknown is said, never dropped.** A JD skill not on the list, a must-have with no
    pattern, a skill M6 does not know: each is reported where a reader will see it.
 8. **The shortlist filters on must-haves and never ranks.** Ordering by several skills
-   needs a weighted sum — the overall score both other modules refuse.
+   needs a weighted sum. M6 does publish one, by the project owner's decision — a job
+   match per applicant, beside the columns — but it orders and filters nobody.
 9. **Results are immutable.** Triggers refuse UPDATE and DELETE on results, submissions
    and attempts; the code that was scored is stored beside each attempt. Up to three
    attempts; the LAST counts, written to `results` once the session is final (the last

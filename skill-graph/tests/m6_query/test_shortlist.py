@@ -1,6 +1,9 @@
 """The shortlist: a confirmed job's must-haves as filters, never a ranking."""
-from query_fixtures import AS_OF, population, raises, walk
+from query_fixtures import AS_OF, SUBJECT, population, raises, walk
+from m6_query import QueryService, SkillView
 from m6_query.errors import BadRequirements
+from m6_query.service import job_match
+from m6_scoring import ScoringEngine
 
 
 def requirements(must, nice=(), not_on_list=()):
@@ -120,3 +123,82 @@ def test_without_subjects_the_near_misses_of_everyone_are_not_listed():
     found = population().shortlist(requirements([("typescript", 0.0), ("cpp", 0.99)]), AS_OF)
     assert "others" not in found and "no_evidence" not in found
     assert found["considered"] == 4
+
+
+# ── the job match: one applicant against one confirmed job ──────────────────
+def view(lower, mean, upper, evidence=1):
+    return SkillView(skill_id="", lower=lower, upper=upper, mean=mean, tier="fundamental",
+                     evidence_count=evidence, days_since_newest_evidence=None, propagated=None)
+
+
+PRIOR = view(0.083, 0.25, 0.55, evidence=0)
+WEIGHTS = {"must": 2.0, "nice": 1.0}
+
+
+def test_a_job_match_counts_a_must_have_twice_a_nice_to_have():
+    """The worked example: algorithms a must-have at 0.6, data structures a nice-to-have
+    at 0.2. Both ends of the range are averaged the same way as the middle."""
+    views = {"algorithms": view(0.45, 0.6, 0.73), "data_structures": view(0.08, 0.2, 0.42)}
+    got = job_match(views, ["algorithms"], ["data_structures"], WEIGHTS, PRIOR)
+    assert got == {"interval": [0.327, 0.627], "mean": 0.467, "evidence_for": 2, "of": 2}
+
+
+def test_a_skill_without_evidence_counts_at_the_prior_not_at_zero():
+    """Absence is not inability: a skill nobody has shown counts at "nothing known"."""
+    got = job_match({"algorithms": view(0.45, 0.6, 0.73)}, ["algorithms"], ["data_structures"], WEIGHTS, PRIOR)
+    assert got["mean"] == round((2 * 0.6 + 0.25) / 3, 3)
+    assert got["interval"][0] > round(2 * 0.45 / 3, 3), "the missing skill counted as zero"
+    assert (got["evidence_for"], got["of"]) == (1, 2), "the match must say it rests on one skill"
+
+
+def test_no_weighted_skill_is_no_match():
+    assert job_match({}, [], ["rust"], {"must": 2.0, "nice": 0.0}, PRIOR) is None
+
+
+def test_the_shortlist_s_nothing_known_is_m6_s_prior():
+    found = population().shortlist(requirements([("typescript", 0.0)], nice=["rust"]), AS_OF, subjects=[SUBJECT])
+    assert found["job_match_basis"] == {"weights": WEIGHTS,
+                                        "without_evidence": {"interval": [0.083, 0.55], "mean": 0.25}}
+    entry = found["candidates"][0]
+    assert entry["nice"]["rust"] is None
+    assert (entry["job_match"]["evidence_for"], entry["job_match"]["of"]) == (1, 2)
+
+
+def test_an_inferred_skill_counts_at_its_range_but_not_as_evidence():
+    """On the golden subject data_structures is reached only by propagation."""
+    svc = population()
+    views = {v.skill_id: v for v in svc.skills(SUBJECT, AS_OF)}
+    a, d = views["algorithms"], views["data_structures"]
+    assert d.inferred and not a.inferred
+    found = svc.shortlist(requirements([("algorithms", 0.0)], nice=["data_structures"]), AS_OF, subjects=[SUBJECT])
+    got = found["candidates"][0]["job_match"]
+    assert got["mean"] == round((2 * a.mean + d.mean) / 3, 3)
+    assert got["interval"] == [round((2 * a.lower + d.lower) / 3, 3), round((2 * a.upper + d.upper) / 3, 3)]
+    assert (got["evidence_for"], got["of"]) == (1, 2)
+
+
+def test_the_weights_are_the_parameters_not_the_code():
+    svc = population()
+    p = svc.engine.p.replacing(job_match__weights__nice=0.0)
+    musts_only = QueryService(svc.log, ScoringEngine(p, ontology=svc.ontology), ontology=svc.ontology)
+    doc = requirements([("typescript", 0.0)], nice=["rust"])
+    weighted = svc.shortlist(doc, AS_OF, subjects=[SUBJECT])["candidates"][0]["job_match"]
+    unweighted = musts_only.shortlist(doc, AS_OF, subjects=[SUBJECT])["candidates"][0]["job_match"]
+    typescript = {v.skill_id: v for v in svc.skills(SUBJECT, AS_OF)}["typescript"]
+    assert unweighted["mean"] == round(typescript.mean, 3) and unweighted["of"] == 1
+    assert weighted["mean"] != unweighted["mean"]
+
+
+def test_the_match_moves_nobody_and_orders_nobody():
+    """The bars alone decide who qualifies, and both lists stay alphabetical whatever
+    the matches are."""
+    doc = requirements([("typescript", 0.3)], nice=["cpp", "python"])
+    asked = ["subj_weak", "subj_strong", "subj_thin", SUBJECT]
+    found = population().shortlist(doc, AS_OF, subjects=asked)
+    for group, qualifies in (("candidates", True), ("others", False)):
+        assert [c["subject_ref"] for c in found[group]] == sorted(c["subject_ref"] for c in found[group])
+        assert all((False not in c["clears"].values()) == qualifies for c in found[group])
+    everyone = found["candidates"] + found["others"]
+    means = [c["job_match"]["mean"] for c in everyone]
+    assert len(set(means)) > 1, "the fixture must give different matches, or this proves nothing"
+    assert means != sorted(means, reverse=True), "an alphabetical list that happens to be in match order proves nothing"

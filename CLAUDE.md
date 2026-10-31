@@ -61,3 +61,10 @@ every combination.
   summed over that job's tasks, then less time. That total is the score of one test and
   nothing else; no skill interval, CV report or other job is ever added in, M6 never
   sees it, nobody is filtered by it, and a person still picks and decides.
+
+  A second, also the owner's: M6's shortlist gives each applicant a **job match** — that
+  job's skills averaged from M6's intervals, a must-have counting 2 and a nice-to-have 1
+  (`m6-parameters.yaml` `job_match`), a skill with no evidence at the prior (0.25,
+  0.08–0.55), as a range with how many skills have direct evidence. It belongs to one
+  applicant and one confirmed job, never to the person; it filters nobody (the bars do),
+  orders nobody (lists stay alphabetical), and only that job's recruiters see it.

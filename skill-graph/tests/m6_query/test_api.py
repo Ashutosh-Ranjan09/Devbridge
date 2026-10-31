@@ -40,7 +40,7 @@ def test_health_reports_the_population_and_parameters():
     with Server() as s:
         status, body = s.get("/health")
     assert status == 200 and body["subjects"] == 4
-    assert body["parameter_version"] == "1.1.0"
+    assert body["parameter_version"] == "1.2.0"
 
 
 def test_the_skills_catalogue_lists_the_ontology_with_half_lives():

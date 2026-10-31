@@ -10,6 +10,7 @@ import { Card, Loading, Page } from "@/components/ui";
 import { db } from "@/lib/db";
 import { myApplication, requireRecruiter } from "@/lib/recruiter";
 import { alsoChecked, m5Rules } from "@/lib/m5";
+import { matchText } from "@/lib/match";
 import { marksFor } from "@/lib/review";
 import { START_BY_MAX_DAYS } from "@/lib/definitions";
 import { dayIn, taskStatus } from "@/lib/tasks";
@@ -79,6 +80,12 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
       <Card>
         <h3 className="mb-2 font-semibold">Must-haves</h3>
         {shortlist instanceof ServiceError ? <p>{shortlist.message}</p> : <Musts entry={entry} skills={musts} />}
+        {entry?.job_match && (
+          <p className="mt-2 text-sm">
+            Job match: <span className="font-medium">{matchText(entry.job_match)}</span>
+            <span className="text-muted"> · for this job only; it filters nobody</span>
+          </p>
+        )}
       </Card>
 
       <Card>

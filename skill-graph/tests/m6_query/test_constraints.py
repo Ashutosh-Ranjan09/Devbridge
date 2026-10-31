@@ -29,6 +29,20 @@ def test_no_response_carries_an_aggregate_field():
             assert key not in BANNED_KEYS, f"{key!r} appeared in a response"
 
 
+def test_the_one_combination_is_a_job_match_on_a_shortlist_entry():
+    """By the project owner's decision a job's shortlist carries, per applicant, how
+    their evidence matches THAT job. Nothing about a person alone carries one."""
+    for response in responses():
+        assert all(key != "job_match" for key, _ in walk(response)), "a job match outside a job"
+    doc = {"schema_version": "1.0.0", "job_id": "job_t", "confirmed_at": "2026-08-24T00:00:00+00:00",
+           "confirmed_by": "recruiter", "skill_list_version": "0.3.0",
+           "must": [{"skill_id": "typescript", "bar": 0.0}], "nice": ["cpp"], "not_on_list": []}
+    found = population().shortlist(doc, AS_OF)
+    for key, _ in walk(found):
+        assert key not in BANNED_KEYS, f"{key!r} appeared in a shortlist"
+    assert found["candidates"] and all(c["job_match"] for c in found["candidates"])
+
+
 def test_the_service_exposes_no_method_that_summarises_a_developer():
     from m6_query import QueryService
     public = [n for n in dir(QueryService) if not n.startswith("_")]
@@ -124,4 +138,4 @@ def test_explain_always_reports_what_was_excluded():
 def test_every_score_carries_the_parameter_version_that_produced_it():
     """A number without the parameters behind it cannot be reproduced or
     disputed."""
-    assert service().explain(SUBJECT, "typescript", AS_OF)["parameter_version"] == "1.1.0"
+    assert service().explain(SUBJECT, "typescript", AS_OF)["parameter_version"] == "1.2.0"

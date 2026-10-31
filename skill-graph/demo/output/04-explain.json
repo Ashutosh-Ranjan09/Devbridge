@@ -9,7 +9,7 @@
   "prior_only": false,
   "days_since_newest_evidence": 81,
   "half_life_days": 1167,
-  "parameter_version": "1.1.0",
+  "parameter_version": "1.2.0",
   "propagated": null,
   "contributions": [
     {

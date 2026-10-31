@@ -2,7 +2,7 @@
 # Single source of truth for the scoring engine AND the sensitivity sweep.
 # Code reads `value`; the sweep reads `sweep`. Nothing here is fitted.
 # Decisions and reasoning: M6-DECISIONS.md
-contract_version: "1.1.0"
+contract_version: "1.2.0"
 
 space:
   # O2 — the filter runs on the logit of ability; display transforms back.
@@ -183,3 +183,17 @@ display:
     The `sigma` field in the /explain response is the DISPLAY-space half-width
     (mean - score), not the logit-space state. `sigma_logit` carries the state.
     This is what reconciles the published numbers — see M6-DECISIONS.md O2.
+
+job_match:
+  # The one combination of skills M6 publishes, by the project owner's decision: how one
+  # applicant's evidence matches one confirmed job. Never a score of the person — it exists
+  # only against a job — and it filters and orders nobody. Not swept: it moves no state.
+  weights:
+    must:
+      value: 2.0
+    nice:
+      value: 1.0
+  rationale: >
+    A must-have counts twice a nice-to-have, so a nice-to-have still counts. A skill with
+    no evidence counts at the prior (theta_0 and sigma_0 above), M6's own "nothing known":
+    small, and never zero, because zero reads as "shown unable" when nothing was shown.

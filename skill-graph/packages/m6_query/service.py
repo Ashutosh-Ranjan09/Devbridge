@@ -66,6 +66,38 @@ class SkillView:
         }
 
 
+def job_match(views: dict[str, SkillView], musts: Sequence[str], nice: Sequence[str],
+              weights: dict[str, float], nothing_known: SkillView) -> dict[str, Any] | None:
+    """How one applicant's evidence matches one confirmed job: the job's skills averaged,
+    a must-have weighted `weights["must"]`, a nice-to-have `weights["nice"]`.
+
+    The one combination of skills this system publishes, by the project owner's decision,
+    and it is a property of the PAIR — the same person matches each job differently, and
+    there is no match without a job. It filters nobody and orders nobody; the shortlist
+    stays alphabetical and the must-have bars stay the only filter.
+
+    It is a range, not a point: the weighted average of each end of every skill's
+    interval. That is wider than an interval of the average would be, which errs toward
+    saying less. A skill with no evidence counts at `nothing_known` — the prior, M6's own
+    "nothing known", small and never zero. An inferred skill counts at its inferred range.
+    `evidence_for` counts the skills with DIRECT evidence, so a match made mostly of the
+    prior says so beside the number. None when no skill carries weight.
+    """
+    rows = [(sk, weights["must"]) for sk in musts] + [(sk, weights["nice"]) for sk in nice]
+    rows = [(sk, w) for sk, w in rows if w > 0]
+    total = sum(w for _, w in rows)
+    if not total:
+        return None
+    def avg(end) -> float:
+        return sum(w * end(views.get(sk) or nothing_known) for sk, w in rows) / total
+    return {
+        "interval": [round(avg(lambda v: v.lower), 3), round(avg(lambda v: v.upper), 3)],
+        "mean": round(avg(lambda v: v.mean), 3),
+        "evidence_for": sum(1 for sk, _ in rows if sk in views and not views[sk].inferred),
+        "of": len(rows),
+    }
+
+
 class QueryService:
     def __init__(self, log, engine: ScoringEngine | None = None, *, ontology=None) -> None:
         self.log = log
@@ -224,9 +256,12 @@ class QueryService:
         default, as `search` decides for one skill). Nice-to-haves are shown beside each
         candidate and filter nothing.
 
-        Several skills are never combined into one order. That would need a weighted sum
-        of intervals — an overall score by another name, which this system refuses. A
-        reader compares the columns; the note in the answer says so.
+        Several skills are never combined into one ORDER. Each entry carries a
+        `job_match` (see `job_match`): this job's skills averaged, must-haves counting
+        more, as a range with how many skills it rests on — by the project owner's
+        decision, a property of this applicant and this job, never of the person. It moves
+        nobody between `candidates` and `others` and the lists stay alphabetical: a
+        reader compares the columns and the match beside them; the note says so.
 
         `subjects` narrows who is considered: a job's applicants, say. Then every one of
         them is answered for, so a reader sees why someone did not qualify rather than
@@ -260,6 +295,13 @@ class QueryService:
             considered = [s for s in asked if s in have]
             no_evidence = [s for s in asked if s not in have]
 
+        weights = self.engine.p.match_weights
+        prior = self.engine.filter.initial(as_of)
+        z = self.engine.p.z
+        nothing_known = SkillView(
+            skill_id="", lower=prior.score(z), upper=prior.upper(z), mean=prior.mean,
+            tier="", evidence_count=0, days_since_newest_evidence=None, propagated=None)
+
         candidates, others = [], []
         for subject_ref in considered:
             views = {v.skill_id: v for v in self.skills(subject_ref, as_of)}
@@ -275,6 +317,7 @@ class QueryService:
                 "must": {sk: view(views.get(sk)) for sk in musts},
                 "nice": {sk: view(views.get(sk)) for sk in nice},
                 "clears": cleared,
+                "job_match": job_match(views, list(musts), nice, weights, nothing_known),
             }
             (candidates if False not in cleared.values() else others).append(entry)
         answer = {
@@ -289,8 +332,14 @@ class QueryService:
             "candidates": sorted(candidates, key=lambda c: c["subject_ref"]),
             "unknown_skills": unknown,
             "not_on_list": list(requirements.get("not_on_list") or []),
-            "note": ("Alphabetical, not ranked. Combining several skills into one order "
-                     "would be an overall score; compare the intervals per skill."
+            "job_match_basis": {
+                "weights": weights,
+                "without_evidence": {"interval": [round(nothing_known.lower, 3), round(nothing_known.upper, 3)],
+                                     "mean": round(nothing_known.mean, 3)},
+            },
+            "note": ("Alphabetical, not ranked. Each job match is this job's skills averaged, "
+                     "must-haves counting more: read it beside the intervals per skill; it "
+                     "orders and filters nobody."
                      + ("" if filters else " No must-have has a bar, so nothing filtered: "
                         "every candidate is listed, and the must-haves are to be assessed.")),
         }

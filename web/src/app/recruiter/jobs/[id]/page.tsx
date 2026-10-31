@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { myJob, requireRecruiter } from "@/lib/recruiter";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
+import { basisText, matchText } from "@/lib/match";
 import { forApplicants, pendingStatus } from "@/lib/tasks";
 import type { Job, JobResults, JobTasks, Requirements, Shortlist, ShortlistEntry } from "@/lib/types";
 
@@ -129,7 +130,9 @@ async function Applicants({ jobId, skills, only }: { jobId: string; skills: stri
           {only ? "Show everyone" : "Only those who clear every bar"}
         </Link>
       </div>
-      <p className="mb-3 text-xs text-muted">Ordered by name. {shortlist.note} Match: {shortlist.match}.</p>
+      <p className="mb-3 text-xs text-muted">
+        Ordered by name. {shortlist.note} Clears every bar: {shortlist.match}. {basisText(shortlist.job_match_basis)}
+      </p>
       <ul className="space-y-3">
         {shown.map((a) => {
           const entry = entries.get(a.candidate.subjectRef) ?? null;
@@ -143,6 +146,7 @@ async function Applicants({ jobId, skills, only }: { jobId: string; skills: stri
                 <span className="text-sm text-muted">
                   {entry ? (entry.clearsAll ? "clears every bar" : "does not clear every bar") : "no evidence on record"}
                 </span>
+                {entry?.job_match && <span className="text-sm">job match {matchText(entry.job_match)}</span>}
               </div>
               <Musts entry={entry} skills={skills} />
             </li>

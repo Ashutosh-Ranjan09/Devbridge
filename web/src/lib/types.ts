@@ -208,7 +208,12 @@ export type ShortlistEntry = {
   must: Record<string, SkillColumn>;
   nice: Record<string, SkillColumn>;
   clears: Record<string, boolean | null>; // M6's own filter decision per must-have
+  job_match: JobMatch | null; // this applicant against this job; filters and orders nobody
 };
+
+/** M6's match of one applicant to one job: the job's skills averaged, must-haves counting
+ * more, as a range, with how many of them have direct evidence. Never a score of the person. */
+export type JobMatch = { interval: [number, number]; mean: number; evidence_for: number; of: number };
 
 export type Shortlist = {
   match: string;
@@ -218,6 +223,7 @@ export type Shortlist = {
   others: ShortlistEntry[]; // asked about, do not
   no_evidence: string[];
   unknown_skills: string[];
+  job_match_basis: { weights: { must: number; nice: number }; without_evidence: { interval: [number, number]; mean: number } };
   note: string;
 };
 
