@@ -61,8 +61,10 @@ src/app/candidate/      overview · cv (upload, report) · skills (profile, expl
 src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, the tasks every applicant gets, confirm, open, applicants) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
 src/app/{candidate,recruiter}/messages/   the inbox, and [appId]: one application's chat
-src/app/chat/actions.ts sendMessage · markRead, for both sides (startChat is the recruiter's, in recruiter/actions.ts)
+src/app/chat/actions.ts sendMessage · sendFile · markRead, for both sides; requestDocument, a recruiter's
+                        (startChat is the recruiter's too, in recruiter/actions.ts)
 src/app/api/chat/[appId]/stream/   the live stream, relayed from the chat module for the people on the thread
+src/app/api/chat/[appId]/files/[fileId]/   a shared file, for the people on the thread, always as a download
 src/app/admin/          system (modules, counts) · accounts (and reset links) · candidates (each one's CV reports,
                         every line markable) · catalogue (M5's checks, the tasks) ·
                         quarantine (skills M6 holds because the list lacks them) · actions.ts
@@ -72,7 +74,7 @@ src/components/         ui · report (M5's buckets, in M5's order) · interval �
                         (an applicant's must-haves, as M6's shortlist answered) · action-button ·
                         candidate, recruiter, admin (the client components: forms, refresh, countdown, editor)
                         · session-watch (a login or logout in another tab reloads this one: one browser, one cookie)
-                        · chat (the live thread: EventSource, ✓/✓✓, send) · conversation · inbox
+                        · chat (the live thread: EventSource, ✓/✓✓, send, request cards, files) · conversation · inbox
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
@@ -154,7 +156,11 @@ tests/                  Vitest: actions against a temporary database; service ca
     action and the stream go through `threadFor`: the candidate who applied or a recruiter
     of the job's company, anyone else (admins too) a 404. Bodies are shown as text with
     their line breaks, never as HTML or Markdown. The stream is relayed, so guardrail 1
-    holds for live updates too.
+    holds for live updates too. Only a recruiter can ask for a document (`requestDocument`
+    is a 404 to anyone else). A shared file is checked here only for size (10 MB; the
+    action body limit in `next.config.ts` is 11 MB); its type is the chat module's to
+    decide from the bytes. It is served only as an attachment, of the sniffed type, with
+    `nosniff`, a sandbox CSP and `no-store` — never shown in a page.
 
 ## Known limits, stated
 

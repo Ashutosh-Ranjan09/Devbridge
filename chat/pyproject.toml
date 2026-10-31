@@ -9,7 +9,8 @@ dependencies = [
     "typer>=0.15",         # the CLI
     "fastapi>=0.115",      # the HTTP surface (chat serve)
     "uvicorn>=0.32",
-    "cryptography>=43",    # AES-256-GCM for messages at rest
+    "cryptography>=43",    # AES-256-GCM for messages and files at rest
+    "python-multipart>=0.0.20",   # FastAPI's file uploads
 ]
 
 [project.scripts]

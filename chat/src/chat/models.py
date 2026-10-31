@@ -10,6 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from chat.config import settings
 
 Side = Literal["candidate", "recruiter"]
+# text: a message · request: a recruiter asking for a document · file: a shared file
+Kind = Literal["text", "request", "file"]
 
 
 class NewThread(BaseModel):
@@ -29,6 +31,16 @@ class NewMessage(BaseModel):
     sender: str = Field(min_length=1, max_length=64)
     side: Side
     body: str = Field(min_length=1, max_length=settings.max_body_chars)
+    # A request's body says what is asked for; only a recruiter makes one. Files arrive
+    # through their own endpoint, never here.
+    kind: Literal["text", "request"] = "text"
+
+
+class FileInfo(BaseModel):
+    id: str
+    name: str           # as the sender's file was called, cleaned; shown, never used as a path
+    mime: str           # as sniffed from the bytes, never as claimed
+    size: int
 
 
 class Message(BaseModel):
@@ -37,7 +49,10 @@ class Message(BaseModel):
     thread_id: str
     sender: str
     side: Side
-    body: str
+    kind: Kind = "text"
+    body: str           # a file's note, possibly empty
+    request_id: str | None = None   # the request a file answers
+    file: FileInfo | None = None
     sent_at: str
 
 

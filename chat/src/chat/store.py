@@ -1,8 +1,10 @@
-"""SQLite: threads, messages and read marks. Message bodies are sealed (`crypto.Box`) on
-the way in and opened on the way out; nothing else in this module sees ciphertext.
+"""SQLite: threads, messages, files and read marks. Message bodies, file names and file
+bytes are sealed (`crypto.Box`) on the way in and opened on the way out; nothing else in
+this module sees ciphertext. File bytes live under `files/` beside the database, each
+under its id.
 
-Messages are never edited or deleted — triggers refuse it — because this is a record of
-what was said during a hiring process, like a decision and its reason.
+Messages and files are never edited or deleted — triggers refuse it — because this is a
+record of what was said and shared during a hiring process, like a decision and its reason.
 """
 
 from __future__ import annotations
@@ -17,7 +19,18 @@ from pathlib import Path
 
 from chat.config import settings
 from chat.crypto import Box
-from chat.models import InboxRow, Message, NewMessage, NewThread, ReadMark, Seen, Side, Thread
+from chat.files import ACCEPTED, clean_name, sniff
+from chat.models import (
+    FileInfo,
+    InboxRow,
+    Message,
+    NewMessage,
+    NewThread,
+    ReadMark,
+    Seen,
+    Side,
+    Thread,
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS threads (
@@ -44,6 +57,18 @@ CREATE TRIGGER IF NOT EXISTS messages_no_update BEFORE UPDATE ON messages
   BEGIN SELECT RAISE(ABORT, 'messages are never edited'); END;
 CREATE TRIGGER IF NOT EXISTS messages_no_delete BEFORE DELETE ON messages
   BEGIN SELECT RAISE(ABORT, 'messages are never deleted'); END;
+CREATE TABLE IF NOT EXISTS files (
+  id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL REFERENCES threads(id),
+  message_id TEXT NOT NULL UNIQUE,
+  name BLOB NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS files_no_update BEFORE UPDATE ON files
+  BEGIN SELECT RAISE(ABORT, 'files are never edited'); END;
+CREATE TRIGGER IF NOT EXISTS files_no_delete BEFORE DELETE ON files
+  BEGIN SELECT RAISE(ABORT, 'files are never deleted'); END;
 CREATE TABLE IF NOT EXISTS reads (
   thread_id TEXT NOT NULL REFERENCES threads(id),
   reader TEXT NOT NULL,
@@ -66,12 +91,32 @@ class RateLimitedError(Exception):
     pass
 
 
+class NotAllowedError(Exception):
+    """A request from a candidate, a recruiter answering one, or a request from elsewhere."""
+
+
+class TooLargeError(Exception):
+    pass
+
+
+class UnsupportedFileError(Exception):
+    pass
+
+
+class NoFileError(Exception):
+    pass
+
+
 def now() -> str:
     return datetime.datetime.now(datetime.UTC).isoformat(timespec="milliseconds")
 
 
 def _aad(thread_id: str, message_id: str) -> str:
     return f"{thread_id}|{message_id}"
+
+
+# Columns added after the first release, added in place to a database that lacks them.
+UPGRADES = {"messages": [("kind", "TEXT NOT NULL DEFAULT 'text'"), ("request_id", "TEXT")]}
 
 
 class Store:
@@ -83,6 +128,13 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys = ON")
         self.db.executescript(SCHEMA)
+        for table, columns in UPGRADES.items():
+            have = {r["name"] for r in self.db.execute(f"PRAGMA table_info({table})")}
+            for name, decl in columns:
+                if name not in have:
+                    self.db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+        self.files_dir = self.path.parent / "files"
+        self.files_dir.mkdir(exist_ok=True)
         self._lock = threading.RLock()
 
     @contextmanager
@@ -110,31 +162,98 @@ class Store:
             started_by=row["started_by"], started_at=row["started_at"])
 
     # ── messages ────────────────────────────────────────────────────────────
+    def _admit(self, db: sqlite3.Connection, thread_id: str, sender: str) -> str:
+        """The thread exists and the sender is under the limit; the time to stamp."""
+        if self.thread(thread_id) is None:
+            raise NoThreadError(thread_id)
+        sent_at = now()
+        minute_ago = (datetime.datetime.fromisoformat(sent_at) - datetime.timedelta(minutes=1)
+                      ).isoformat(timespec="milliseconds")
+        (recent,) = db.execute("SELECT count(*) FROM messages WHERE sender = ? AND sent_at > ?",
+                               (sender, minute_ago)).fetchone()
+        if recent >= settings.per_minute:
+            raise RateLimitedError(f"at most {settings.per_minute} messages a minute")
+        return sent_at
+
     def post(self, thread_id: str, new: NewMessage) -> Message:
+        if new.kind == "request" and new.side != "recruiter":
+            raise NotAllowedError("only a recruiter asks for a document")
         with self.tx() as db:
-            if self.thread(thread_id) is None:
-                raise NoThreadError(thread_id)
-            sent_at = now()
-            minute_ago = (datetime.datetime.fromisoformat(sent_at) - datetime.timedelta(minutes=1)
-                          ).isoformat(timespec="milliseconds")
-            (recent,) = db.execute("SELECT count(*) FROM messages WHERE sender = ? AND sent_at > ?",
-                                   (new.sender, minute_ago)).fetchone()
-            if recent >= settings.per_minute:
-                raise RateLimitedError(f"at most {settings.per_minute} messages a minute")
+            sent_at = self._admit(db, thread_id, new.sender)
             message_id = "msg_" + secrets.token_hex(8)
             sealed = self.box.seal(new.body.encode(), _aad(thread_id, message_id))
             cur = db.execute(
-                "INSERT INTO messages (id, thread_id, sender, side, body, sent_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (message_id, thread_id, new.sender, new.side, sealed, sent_at))
+                "INSERT INTO messages (id, thread_id, sender, side, kind, body, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (message_id, thread_id, new.sender, new.side, new.kind, sealed, sent_at))
         return Message(seq=cur.lastrowid or 0, id=message_id, thread_id=thread_id, sender=new.sender,
-                       side=new.side, body=new.body, sent_at=sent_at)
+                       side=new.side, kind=new.kind, body=new.body, sent_at=sent_at)
+
+    def post_file(self, thread_id: str, *, sender: str, side: Side, name: str, data: bytes,
+                  note: str = "", request_id: str | None = None) -> Message:
+        """A shared file, with an optional note, perhaps answering a request. The type comes
+        from the bytes; the name is only shown. Bytes and name are sealed, each bound to
+        this thread and file, so a file copied elsewhere does not open."""
+        if len(data) > settings.max_file_bytes:
+            raise TooLargeError(f"at most {settings.max_file_bytes // (1024 * 1024)} MB")
+        mime = sniff(data)
+        if mime is None:
+            raise UnsupportedFileError(f"not a {ACCEPTED} file")
+        if len(note) > settings.max_body_chars:
+            raise NotAllowedError(f"a note of at most {settings.max_body_chars} characters")
+        name = clean_name(name)
+        with self.tx() as db:
+            sent_at = self._admit(db, thread_id, sender)
+            if request_id is not None:
+                asked = db.execute("SELECT side, kind FROM messages WHERE id = ? AND thread_id = ?",
+                                   (request_id, thread_id)).fetchone()
+                if asked is None or asked["kind"] != "request":
+                    raise NotAllowedError("no such request in this chat")
+                if side != "candidate":
+                    raise NotAllowedError("only the candidate answers a request")
+            message_id = "msg_" + secrets.token_hex(8)
+            file_id = "file_" + secrets.token_hex(8)
+            path = self.files_dir / file_id
+            tmp = path.with_suffix(".part")
+            tmp.write_bytes(self.box.seal(data, f"{thread_id}|{file_id}|bytes"))
+            try:
+                cur = db.execute(
+                    "INSERT INTO messages (id, thread_id, sender, side, kind, body, request_id, sent_at) "
+                    "VALUES (?, ?, ?, ?, 'file', ?, ?, ?)",
+                    (message_id, thread_id, sender, side, self.box.seal(note.encode(), _aad(thread_id, message_id)),
+                     request_id, sent_at))
+                db.execute("INSERT INTO files (id, thread_id, message_id, name, mime, size) VALUES (?, ?, ?, ?, ?, ?)",
+                           (file_id, thread_id, message_id, self.box.seal(name.encode(), f"{thread_id}|{file_id}|name"),
+                            mime, len(data)))
+            except BaseException:
+                tmp.unlink(missing_ok=True)
+                raise
+            tmp.replace(path)
+        return Message(seq=cur.lastrowid or 0, id=message_id, thread_id=thread_id, sender=sender, side=side,
+                       kind="file", body=note, request_id=request_id,
+                       file=FileInfo(id=file_id, name=name, mime=mime, size=len(data)), sent_at=sent_at)
+
+    def file(self, thread_id: str, file_id: str) -> tuple[FileInfo, bytes]:
+        row = self.db.execute("SELECT * FROM files WHERE id = ? AND thread_id = ?", (file_id, thread_id)).fetchone()
+        path = self.files_dir / file_id
+        if row is None or not path.is_file():
+            raise NoFileError(file_id)
+        data = self.box.open(path.read_bytes(), f"{thread_id}|{file_id}|bytes")
+        return self._info(row), data
+
+    def _info(self, row: sqlite3.Row) -> FileInfo:
+        name = self.box.open(row["name"], f"{row['thread_id']}|{row['id']}|name").decode()
+        return FileInfo(id=row["id"], name=name, mime=row["mime"], size=row["size"])
 
     def messages(self, thread_id: str, after: int = 0, limit: int = 1000) -> list[Message]:
         rows = self.db.execute(
             "SELECT * FROM messages WHERE thread_id = ? AND seq > ? ORDER BY seq LIMIT ?",
             (thread_id, after, limit)).fetchall()
+        files = {f["message_id"]: self._info(f) for f in self.db.execute(
+            "SELECT * FROM files WHERE message_id IN (SELECT id FROM messages WHERE thread_id = ? AND seq > ?)",
+            (thread_id, after))}
         return [Message(seq=r["seq"], id=r["id"], thread_id=r["thread_id"], sender=r["sender"],
-                        side=r["side"], body=self.box.open(r["body"], _aad(r["thread_id"], r["id"])).decode(),
+                        side=r["side"], kind=r["kind"], request_id=r["request_id"], file=files.get(r["id"]),
+                        body=self.box.open(r["body"], _aad(r["thread_id"], r["id"])).decode(),
                         sent_at=r["sent_at"]) for r in rows]
 
     # ── read marks ──────────────────────────────────────────────────────────

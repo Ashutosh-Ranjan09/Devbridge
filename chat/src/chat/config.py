@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     encryption_key: str | None = None
 
     max_body_chars: int = 4000
+    # A shared file: PDF, PNG, JPG or DOCX, at most this many bytes.
+    max_file_bytes: int = 10 * 1024 * 1024
     # Messages one person may send in a minute, across all their threads.
     per_minute: int = 30
     # An idle stream sends a comment this often, so nothing between closes it.

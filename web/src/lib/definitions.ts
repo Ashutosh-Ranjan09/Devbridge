@@ -64,6 +64,22 @@ export const MessageSchema = z.object({
     .transform((s) => s.replace(/\r\n?/g, "\n")),
 });
 
+/** A shared file: the size is checked here; the type is the chat module's to decide,
+ * because only it reads the bytes (a name says nothing about what a file is). */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+export const FileSchema = z.object({
+  file: z.instanceof(File, { error: "Choose a file." })
+    .refine((f) => f.size > 0, { error: "Choose a file." })
+    .refine((f) => f.size <= MAX_FILE_BYTES, { error: "At most 10 MB." }),
+  note: z.string().trim().max(MAX_MESSAGE_CHARS, { error: `At most ${MAX_MESSAGE_CHARS} characters.` }).default(""),
+  request: z.string().regex(/^msg_[0-9a-f]{16}$/).optional().or(z.literal("").transform(() => undefined)),
+});
+
+export const RequestSchema = z.object({
+  what: z.string().trim().min(3, { error: "Say which document." }).max(200, { error: "At most 200 characters." }),
+});
+
 // ── candidate ───────────────────────────────────────────────────────────────
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;

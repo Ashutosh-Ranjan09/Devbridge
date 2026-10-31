@@ -6,8 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { form, jar, NotFound, redirectOf, resetDb } from "./next";
 
 const { startChat } = await import("@/app/recruiter/actions");
-const { markRead, sendMessage } = await import("@/app/chat/actions");
+const { markRead, requestDocument, sendFile, sendMessage } = await import("@/app/chat/actions");
 const { GET } = await import("@/app/api/chat/[appId]/stream/route");
+const { GET: download } = await import("@/app/api/chat/[appId]/files/[fileId]/route");
+const { MAX_FILE_BYTES } = await import("@/lib/definitions");
 const { db } = await import("@/lib/db");
 const { createSession } = await import("@/lib/session");
 
@@ -159,5 +161,86 @@ describe("the live stream", () => {
     await as(asha);
     chat({ [`GET http://chat.test/v1/threads/${appId}/events`]: json(404, { error: "no_thread", detail: "x" }) });
     expect((await request()).status).toBe(204);
+  });
+});
+
+describe("documents and files", () => {
+  const pdf = () => new File([new TextEncoder().encode("%PDF-1.7 the degree")], "degree.pdf", { type: "application/pdf" });
+  const files = (f: FormData | undefined) => Object.fromEntries([...(f ?? new FormData()).entries()].map(([k, v]) => [k, typeof v === "string" ? v : `file:${v.name}`]));
+
+  it("only a recruiter asks for a document; to a candidate the action does not exist", async () => {
+    chat({ [`POST http://chat.test/v1/threads/${appId}/messages`]: json(201, {}) });
+    await as(asha);
+    await expect(requestDocument(appId, undefined, form({ what: "Your manager's number" }))).rejects.toBeInstanceOf(NotFound);
+    await as(ravi);
+    expect((await requestDocument(appId, undefined, form({ what: "  " })))?.errors?.what).toBeDefined();
+    await requestDocument(appId, undefined, form({ what: "Degree certificate" }));
+    expect(sent.map((x) => x.body)).toEqual([{ sender: ravi, side: "recruiter", kind: "request", body: "Degree certificate" }]);
+  });
+
+  it("a file goes as the sender's id and side, with the request it answers", async () => {
+    await as(asha);
+    chat({ [`POST http://chat.test/v1/threads/${appId}/files`]: json(201, {}) });
+    const f = new FormData();
+    f.set("file", pdf());
+    f.set("note", " scanned today ");
+    f.set("request", "msg_0123456789abcdef");
+    expect(await sendFile(appId, undefined, f)).toBeUndefined();
+    expect(files(sent[0].body as FormData)).toEqual({
+      sender: asha, side: "candidate", note: "scanned today", request_id: "msg_0123456789abcdef", file: "file:degree.pdf",
+    });
+  });
+
+  it("an empty, oversized or misaddressed file is refused before anything is sent", async () => {
+    await as(asha);
+    chat({});
+    for (const [file, request] of [
+      [new File([], "empty.pdf"), ""],
+      [new File([new Uint8Array(MAX_FILE_BYTES + 1)], "big.pdf"), ""],
+      [pdf(), "../../files/x"],
+    ] as const) {
+      const f = new FormData();
+      f.set("file", file);
+      f.set("request", request);
+      const state = await sendFile(appId, undefined, f);
+      expect(state?.errors).toBeDefined();
+    }
+    expect(sent).toEqual([]);
+  });
+
+  it("the chat module's refusal of a type is shown as it said it", async () => {
+    await as(asha);
+    chat({ [`POST http://chat.test/v1/threads/${appId}/files`]: json(415, { error: "unsupported_file", detail: "Send a PDF, PNG, JPG or DOCX file." }) });
+    const f = new FormData();
+    f.set("file", new File(["<html>"], "cv.pdf"));
+    expect((await sendFile(appId, undefined, f))?.message).toBe("Send a PDF, PNG, JPG or DOCX file.");
+  });
+
+  const get = (fileId: string) =>
+    download(new Request(`http://web.test/api/chat/${appId}/files/${fileId}`), { params: Promise.resolve({ appId, fileId }) });
+
+  it("a download is always an attachment, of the sniffed type, with nothing allowed to run", async () => {
+    await as(meera);
+    chat({ [`GET http://chat.test/v1/threads/${appId}/files/file_0123456789abcdef`]: () =>
+      new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent("Asha’s degree.pdf") } }) });
+    const r = await get("file_0123456789abcdef");
+    expect(r.status).toBe(200);
+    expect(await r.text()).toBe("%PDF-1.7");
+    expect(r.headers.get("Content-Type")).toBe("application/pdf");
+    expect(r.headers.get("Content-Disposition")).toBe(`attachment; filename*=UTF-8''${encodeURIComponent("Asha’s degree.pdf")}`);
+    expect(r.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(r.headers.get("Content-Security-Policy")).toMatch(/sandbox/);
+    expect(r.headers.get("Cache-Control")).toMatch(/no-store/);
+  });
+
+  it("a download is a 404 for anyone not on the thread, and for an id that is not a file's", async () => {
+    chat({});
+    for (const who of [bo, other, admin]) {
+      await as(who);
+      expect((await get("file_0123456789abcdef")).status).toBe(404);
+    }
+    await as(asha);
+    expect((await get("../../etc/passwd")).status).toBe(404);
+    expect(sent).toEqual([]);
   });
 });

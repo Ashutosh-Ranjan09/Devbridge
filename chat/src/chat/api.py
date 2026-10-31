@@ -11,18 +11,38 @@ from __future__ import annotations
 import asyncio
 import json
 import secrets
+import urllib.parse
 from collections.abc import AsyncIterator
 from typing import Annotated, Protocol
 
-from fastapi import Depends, FastAPI, Header, Query, Request
+from fastapi import Depends, FastAPI, File, Form, Header, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from chat.config import settings
 from chat.crypto import Box, load_key
 from chat.hub import Hub
-from chat.models import InboxRow, Message, NewMessage, NewThread, ReadMark, Seen, Thread, ThreadView
-from chat.store import NoThreadError, RateLimitedError, Store, ThreadConflictError
+from chat.models import (
+    InboxRow,
+    Message,
+    NewMessage,
+    NewThread,
+    ReadMark,
+    Seen,
+    Side,
+    Thread,
+    ThreadView,
+)
+from chat.store import (
+    NoFileError,
+    NotAllowedError,
+    NoThreadError,
+    RateLimitedError,
+    Store,
+    ThreadConflictError,
+    TooLargeError,
+    UnsupportedFileError,
+)
 
 app = FastAPI(title="DevBridge chat", version="1.0.0",
               description="One thread per application. A recruiter opens it; messages are sealed at rest.")
@@ -104,8 +124,47 @@ async def post(thread_id: str, new: NewMessage, s: S) -> Message:
         raise _no_thread(thread_id) from exc
     except RateLimitedError as exc:
         raise RefusedError(429, "rate_limited", str(exc)) from exc
+    except NotAllowedError as exc:
+        raise RefusedError(422, "not_allowed", str(exc)) from exc
     hub.notify(thread_id)
     return message
+
+
+@app.post("/v1/threads/{thread_id}/files", dependencies=Auth, status_code=201)
+async def post_file(thread_id: str, s: S, sender: Annotated[str, Form(min_length=1, max_length=64)],
+                    side: Annotated[Side, Form()], file: Annotated[UploadFile, File()],
+                    note: Annotated[str, Form(max_length=4000)] = "",
+                    request_id: Annotated[str | None, Form(max_length=64)] = None) -> Message:
+    # One byte past the limit is enough to know it is too large, without reading the rest.
+    data = await file.read(settings.max_file_bytes + 1)
+    try:
+        message = s.post_file(thread_id, sender=sender, side=side, name=file.filename or "file", data=data,
+                              note=note.strip(), request_id=request_id or None)
+    except NoThreadError as exc:
+        raise _no_thread(thread_id) from exc
+    except TooLargeError as exc:
+        raise RefusedError(413, "too_large", f"The file is too large: {exc}.") from exc
+    except UnsupportedFileError as exc:
+        raise RefusedError(415, "unsupported_file",
+                           "Send a PDF, PNG, JPG or DOCX file: this one is none of those, whatever its name.") from exc
+    except NotAllowedError as exc:
+        raise RefusedError(422, "not_allowed", str(exc)) from exc
+    except RateLimitedError as exc:
+        raise RefusedError(429, "rate_limited", str(exc)) from exc
+    hub.notify(thread_id)
+    return message
+
+
+@app.get("/v1/threads/{thread_id}/files/{file_id}", dependencies=Auth)
+def get_file(thread_id: str, file_id: str, s: S) -> Response:
+    """The bytes, opened, with the sniffed type. The name travels URL-encoded in a header;
+    how the browser receives it (always as a download) is the web's to set."""
+    try:
+        info, data = s.file(thread_id, file_id)
+    except NoFileError as exc:
+        raise RefusedError(404, "no_file", "No such file in this chat.") from exc
+    return Response(data, media_type=info.mime,
+                    headers={"X-File-Name": urllib.parse.quote(info.name), "Cache-Control": "no-store"})
 
 
 @app.post("/v1/threads/{thread_id}/read", dependencies=Auth)

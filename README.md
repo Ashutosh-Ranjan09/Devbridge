@@ -8,7 +8,7 @@ repository. A B.Tech project.
 | [`cv-verification/`](cv-verification/) | **M5 · CV Verification Engine** | checks a CV against the systems it names — GitHub, Codeforces, LeetCode, CodeChef, live deployments — and reports evidence, with provenance. No score, no verdict |
 | [`skill-graph/`](skill-graph/) | **M6 · Verified Skill Graph** | turns that report into a per-skill estimate of ability, as an interval, that decays as evidence ages and can be explained event by event. No overall score |
 | [`assessment/`](assessment/) | **Assessment** | turns a job description into confirmed skill requirements, shortlists candidates through the skill graph, and gives each a unique, equally hard coding task, run in a sandbox and scored by hidden tests. The result goes back into the skill graph |
-| [`chat/`](chat/) | **Chat** | a recruiter and a candidate talk about an application: one thread each, opened by the recruiter, live, encrypted at rest |
+| [`chat/`](chat/) | **Chat** | a recruiter and a candidate talk about an application: one thread each, opened by the recruiter, live; the recruiter can ask for documents and either side can share files; encrypted at rest |
 | [`web/`](web/) | **Web** | the website: candidates, recruiters and admins sign in; it calls the four modules over HTTP and keeps only accounts and links to their ids |
 | [`schemas/`](schemas/) | the contract | `verification-report.schema.json` (M5's output, M6's input), `evidence-event.schema.json` (M6's events), reference payloads, `skills/` — the one skill list every module uses — and `job-requirements.schema.json` |
 | [`docs/`](docs/) | design pages | the check catalogue, the integration spec, the CV-to-skill-graph shapes, the platform plan |
@@ -54,7 +54,8 @@ their skills and take assessments (Start when ready, run the visible examples, u
 three submissions, the last counts); recruiters confirm a job's skills and the tasks
 every applicant gets, send them with a start-by date, read each applicant's evidence and
 every attempt, and decide, with a reason the candidate reads; a recruiter can open a
-chat with an applicant, who replies, live; admins see the
+chat with an applicant, who replies, live, and ask for documents the candidate uploads
+there; admins see the
 system's state, mark any line of a candidate's CV report verified or unverified with a
 note, and make one-time password reset links. Everyone can change their password on
 `/account`; five wrong logins lock an email for 15 minutes. See
@@ -77,8 +78,8 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 630 |
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 603, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 130; `-m docker` 12, `-m slow` 1 more |
-| Chat | Python 3.12, uv — see [`chat/CLAUDE.md`](chat/CLAUDE.md) | `uv run pytest` — 23 |
-| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 98 |
+| Chat | Python 3.12, uv — see [`chat/CLAUDE.md`](chat/CLAUDE.md) | `uv run pytest` — 46 |
+| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 104 |
 
 ## Personal data
 

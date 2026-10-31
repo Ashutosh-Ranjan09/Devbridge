@@ -89,15 +89,15 @@ export async function call<T>(
   return payload as T;
 }
 
-/** A module's event stream, as the response it is: the caller hands its body to the
- * browser unread. No timeout — it lasts as long as the page — and `signal` ends it when
- * the browser goes. */
-export async function stream(service: Service, path: string, signal: AbortSignal): Promise<Response> {
+/** A module's answer as the response it is — an event stream, a file — for the caller to
+ * hand its body to the browser unread. No timeout (a stream lasts as long as the page),
+ * and `signal` ends it when the browser goes. */
+export async function stream(service: Service, path: string, signal: AbortSignal, accept = "text/event-stream"): Promise<Response> {
   const { url, key } = SERVICES[service];
   let response: Response;
   try {
     response = await fetch(url + path, {
-      headers: { Accept: "text/event-stream", ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      headers: { Accept: accept, ...(key ? { Authorization: `Bearer ${key}` } : {}) },
       cache: "no-store",
       signal,
     });

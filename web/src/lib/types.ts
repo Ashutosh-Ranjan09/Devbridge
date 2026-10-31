@@ -232,7 +232,14 @@ export type Shortlist = {
 export type Side = "candidate" | "recruiter";
 
 /** The chat module knows people by the web's user ids; names are added here. */
-export type ChatMessage = { seq: number; id: string; thread_id: string; sender: string; side: Side; body: string; sent_at: string };
+export type ChatFile = { id: string; name: string; mime: string; size: number };
+
+/** text: a message · request: a recruiter asking for a document (body says what) ·
+ * file: a shared file (body is its note), perhaps answering a request. */
+export type ChatMessage = {
+  seq: number; id: string; thread_id: string; sender: string; side: Side;
+  kind: "text" | "request" | "file"; body: string; request_id: string | null; file: ChatFile | null; sent_at: string;
+};
 
 /** The newest message each side has seen: the other side's ✓✓. */
 export type Seen = Record<Side, number>;

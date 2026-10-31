@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { markRead, sendMessage } from "@/app/chat/actions";
+import { markRead, requestDocument, sendFile, sendMessage } from "@/app/chat/actions";
 import { startChat } from "@/app/recruiter/actions";
 import { ActionButton } from "@/components/action-button";
 import { ChatThread } from "@/components/chat";
@@ -40,6 +40,8 @@ export async function Conversation({ user, appId }: { user: CurrentUser; appId: 
             appId={app.id} me={user.id} side={sideOf(user)}
             initial={view.messages} initialSeen={view.seen} names={namesOn(app)}
             send={sendMessage.bind(null, app.id)} markRead={markRead.bind(null, app.id)}
+            sendFile={sendFile.bind(null, app.id)}
+            requestDocument={candidate ? null : requestDocument.bind(null, app.id)}
           />
         ) : candidate ? (
           <p className="text-sm text-muted">No chat yet. Only the company&apos;s recruiters can start one; you can reply once they do.</p>
