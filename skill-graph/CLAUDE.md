@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 589 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 593 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "589 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "593 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -158,8 +158,12 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
 
 ## Known gaps / gotchas
 
-- `claim_contradicted` is defined in the schema, parameters and 6.3/6.5, but **`projector.py` never emits it**,
-  so `CONTRADICTED` can't fire on real input yet.
+- **`claim_contradicted` comes from G6 only** (`emit.claim_contradicted.rules`): the one M5
+  check that tests a claimed stack itself, firing only when a project's linked repository holds
+  none of it. One negative event per contradicted claim, for each skill it names, uncapped by
+  `ownership_unverified`; the project's weak `cv_claim` is then not emitted beside it. Other
+  decisive findings on a project (G4 missing repo, D7 anachronism, W1 dead link) say the claim
+  is wrong, not that its skills are, and leave it a weak `cv_claim`.
 - The Codeforces ECDF is **approximated** (`status: approximated_pending_regeneration`). Regenerate it from
   `/api/user.ratedList` before publishing any number, because `platform_rating` is the strongest event (reliability 0.90).
 - **A report's `skill_resolution` is read first.** M5 maps every skill name to an id from

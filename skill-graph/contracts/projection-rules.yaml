@@ -5,7 +5,9 @@
 # Output must validate against ../schemas/evidence-event.schema.json
 # 1.1.0 — skill names resolve through the report's skill_resolution, then spelling
 # variants against the ontology. Event ids for skill claims change with it.
-contract_version: "1.1.0"
+# 1.2.0 — claim_contradicted is emitted, from G6 only (emit.claim_contradicted.rules);
+# a contradicted project no longer adds a weak cv_claim beside it.
+contract_version: "1.2.0"
 
 emit:
   - id: platform_rating
@@ -99,6 +101,13 @@ emit:
     strength: 0.90
     reliability_base: 0.95
     direction: negative
+    # The M5 rules whose decisive finding contradicts the skills a claim names. G6 is
+    # the one that tests a stack itself: it fires only when the repository a project
+    # links contains NOTHING the project says it is built with. Every other decisive
+    # finding on a project — a missing repository (G4), a date before the technology
+    # existed (D7), a dead link (W1) — says the project claim is wrong, not that its
+    # skills are, so those projects stay weak cv_claims.
+    rules: [G6]
     note: >
       Only skill claims. An employment or education contradiction is a
       verification finding and never reaches M6 — see suppress.

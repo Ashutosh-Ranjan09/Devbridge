@@ -64,6 +64,10 @@ class Rules:
                       reliability_base=float(r["reliability_base"]),
                       direction=str(r.get("direction", "positive")))
 
+    def contradicting_rules(self) -> frozenset[str]:
+        """M5 rule ids whose decisive finding contradicts the skills a claim names."""
+        return frozenset(self._emit["claim_contradicted"].get("rules") or ())
+
     def factor(self, name: str) -> tuple[float, str, str]:
         """(multiplier, direction_scope, rationale)"""
         f = self._factors[name]

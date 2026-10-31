@@ -433,6 +433,29 @@ def project(
                        "credential_id": claim.get("credential_id"),
                        "issuer_confirmed": False})
 
+    # ── a claimed stack the linked repository contradicts ───────────────────
+    # A decisive finding from a rule that tests the skills a claim names (G6: the
+    # repository contains none of the project's stack) is negative evidence for each
+    # of them. Negative, so `ownership_unverified` does not cap it: nobody links a
+    # repository that undermines their own CV. Its claim is then carried, so the
+    # project's weak cv_claim below is not emitted beside it.
+    contradicting = r.contradicting_rules()
+    by_id = {c["claim_id"]: c for c in report["claim_graph"]["claims"]}
+    for disc in (report.get("findings") or {}).get("discrepancies") or []:
+        if (disc.get("rule_id") not in contradicting or disc.get("tier") != "decisive"
+                or disc.get("scoring") is False):
+            continue
+        for ref in disc.get("claim_refs") or []:
+            claim = by_id.get(ref)
+            skills = {norm(s): 1.0 for s in (claim or {}).get("skill_refs") or []}
+            if not skills:
+                continue
+            build("claim_contradicted", f"{ref}:{disc['finding_id']}",
+                  _as_date(bundle["gathered_at"]), r.priors("claim_contradicted").strength,
+                  skills, "github_api", direction="negative", claim_refs=[ref],
+                  payload={"rule_id": disc["rule_id"], "finding_id": disc["finding_id"],
+                           "project": (claim or {}).get("title")})
+
     # ── project claims nothing corroborated ─────────────────────────────────
     # A project whose repository is a fork, missing, or never supplied is still
     # an assertion the candidate made. Treated exactly like an unbacked skill

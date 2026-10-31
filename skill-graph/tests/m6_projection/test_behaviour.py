@@ -1,5 +1,5 @@
 """What the projection decides, given particular evidence. One behaviour per test."""
-from helpers import by_kind, full, repo, skills, with_github
+from helpers import by_kind, full, repo, skills, validate, with_github
 from m6_projection import project
 
 
@@ -359,3 +359,47 @@ def test_the_rule_is_the_contract_s_to_switch_off():
     event = next(e for e in by_kind(project(report, rules=Rules(raw)), "repo_artifact")
                  if e.payload["repo"] == repo["name"])
     assert "axios" in {r.skill_id for r in event.skill_refs}
+
+
+# ── contradictions ───────────────────────────────────────────────────────────
+
+def _g6(report: dict, claim: str = "c07", **over) -> dict:
+    """A G6 finding as M5 writes it: the repository holds none of the claimed stack."""
+    finding = {"finding_id": "f_g6", "rule_id": "G6", "rule_version": "1.0", "tier": "decisive",
+               "severity": "high", "confidence": 0.8, "scoring": True, "claim_refs": [claim],
+               "evidence_refs": ["github.repos.ATMA-Final.languages"],
+               "params": {"repo": "ATMA-Final"}, "explanation": "none of that",
+               "innocent_explanation": None}
+    finding.update(over)
+    report["findings"]["discrepancies"].append(finding)
+    return report
+
+
+def test_a_stack_the_repository_contradicts_is_negative_evidence_for_each_skill():
+    batch = project(_g6(full()))
+    [event] = by_kind(batch, "claim_contradicted")
+    assert event.direction == "negative"
+    assert set(skills(event)) == {"react", "nextjs", "mongodb", "jwt"}
+    assert event.source.claim_refs == ("c07",) and event.payload["rule_id"] == "G6"
+    # Negative evidence is not capped by unproven ownership: nobody links a repository
+    # that undermines their own CV.
+    assert event.reliability == event.reliability_base == 0.95
+    validate(batch)
+
+
+def test_a_contradicted_project_adds_no_weak_claim_beside_its_contradiction():
+    batch = project(_g6(full()))
+    assert not [e for e in by_kind(batch, "cv_claim") if e.source.claim_refs == ("c07",)
+                and e.payload.get("project")]
+
+
+def test_only_the_rules_that_test_a_stack_contradict_skills():
+    """A dead link (W1) or a missing repository says the project claim is wrong, not
+    that its skills are. The reference report's W1 finding emits nothing negative."""
+    assert by_kind(project(full()), "claim_contradicted") == []
+    assert by_kind(project(_g6(full(), rule_id="G4")), "claim_contradicted") == []
+
+
+def test_a_non_decisive_or_non_scoring_finding_contradicts_nothing():
+    assert by_kind(project(_g6(full(), tier="attention")), "claim_contradicted") == []
+    assert by_kind(project(_g6(full(), scoring=False)), "claim_contradicted") == []
