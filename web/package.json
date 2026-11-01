@@ -16,8 +16,11 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@codemirror/lang-python": "6.2.1",
     "@prisma/adapter-better-sqlite3": "7.10.1",
     "@prisma/client": "7.10.1",
+    "@uiw/codemirror-theme-vscode": "4.25.12",
+    "@uiw/react-codemirror": "4.25.12",
     "bcryptjs": "3.0.3",
     "next": "16.4.3",
     "react": "19.3.0",

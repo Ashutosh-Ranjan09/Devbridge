@@ -117,8 +117,28 @@ model Verification {
   /// Set once M6 has accepted the report.
   sentToM6At  DateTime?
   reviews     ItemReview[]
+  proofs      Proof[]
 
   @@index([candidateId])
+}
+
+/// A document the candidate uploaded to back a line of their CV that no source can
+/// check (an internship, a job, a certificate). Theirs, kept here like their note: never
+/// sent to a module, and nothing in it is checked by the system. The file lives on disk
+/// under .data/files/proofs/, named by this id.
+model Proof {
+  id             String       @id @default(cuid())
+  verificationId String
+  verification   Verification @relation(fields: [verificationId], references: [id])
+  /// M5's claim_id the document supports; null for one the candidate added on their own.
+  claimId        String?
+  /// What it supports, in the CV's words when it is for a claim, kept so the label
+  /// survives M5 forgetting the report.
+  label          String
+  fileName       String
+  createdAt      DateTime     @default(now())
+
+  @@index([verificationId])
 }
 
 model Job {

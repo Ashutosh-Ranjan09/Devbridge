@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { form, jar, NotFound, redirectOf, resetDb } from "./next";
 
-const { beginTask, finishTask, runExamples, startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
+const { addProof, beginTask, finishTask, removeProof, runExamples, startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
+const { readStored } = await import("@/lib/files");
 const { myVerification } = await import("@/lib/candidate");
 const { db } = await import("@/lib/db");
 const { createSession } = await import("@/lib/session");
@@ -52,7 +53,7 @@ describe("uploading a CV", () => {
     modules({ "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_1", status: "queued" }] });
     const f = new FormData();
     f.set("cv", PDF());
-    expect(await redirectOf(uploadCv(undefined, f))).toBe("/candidate/cv/vr_1");
+    expect(await redirectOf(uploadCv(undefined, f))).toBe("/candidate/cv");
     const body = sent[0].body as FormData;
     expect(JSON.parse(String(body.get("subject")))).toEqual({ subject_ref: "subject:aaaa" });
     expect((body.get("document") as File).name).toBe("cv.pdf");
@@ -137,6 +138,52 @@ describe("uploading a CV", () => {
     await db.verification.create({ data: { id: "vr_ravi", candidateId: ravi, fileName: "r.pdf" } });
     await expect(myVerification(asha, "vr_ravi")).rejects.toBeInstanceOf(NotFound);
     await expect(myVerification(asha, "vr_none")).rejects.toBeInstanceOf(NotFound);
+  });
+});
+
+describe("proofs beside a CV", () => {
+  const proof = (name = "offer.pdf", label = "Intern, Acme (2025)") => {
+    const f = new FormData();
+    f.set("file", PDF(name));
+    f.set("label", label);
+    return f;
+  };
+  async function withCv() {
+    await db.verification.create({ data: { id: "vr_1", candidateId: asha, fileName: "cv.pdf" } });
+  }
+
+  it("is kept here, on the newest CV, and its file stored", async () => {
+    await withCv();
+    expect(await addProof("c07", undefined, proof())).toBeUndefined();
+    const [row] = await db.proof.findMany();
+    expect(row).toMatchObject({ verificationId: "vr_1", claimId: "c07", label: "Intern, Acme (2025)", fileName: "offer.pdf" });
+    expect(await readStored("proofs", row.id, row.fileName)).not.toBeNull();
+    expect(sent).toHaveLength(0); // never sent to a module
+  });
+
+  it("needs a CV first, a label, and a PDF or image: never a page that could run script", async () => {
+    expect((await addProof(null, undefined, proof()))?.message).toMatch(/CV first/);
+    await withCv();
+    expect((await addProof(null, undefined, proof("x.svg")))?.errors?.file).toBeDefined();
+    expect((await addProof(null, undefined, proof("x.html")))?.errors?.file).toBeDefined();
+    expect((await addProof(null, undefined, proof("x.pdf", "")))?.errors?.label).toBeDefined();
+    expect(await db.proof.count()).toBe(0);
+  });
+
+  it("is removed only by its owner", async () => {
+    await withCv();
+    await addProof(null, undefined, proof());
+    const [row] = await db.proof.findMany();
+    const ravi = await candidate("ravi@example.com", "subject:bbbb");
+    jar.clear();
+    await createSession(ravi);
+    expect((await removeProof(row.id))?.message).toMatch(/not yours/);
+    expect(await db.proof.count()).toBe(1);
+    jar.clear();
+    await createSession(asha);
+    expect(await removeProof(row.id)).toBeUndefined();
+    expect(await db.proof.count()).toBe(0);
+    expect(await readStored("proofs", row.id, row.fileName)).toBeNull();
   });
 });
 

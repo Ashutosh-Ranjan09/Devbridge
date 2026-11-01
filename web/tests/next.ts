@@ -63,6 +63,7 @@ export async function resetDb(): Promise<void> {
   await db.loginFailure.deleteMany();
   await db.passwordReset.deleteMany();
   await db.itemReview.deleteMany();
+  await db.proof.deleteMany();
   await db.decision.deleteMany();
   await db.assessment.deleteMany();
   await db.application.deleteMany();

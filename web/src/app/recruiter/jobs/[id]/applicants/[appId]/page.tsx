@@ -7,6 +7,7 @@ import { Musts } from "@/components/musts";
 import { startChat } from "@/app/recruiter/actions";
 import { ActionButton } from "@/components/action-button";
 import { DecisionForm, SendAssessment } from "@/components/recruiter";
+import { Documents } from "@/components/documents";
 import { CandidateNote, ReportView } from "@/components/report";
 import { Card, Loading, Page } from "@/components/ui";
 import { db } from "@/lib/db";
@@ -39,7 +40,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
   const app = await myApplication(me.orgIds, jobId, appId);
   const ref = app.candidate.subjectRef;
   const [latest, assessments] = await Promise.all([
-    db.verification.findFirst({ where: { candidateId: app.candidateId }, orderBy: { createdAt: "desc" } }),
+    db.verification.findFirst({ where: { candidateId: app.candidateId }, orderBy: { createdAt: "desc" }, include: { proofs: true } }),
     db.assessment.findMany({ where: { applicationId: app.id }, orderBy: { createdAt: "asc" } }),
   ]);
 
@@ -168,6 +169,7 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
 
       <div>
         <h3 className="mb-2 font-semibold">CV report</h3>
+        {latest && <div className="mb-4"><Documents cv={latest} proofs={latest.proofs} /></div>}
         {!report ? <Card><p className="text-sm text-muted">No CV checked.</p></Card>
           : report instanceof ServiceError ? <Card><p>{report.message}</p></Card>
           : report.status === "running" ? <Card><p>Still being checked.</p></Card>

@@ -1,17 +1,24 @@
 @import "tailwindcss";
 
+/* Laptop-height windows: the login card tightens so it never needs a scroll. */
+@custom-variant short (@media (min-width: 48rem) and (max-height: 820px));
+@custom-variant tight (@media (min-width: 48rem) and (max-height: 700px));
+
 /* Colour tokens, light and dark. Components use the names (bg-panel, text-muted), never
    raw colours, so a theme is changed here only. */
 :root {
-  --background: #fafaf9;
+  --background: #f6f8f8;
   --foreground: #1c1917;
   --panel: #ffffff;
-  --line: #e7e5e4;
+  --line: #e3e8e8;
   --muted: #78716c;
-  --accent: #1d4ed8;
+  --accent: #0f766e;
   --on-accent: #ffffff;
   --danger: #b91c1c;
   --ok: #15803d;
+  --brand: #0f766e;
+  --brand-soft: #f0fdfa;
+  --highlight: #f59e0b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,10 +28,13 @@
     --panel: #1c1917;
     --line: #44403c;
     --muted: #a8a29e;
-    --accent: #60a5fa;
+    --accent: #2dd4bf;
     --on-accent: #0c0a09;
     --danger: #f87171;
     --ok: #4ade80;
+    --brand: #2dd4bf;
+    --brand-soft: #0f2e2c;
+    --highlight: #fbbf24;
   }
 }
 
@@ -38,10 +48,38 @@
   --color-on-accent: var(--on-accent);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-highlight: var(--highlight);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Login and signup. Deep teal for "checked and trustworthy", one warm amber for the
+   points that matter; the panel's colours hold in light and dark alike. */
+.auth-backdrop {
+  background:
+    radial-gradient(60rem 40rem at 10% 0%, rgb(20 184 166 / 0.16), transparent 60%),
+    radial-gradient(50rem 40rem at 100% 100%, rgb(14 116 144 / 0.16), transparent 60%),
+    var(--background);
+}
+
+.auth-panel {
+  background:
+    radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.09) 1px, transparent 0) 0 0 / 22px 22px,
+    radial-gradient(40rem 30rem at 85% 15%, rgb(45 212 191 / 0.35), transparent 60%),
+    linear-gradient(135deg, #0b2f2d 0%, #0f5752 45%, #0f766e 75%, #0e7490 100%);
+}
+
+/* The site header: the same deep teal as the login panel, in light and dark alike. */
+.brand-bar {
+  background: linear-gradient(90deg, #0b2f2d 0%, #0f4a46 55%, #0f5752 100%);
+}
+
+.auth-button {
+  background: linear-gradient(90deg, #0f5752 0%, #0f766e 50%, #0e7490 100%);
 }

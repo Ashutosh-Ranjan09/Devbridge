@@ -48,7 +48,10 @@ def build_routes(service: QueryService) -> list[Route]:
 
     def skills_catalogue(_m, _q) -> tuple[int, dict]:
         rows = service.known_skills()
-        return 200, {"count": len(rows), "skills": rows}
+        # The ontology's edges as written (from, to, type): what links one skill to
+        # another. Read only by people looking at a graph; nothing here weighs them.
+        edges = list(getattr(service.ontology, "edges", None) or [])
+        return 200, {"count": len(rows), "skills": rows, "edges": edges}
 
     def developer_skills(m, q) -> tuple[int, dict]:
         as_of = _as_of(q)

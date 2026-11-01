@@ -9,7 +9,10 @@ export function Markdown({ children }: { children: string }) {
         components={{
           h2: (p) => <h2 className="mt-4 text-lg font-semibold" {...p} />,
           ul: (p) => <ul className="list-disc space-y-1 pl-6" {...p} />,
-          code: (p) => <code className="rounded bg-background px-1 font-mono text-sm" {...p} />,
+          h3: (p) => <h3 className="mt-3 font-semibold" {...p} />,
+          ol: (p) => <ol className="list-decimal space-y-1 pl-6" {...p} />,
+          pre: (p) => <pre className="overflow-x-auto rounded-xl bg-[#1e1e1e] p-4 text-[13px] text-[#d4d4d4] [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit" {...p} />,
+          code: (p) => <code className="rounded bg-background px-1.5 py-0.5 font-mono text-[13px] ring-1 ring-line" {...p} />,
         }}
       >
         {children}

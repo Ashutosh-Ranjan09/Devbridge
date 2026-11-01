@@ -18,6 +18,11 @@ export function when(iso: string): string {
   return new Date(iso).toLocaleString("en-IN", { timeZone: IST, dateStyle: "medium", timeStyle: "short" });
 }
 
+/** A date without the time, in India: "31 Oct 2026". */
+export function day(at: Date | string): string {
+  return new Date(at).toLocaleDateString("en-IN", { timeZone: IST, day: "numeric", month: "short", year: "numeric" });
+}
+
 /** The rows of a module's answer that belong to this job's applicants, with who each is.
  * A row `who` does not recognise (a session or subject this site did not issue for one
  * of them) is not shown. */
@@ -43,3 +48,8 @@ export function taskStatus(task: Task | null): string {
   if (task.status === "open") return `open · ${task.attempts_used} of ${task.max_attempts} attempts used`;
   return task.status;
 }
+
+/** What the button on a practice task already given says, by its state. */
+export const PRACTISED: Record<Task["status"], string> = {
+  issued: "Open", open: "Continue", submitted: "See result", expired: "See task",
+};
