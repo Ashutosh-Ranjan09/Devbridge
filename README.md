@@ -79,7 +79,7 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 614, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 130; `-m docker` 12, `-m slow` 1 more |
 | Chat | Python 3.12, uv — see [`chat/CLAUDE.md`](chat/CLAUDE.md) | `uv run pytest` — 47 |
-| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 104 |
+| Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 114 |
 
 ## Personal data
 
