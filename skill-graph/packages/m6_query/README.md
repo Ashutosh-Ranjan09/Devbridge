@@ -113,9 +113,11 @@ same way, so the match is a range. A skill with no evidence counts at the prior 
 0.08–0.55), never zero; an inferred one at its inferred range. `evidence_for` / `of` says
 how many of the job's skills have direct evidence. It describes an applicant against one
 job, never a person, and moves nobody between the lists; `job_match_basis` says how every
-match on the answer was made.
+match on the answer was made. Each skill counts once (listed twice, or as both must and
+nice, it is a must-have), and a skill the shared list lacks is in no match — counted at the
+prior it would drag every applicant down alike — and is named in `job_match_basis.left_out`.
 
-## Tests — 118 in this package
+## Tests — 120 in this package
 
 | file | covers |
 |---|---|

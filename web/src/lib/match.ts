@@ -16,7 +16,8 @@ export function byJobMatch<T>(rows: T[], match: (r: T) => JobMatch | null | unde
 }
 
 /** How M6 made every match on the page, in one sentence. */
-export function basisText({ weights, without_evidence: none }: Shortlist["job_match_basis"]): string {
+export function basisText({ weights, without_evidence: none, left_out: out = [] }: Shortlist["job_match_basis"]): string {
   return `In a job match a must-have counts ${weights.must} and a nice-to-have ${weights.nice}; `
-    + `a skill with no evidence counts ${two(none.mean)} (${two(none.interval[0])}–${two(none.interval[1])}).`;
+    + `a skill with no evidence counts ${two(none.mean)} (${two(none.interval[0])}–${two(none.interval[1])}).`
+    + (out.length ? ` Not counted, as the skill list lacks ${out.length === 1 ? "it" : "them"}: ${out.join(", ")}.` : "");
 }

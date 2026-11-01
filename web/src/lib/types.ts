@@ -237,7 +237,11 @@ export type Shortlist = {
   others: ShortlistEntry[]; // asked about, do not
   no_evidence: string[];
   unknown_skills: string[];
-  job_match_basis: { weights: { must: number; nice: number }; without_evidence: { interval: [number, number]; mean: number } };
+  job_match_basis: {
+    weights: { must: number; nice: number };
+    without_evidence: { interval: [number, number]; mean: number };
+    left_out?: string[]; // job skills the shared list lacks: in no match
+  };
   note: string;
 };
 

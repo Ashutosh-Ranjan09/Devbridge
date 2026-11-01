@@ -16,6 +16,9 @@ describe("a job match", () => {
     const basis = { weights: { must: 2, nice: 1 }, without_evidence: { interval: [0.083, 0.55] as [number, number], mean: 0.25 } };
     expect(basisText(basis)).toBe("In a job match a must-have counts 2 and a nice-to-have 1; "
       + "a skill with no evidence counts 0.25 (0.08–0.55).");
+    expect(basisText({ ...basis, left_out: [] })).toBe(basisText(basis));
+    expect(basisText({ ...basis, left_out: ["cobol", "fortran"] }))
+      .toMatch(/Not counted, as the skill list lacks them: cobol, fortran\.$/);
   });
 });
 

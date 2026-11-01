@@ -157,7 +157,7 @@ def test_no_weighted_skill_is_no_match():
 
 def test_the_shortlist_s_nothing_known_is_m6_s_prior():
     found = population().shortlist(requirements([("typescript", 0.0)], nice=["rust"]), AS_OF, subjects=[SUBJECT])
-    assert found["job_match_basis"] == {"weights": WEIGHTS,
+    assert found["job_match_basis"] == {"weights": WEIGHTS, "left_out": [],
                                         "without_evidence": {"interval": [0.083, 0.55], "mean": 0.25}}
     entry = found["candidates"][0]
     assert entry["nice"]["rust"] is None
@@ -202,3 +202,26 @@ def test_the_match_moves_nobody_and_orders_nobody():
     means = [c["job_match"]["mean"] for c in everyone]
     assert len(set(means)) > 1, "the fixture must give different matches, or this proves nothing"
     assert means != sorted(means, reverse=True), "an alphabetical list that happens to be in match order proves nothing"
+
+
+def test_each_skill_counts_once_and_a_must_have_wins_over_a_nice_to_have():
+    """A requirements file the assessment module never writes, but M6 must not double-count."""
+    views = {"algorithms": view(0.45, 0.6, 0.73), "data_structures": view(0.08, 0.2, 0.42)}
+    once = job_match(views, ["algorithms"], ["data_structures"], WEIGHTS, PRIOR)
+    assert job_match(views, ["algorithms", "algorithms"], ["data_structures", "data_structures", "algorithms"],
+                     WEIGHTS, PRIOR) == once
+    both = population().shortlist(requirements([("algorithms", 0.0)], nice=["algorithms"]), AS_OF, subjects=[SUBJECT])
+    alone = population().shortlist(requirements([("algorithms", 0.0)]), AS_OF, subjects=[SUBJECT])
+    assert both["candidates"][0]["job_match"] == alone["candidates"][0]["job_match"]
+    assert both["candidates"][0]["job_match"]["of"] == 1
+
+
+def test_a_skill_the_list_lacks_is_left_out_of_every_match_and_named():
+    """Counted at the prior it would drag every applicant's match down alike."""
+    svc = population()
+    asked = ["subj_strong", "subj_thin", SUBJECT]
+    with_cobol = svc.shortlist(requirements([("algorithms", 0.0), ("cobol", None)], nice=["fortran"]), AS_OF, subjects=asked)
+    without = svc.shortlist(requirements([("algorithms", 0.0)]), AS_OF, subjects=asked)
+    matches = lambda found: {e["subject_ref"]: e["job_match"] for e in found["candidates"] + found["others"]}
+    assert matches(with_cobol) == matches(without)
+    assert with_cobol["job_match_basis"]["left_out"] == ["cobol", "fortran"] == with_cobol["unknown_skills"]

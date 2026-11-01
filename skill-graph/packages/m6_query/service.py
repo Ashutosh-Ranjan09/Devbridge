@@ -83,7 +83,12 @@ def job_match(views: dict[str, SkillView], musts: Sequence[str], nice: Sequence[
     "nothing known", small and never zero. An inferred skill counts at its inferred range.
     `evidence_for` counts the skills with DIRECT evidence, so a match made mostly of the
     prior says so beside the number. None when no skill carries weight.
+
+    Each skill counts once: one listed twice, or as both must and nice, is a must-have
+    (the heavier reading wins).
     """
+    musts = list(dict.fromkeys(musts))
+    nice = [sk for sk in dict.fromkeys(nice) if sk not in musts]
     rows = [(sk, weights["must"]) for sk in musts] + [(sk, weights["nice"]) for sk in nice]
     rows = [(sk, w) for sk, w in rows if w > 0]
     total = sum(w for _, w in rows)
@@ -297,6 +302,10 @@ class QueryService:
             no_evidence = [s for s in asked if s not in have]
 
         weights = self.engine.p.match_weights
+        # A skill the shared list lacks can hold no evidence for anyone: counted at the prior
+        # it would drag every match down alike, so it is left out and named instead.
+        matched_musts = [sk for sk in musts if sk not in unknown]
+        matched_nice = [sk for sk in nice if sk not in unknown]
         prior = self.engine.filter.initial(as_of)
         z = self.engine.p.z
         nothing_known = SkillView(
@@ -318,7 +327,7 @@ class QueryService:
                 "must": {sk: view(views.get(sk)) for sk in musts},
                 "nice": {sk: view(views.get(sk)) for sk in nice},
                 "clears": cleared,
-                "job_match": job_match(views, list(musts), nice, weights, nothing_known),
+                "job_match": job_match(views, matched_musts, matched_nice, weights, nothing_known),
             }
             (candidates if False not in cleared.values() else others).append(entry)
         answer = {
@@ -337,6 +346,7 @@ class QueryService:
                 "weights": weights,
                 "without_evidence": {"interval": [round(nothing_known.lower, 3), round(nothing_known.upper, 3)],
                                      "mean": round(nothing_known.mean, 3)},
+                "left_out": unknown,   # on the job, not on the shared list: in no match
             },
             "note": ("Alphabetical, not ranked. Each job match is this job's skills averaged, "
                      "must-haves counting more: read it beside the intervals per skill; it "
