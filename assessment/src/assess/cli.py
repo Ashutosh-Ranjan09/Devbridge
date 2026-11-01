@@ -61,6 +61,9 @@ def validate(pattern_id: str) -> None:
                 fg="green" if r.ok else "red", bold=True)
     if not r.ok:
         raise typer.Exit(1)
+    from assess.variants import remember_valid
+    remember_valid(p, r)
+    typer.echo("recorded: tasks from this pattern are issued at once, until its files change")
 
 
 @sandbox_app.command("build")

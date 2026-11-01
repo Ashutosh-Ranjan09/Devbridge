@@ -26,7 +26,7 @@ from assess.config import settings
 from assess.models import Pattern, Scalar, Variant
 from assess.patterns import PatternError, combinations, requirements, template_story
 from assess.providers import LLMProvider
-from assess.validation import validate
+from assess.validation import ValidationReport, validate
 
 
 class VariantError(ValueError):
@@ -58,9 +58,25 @@ def content_hash(pattern: Pattern) -> str:
     return h.hexdigest()[:16]
 
 
+def _cache(pattern: Pattern, cache_dir: Path | None) -> Path:
+    return (cache_dir or settings.db_path.parent / "validated") / f"{pattern.id}-{content_hash(pattern)}.json"
+
+
+def remember_valid(pattern: Pattern, report: ValidationReport, cache_dir: Path | None = None) -> None:
+    """Record a full validation that passed, for these exact files. `assess validate` calls
+    it too, so the first task issued from a new pattern does not wait a minute or more for
+    the proof — a recruiter's Send would otherwise sit through it."""
+    if not report.ok or report.combinations != len(combinations(pattern)):
+        return      # only a passing run over EVERY combination counts
+    cache = _cache(pattern, cache_dir)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps({"ok": True, "pattern": pattern.id, "version": pattern.version,
+                                 "combinations": report.combinations}))
+
+
 def ensure_validated(pattern: Pattern, cache_dir: Path | None = None) -> None:
     """Refuse a pattern whose tests have not been proven right in every combination."""
-    cache = (cache_dir or settings.db_path.parent / "validated") / f"{pattern.id}-{content_hash(pattern)}.json"
+    cache = _cache(pattern, cache_dir)
     if cache.is_file() and json.loads(cache.read_text()).get("ok"):
         return
     report = validate(pattern)
@@ -71,9 +87,7 @@ def ensure_validated(pattern: Pattern, cache_dir: Path | None = None) -> None:
             f"{len(report.reference_failures)} reference failure(s), mutants escaping: {escaped}. "
             "Run `assess validate` for the detail."
         )
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps({"ok": True, "pattern": pattern.id, "version": pattern.version,
-                                 "combinations": report.combinations}))
+    remember_valid(pattern, report, cache_dir)
 
 
 # ── the model's part: choose from the lists, word the story ──────────────

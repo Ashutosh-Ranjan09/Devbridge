@@ -10,12 +10,14 @@ import pytest
 
 from assess.config import settings
 from assess.patterns import PatternError, combinations, load
+from assess.validation import ValidationReport
 from assess.variants import (
     VariantError,
     ensure_validated,
     generate,
     model_choice,
     params_key,
+    remember_valid,
     seeded,
     story_is_safe,
 )
@@ -78,6 +80,26 @@ class TestValidationGate:
         broken = load("rate_limiter", tmp_path / "patterns")
         with pytest.raises(PatternError, match="failed validation"):
             ensure_validated(broken, tmp_path / "cache")
+
+
+    def test_a_validation_already_run_is_remembered_so_a_first_task_does_not_wait(self, monkeypatch, tmp_path: Path) -> None:
+        """`assess validate` records a full pass; issuing then trusts it instead of proving
+        the pattern again — a minute or more a recruiter's first Send would wait through."""
+        p = load("lru_cache")
+        n = len(combinations(p))
+        remember_valid(p, ValidationReport(p.id, p.version, n, expected_cases=n * 8, reference_cases=n * 8), tmp_path)
+        monkeypatch.setattr("assess.variants.validate", lambda _p: pytest.fail("validated again"))
+        ensure_validated(p, tmp_path)
+
+    def test_only_a_full_passing_validation_is_remembered(self, tmp_path: Path) -> None:
+        p = load("lru_cache")
+        n = len(combinations(p))
+        partial = ValidationReport(p.id, p.version, 3, expected_cases=3 * 8, reference_cases=3 * 8)   # one per twist
+        failing = ValidationReport(p.id, p.version, n, expected_cases=n * 8, reference_cases=n * 8,
+                                   escapes={"list_scan": ["dns_lookup-2-peek"]})
+        for report in (partial, failing):
+            remember_valid(p, report, tmp_path)
+        assert not list(tmp_path.glob("*.json")), "a partial or failing run must never vouch for a pattern"
 
 
 class TestTheModelOnlyChooses:

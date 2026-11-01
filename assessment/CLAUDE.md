@@ -15,7 +15,7 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-132 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+134 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
 and 2 that take about a minute each (`-m slow`). ruff and `mypy --strict` clean. Four
 patterns: `rate_limiter` (skill `rate_limiting`), `top_k_frequent`, a DSA problem
 (skill `algorithms`), `lru_cache`, a data structure with an O(1) requirement
@@ -170,7 +170,9 @@ declared groups), `tests_visible.py` — the Run button's examples, read straigh
 requirements and leaving every edge to the hidden tests (names in `tests.visible`; the
 reference must pass them too) — `reference.py` implementing every twist at once, and `mutants/` —
 `twist_<twist>__*.py` for a twist-only bug. Then `assess validate <id>` until it says
-valid.
+valid. A passing run is recorded (the cache in `.data/validated/`), so the first task issued from
+the pattern starts at once; unvalidated, that first issue runs the whole proof while the
+recruiter's Send waits, a minute or more for a pattern with a timing mutant.
 
 - **Test ids** inside `[...]` must be the parameter values in `pattern.yaml`'s order,
   then the twist, joined by `-` (`product_id-3-with_counts`). Validation matches
