@@ -5,7 +5,7 @@ programming platforms, deployments and credential issuers, and emits a `Verifica
 **This repo implements M6**: it turns that report into a per-skill estimate of ability, with
 an interval for uncertainty, that decays as evidence ages and can be explained event by event.
 
-**Status: implemented and complete (all packages v1.0.0).** 605 tests pass. M5 lives beside
+**Status: implemented and complete (all packages v1.0.0).** 614 tests pass. M5 lives beside
 it in `../cv-verification`, and M6 only ever reads M5's output document — the
 `verification-report.json` that `cvv verify --save` writes. Both read the contract from
 `../schemas/`.
@@ -18,7 +18,7 @@ Python 3.12. Third-party deps: `pyyaml`, `jsonschema` only. Everything else is s
 **pytest is not needed.** Every command needs `PYTHONPATH=packages`, which the Makefile sets.
 
 ```
-make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "605 passed, 0 failed"
+make test [FILTER=substr]   # zero-dependency runner tests/run.py — expect "614 passed, 0 failed"
 make demo                   # narrated 9-step walkthrough → demo/output/01..05-*.json
 make demo-http              # same, plus every HTTP endpoint on an ephemeral port
 make all                    # test + ontology check + verify + recover + demo
@@ -154,6 +154,12 @@ Never mix states from two parameter sets. `rehydrate()` refuses to.
   `m5-cv-verification` or `assessment`. The assessment event carries FACTS (level, tests passed,
   total); `observed_value.assessment_result` prices them here. Keep M6 free of either producer's
   internals — they meet it only through `../schemas/`.
+- **One CV per developer.** Of a developer's completed CV reports, only the one M5 checked
+  last counts (`cv_report` and the `replaced_cv` view in `m6_ingestor/store.py`); the log's read
+  paths skip every older one's evidence, and assessment evidence is never skipped. So a skill
+  after a new CV is a fresh replay of the new CV's evidence and every test, in date order.
+  Re-uploading the same CV no longer counts its evidence twice. Replaced evidence stays in the
+  log (`include_replaced=True`) and explain names it. A failed check replaces nothing.
 - **`m6_query shortlist`** (and `POST /shortlist` on the combined server) reads a confirmed job's
   `../schemas/job-requirements.schema.json`: every must-have is a filter needing DIRECT evidence
   that clears its bar; nice-to-haves are shown; candidates are alphabetical, never ranked.

@@ -78,7 +78,40 @@ CREATE TRIGGER IF NOT EXISTS event_skill_no_update
 CREATE TRIGGER IF NOT EXISTS event_skill_no_delete
     BEFORE DELETE ON event_skill
     BEGIN SELECT RAISE(ABORT, 'event_skill is append-only'); END;
+
+-- One CV per developer. Each completed CV report M6 received, with M5's own time of
+-- the check; the newest check is the developer's CV and every older one is replaced.
+-- Rows are only added: a replaced report stays in the log, its evidence skipped.
+CREATE TABLE IF NOT EXISTS cv_report (
+    verification_id TEXT PRIMARY KEY,
+    subject_ref     TEXT NOT NULL,
+    valid_as_of     TEXT NOT NULL,
+    recorded_at     TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS cv_report_no_update
+    BEFORE UPDATE ON cv_report
+    BEGIN SELECT RAISE(ABORT, 'cv_report is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS cv_report_no_delete
+    BEFORE DELETE ON cv_report
+    BEGIN SELECT RAISE(ABORT, 'cv_report is append-only'); END;
+
+-- Newest check wins, however late its report arrived; the id breaks a tie. A row
+-- comparison, which Postgres accepts too.
+CREATE VIEW IF NOT EXISTS replaced_cv AS
+    SELECT r.verification_id, r.subject_ref, r.valid_as_of,
+           (SELECT n.verification_id FROM cv_report n
+             WHERE n.subject_ref = r.subject_ref
+               AND (n.valid_as_of, n.verification_id) > (r.valid_as_of, r.verification_id)
+             ORDER BY n.valid_as_of DESC, n.verification_id DESC LIMIT 1) AS replaced_by
+    FROM cv_report r
+    WHERE EXISTS (SELECT 1 FROM cv_report n
+                   WHERE n.subject_ref = r.subject_ref
+                     AND (n.valid_as_of, n.verification_id) > (r.valid_as_of, r.verification_id));
 """
+
+# The evidence that counts: everything but a replaced CV's. Assessment evidence never
+# comes from a CV report, so it is never in replaced_cv.
+COUNTS = "e.verification_id NOT IN (SELECT verification_id FROM replaced_cv)"
 
 
 def content_hash(document: Any) -> str:
@@ -93,6 +126,15 @@ def content_hash(document: Any) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def utc_instant(text: str) -> str:
+    """One spelling of an instant, so instants compare as text: M5 may write Z or +00:00
+    and any number of fractional digits."""
+    moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,11 +202,13 @@ class EventLog:
     def count(self) -> int:
         return int(self._one("SELECT COUNT(*) AS n FROM evidence_event")["n"])
 
-    def events(self, subject_ref: str | None = None) -> list[StoredEvent]:
+    def events(self, subject_ref: str | None = None, *, include_replaced: bool = False) -> list[StoredEvent]:
         """In fold order: (occurred_at, event_id). O4 folds in this order, so the
-        log hands it back in this order rather than making every caller sort."""
-        sql = ("SELECT * FROM evidence_event "
-               + ("WHERE subject_ref = ? " if subject_ref else "")
+        log hands it back in this order rather than making every caller sort.
+        A replaced CV's evidence is left out unless asked for."""
+        where = [f for f, on in (("subject_ref = ?", bool(subject_ref)), (COUNTS, not include_replaced)) if on]
+        sql = ("SELECT * FROM evidence_event e "
+               + (f"WHERE {' AND '.join(where)} " if where else "")
                + "ORDER BY occurred_at, event_id")
         rows = self._rows(sql, (subject_ref,) if subject_ref else ())
         return [self._hydrate(r) for r in rows]
@@ -178,7 +222,7 @@ class EventLog:
         an optimisation.
         """
         sql = ("SELECT e.* FROM evidence_event e JOIN event_skill s ON s.event_id = e.event_id "
-               "WHERE s.skill_id = ? "
+               f"WHERE s.skill_id = ? AND {COUNTS} "
                + ("" if include_quarantined else "AND s.resolved = 1 ")
                + ("AND e.subject_ref = ? " if subject_ref else "")
                + "ORDER BY e.occurred_at, e.event_id")
@@ -194,7 +238,7 @@ class EventLog:
         """
         sql = ("SELECT DISTINCT s.skill_id FROM event_skill s "
                "JOIN evidence_event e ON e.event_id = s.event_id "
-               "WHERE s.resolved = 1"
+               f"WHERE s.resolved = 1 AND {COUNTS}"
                + (" AND e.subject_ref = ?" if subject_ref else "")
                + " ORDER BY s.skill_id")
         return [r["skill_id"] for r in
@@ -208,6 +252,14 @@ class EventLog:
         for row in rows:
             out.setdefault(row["event_id"], []).append(row["skill_id"])
         return out
+
+    def replaced(self, subject_ref: str | None = None) -> dict[str, dict[str, str]]:
+        """verification_id -> {replaced_by, valid_as_of}: CVs that no longer count."""
+        rows = self._rows("SELECT * FROM replaced_cv"
+                          + (" WHERE subject_ref = ?" if subject_ref else "")
+                          + " ORDER BY valid_as_of", (subject_ref,) if subject_ref else ())
+        return {r["verification_id"]: {"replaced_by": r["replaced_by"], "valid_as_of": r["valid_as_of"]}
+                for r in rows}
 
     def batches(self) -> list[dict[str, Any]]:
         return [dict(r) for r in
@@ -261,6 +313,20 @@ class EventLog:
             if isinstance(exc, sqlite3.IntegrityError):
                 raise IngestError(f"the log refused this batch: {exc}") from exc
             raise
+
+    def record_cv(self, verification_id: str, subject_ref: str, valid_as_of: str) -> None:
+        """This developer has a CV checked at `valid_as_of`. Idempotent: the same report
+        twice is one row. Whichever of their reports was checked last is their CV."""
+        try:
+            with self._lock, self._db:
+                self._db.execute(
+                    "INSERT INTO cv_report (verification_id, subject_ref, valid_as_of, recorded_at)"
+                    " VALUES (?,?,?,?) ON CONFLICT (verification_id) DO NOTHING",
+                    (verification_id, subject_ref, utc_instant(valid_as_of), _now()))
+        except sqlite3.IntegrityError as exc:
+            if "append-only" in str(exc):
+                raise ImmutableLog(str(exc)) from exc
+            raise IngestError(f"the log refused this CV report: {exc}") from exc
 
     # ── internals ───────────────────────────────────────────────────────────
     # The lock is re-entrant so a read taken inside another read — _hydrate

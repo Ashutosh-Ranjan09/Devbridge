@@ -199,8 +199,15 @@ class QueryService:
         """
         import json
         out: list[dict[str, str]] = []
+        replaced = self.log.replaced(subject_ref)
+        for e in self.log.events(subject_ref, include_replaced=True):
+            gone = replaced.get(e.document.get("source", {}).get("verification_id", ""))
+            if gone and any(r["skill_id"] == skill_id for r in e.document.get("skill_refs") or []):
+                out.append({"what": f"event {e.event_id} ({e.kind}) from an earlier CV",
+                            "reason": f"replaced by a newer CV (verification {gone['replaced_by']})"})
         for row in self.log.batches():
-            if row["subject_ref"] != subject_ref:
+            # A replaced CV's suppressions belong to a CV that no longer counts.
+            if row["subject_ref"] != subject_ref or row["verification_id"] in replaced:
                 continue
             for entry in json.loads(row["not_emitted"] or "[]"):
                 out.append({"what": entry["what"], "reason": entry["reason"]})

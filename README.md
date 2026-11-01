@@ -76,7 +76,7 @@ cd ../assessment && uv run assess start --job JOB --candidate subject:…   # th
 | | Setup | Tests |
 |---|---|---|
 | M5 | Python 3.12, [uv](https://docs.astral.sh/uv/), and Ollama or the Claude Code wrapper — see [`cv-verification/README.md`](cv-verification/README.md) | `uv run pytest` — 630 |
-| M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 605, or `make all` for every gate |
+| M6 | Python 3.12 with `pyyaml` and `jsonschema`, nothing else — see [`skill-graph/CLAUDE.md`](skill-graph/CLAUDE.md) | `make test` — 614, or `make all` for every gate |
 | Assessment | Python 3.12, uv, Docker — see [`assessment/README.md`](assessment/README.md) | `uv run pytest` — 130; `-m docker` 12, `-m slow` 1 more |
 | Chat | Python 3.12, uv — see [`chat/CLAUDE.md`](chat/CLAUDE.md) | `uv run pytest` — 47 |
 | Web | Node 24, npm — see [`web/CLAUDE.md`](web/CLAUDE.md) | `npm run check` — 104 |

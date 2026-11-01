@@ -12,7 +12,7 @@ with M6("evidence.db") as m6:
 ```
 make demo         # the end-to-end walkthrough
 make demo-http    # ...plus every HTTP endpoint, live
-make test         # 605 tests across every package
+make test         # 614 tests across every package
 ```
 
 ## The wiring

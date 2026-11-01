@@ -41,9 +41,21 @@ The error type **is** the status code, and the distinctions are the contract:
 
 SQLite, because there is no package manager here. The SQL is kept to the subset
 Postgres also accepts, so the agreed Postgres is a driver swap and a type-name
-pass rather than a rewrite. Three tables: `batch`, `evidence_event`, and a
+pass rather than a rewrite. Four tables: `batch`, `evidence_event`, a
 denormalised `event_skill` so 6.3 can fold one skill without parsing every
-document.
+document, and `cv_report`.
+
+**One CV per developer.** `cv_report` records each completed CV report the facade
+ingests (`M6.ingest_report`): whose, and M5's own time of the check (`valid_as_of`,
+normalised to one UTC spelling so instants compare as text). The view `replaced_cv`
+names every report a newer check of the same developer's CV has replaced — newest
+by M5's clock, however late a report arrives; the id breaks a tie. The three read
+paths (`events`, `events_for_skill`, `resolved_skills`) skip a replaced report's
+evidence, so every score, explanation, search and shortlist sees only the current CV
+and every assessment result (which never comes from a CV report). Nothing is
+deleted: `events(include_replaced=True)` still returns it, and explain lists it as
+"replaced by a newer CV". A FAILED check is not recorded, so an unreadable upload
+never replaces a CV that worked. Rows are added only; triggers refuse the rest.
 
 **Immutability is enforced by TRIGGER**, not by the absence of an `update()`
 method. O4 recomputes every score by folding this log, so a row that quietly

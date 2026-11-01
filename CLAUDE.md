@@ -17,6 +17,10 @@ guardrails; read the one for the folder you are working in.
 
 ## The seam
 
+One CV per developer: of a developer's reports, M6 counts only the one M5 checked last;
+every older report's evidence is skipped (kept in the log, never deleted), and assessment
+results always count. A new CV therefore replaces the old one in every skill.
+
 M5 writes the contract's `VerificationReport` (`cvv verify --save DIR` →
 `verification-report.json`; `GET /v1/verifications/{id}` returns the same object). M6
 reads that and nothing else: its projector (6.0) turns it into evidence events. M5

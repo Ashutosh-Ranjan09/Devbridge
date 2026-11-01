@@ -62,8 +62,19 @@ class M6:
                        ontology=self.ontology).to_dict()
 
     def ingest_report(self, report: Mapping[str, Any]) -> Receipt:
-        """6.0 then 6.2. Idempotent: the same report twice stores one copy."""
-        return self.ingestor.ingest(self.project(report))
+        """6.0 then 6.2. Idempotent: the same report twice stores one copy.
+
+        One CV per developer: the report is then recorded as one of theirs, and whichever
+        was checked last is the one that counts — an older report's evidence is skipped
+        from then on. A FAILED check is not recorded, so an unreadable upload never
+        replaces a CV that worked. Recorded after the ingest, so a refused report is not
+        recorded, and a retry of one that failed half way records it then.
+        """
+        receipt = self.ingestor.ingest(self.project(report))
+        if report.get("status") != "failed":
+            when = report.get("valid_as_of") or report["evidence_bundle"]["gathered_at"]
+            self.log.record_cv(report["verification_id"], report["subject"]["subject_ref"], str(when))
+        return receipt
 
     def ingest_batch(self, batch: Mapping[str, Any]) -> Receipt:
         """6.2 alone — for a batch that arrived over the wire already projected."""
