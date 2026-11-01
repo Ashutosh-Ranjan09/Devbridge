@@ -8,7 +8,7 @@
 # One key per module per run, shared with the web layer through the environment, so
 # nothing is copied into a file and no key is printed. A module's own settings
 # (cv-verification/.env, assessment/.env, chat/.env) still apply; the environment wins for the key.
-# Logs go to .run/<name>.log. Ctrl-C stops all five.
+# Logs go to .run/<name>.log. Ctrl-C stops all five, each with everything it started.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p .run
@@ -28,14 +28,28 @@ if ! grep -qs '^CHAT_ENCRYPTION_KEY=.' chat/.env; then
 fi
 chmod 600 chat/.env   # the key reads every message: for this user only
 
+# Each service runs in its own process group (setsid), and stopping signals the whole
+# group: signalling only the process started here (env, bash, uv run, npx) left the
+# server under it running, holding its port, and the next start failed.
 pids=()
-stop() { kill "${pids[@]}" 2>/dev/null || true; wait 2>/dev/null || true; echo "stopped"; }
+stop() {
+  for p in "${pids[@]}"; do kill -TERM -- "-$p" 2>/dev/null || true; done
+  for _ in $(seq 1 10); do
+    alive=0
+    for p in "${pids[@]}"; do kill -0 -- "-$p" 2>/dev/null && alive=1; done
+    [ "$alive" = 0 ] && break
+    sleep 0.5
+  done
+  for p in "${pids[@]}"; do kill -KILL -- "-$p" 2>/dev/null || true; done   # what ignored TERM
+  wait 2>/dev/null || true
+  echo "stopped"
+}
 trap stop EXIT
 trap 'exit 130' INT TERM
 
 start() {
   local name=$1; shift
-  "$@" > ".run/$name.log" 2>&1 &
+  setsid "$@" > ".run/$name.log" 2>&1 &
   pids+=($!)
 }
 
