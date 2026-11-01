@@ -7,12 +7,13 @@ import * as z from "zod";
 import { requireCandidate, myAssessment } from "@/lib/candidate";
 import { db } from "@/lib/db";
 import {
-  CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, NoteSchema, ProofSchema, type RunState, SubmissionSchema, typed,
+  CvSchema, type FormState, HANDLE_FIELDS, HandlesSchema, MAX_CVS_PER_DAY, NoteSchema, ProofSchema, type RunState,
+  SubmissionSchema, typed,
 } from "@/lib/definitions";
 import { removeFile, saveFile } from "@/lib/files";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
-import type { CandidateResult, Examples, Submitted, Task } from "@/lib/types";
+import type { CandidateResult, Examples, Report, Running, Submitted, Task } from "@/lib/types";
 
 /** Every action starts with requireCandidate(): an action is a POST endpoint anyone can
  * call, whether or not they came from the page. */
@@ -34,6 +35,21 @@ export async function uploadCv(_: FormState, form: FormData): Promise<FormState>
   }
   const { cv } = parsed.data;
   const handles = Object.fromEntries(Object.entries(typedHandles.data).filter(([, v]) => v !== null));
+
+  // One CV per developer: a check still running finishes first, and a few a day at most.
+  const previous = await db.verification.findMany({
+    where: { candidateId: me.id }, orderBy: { createdAt: "desc" }, include: { proofs: true },
+  });
+  const lastDay = previous.filter((v) => v.createdAt.getTime() > Date.now() - 24 * 60 * 60 * 1000).length;
+  if (lastDay >= MAX_CVS_PER_DAY) {
+    return { message: `At most ${MAX_CVS_PER_DAY} CVs a day: try again tomorrow.`, values: typed(form) };
+  }
+  if (previous[0]) {
+    const last = await call<Report | Running>("m5", `/v1/verifications/${encodeURIComponent(previous[0].id)}`).catch(() => null);
+    if (last?.status === "running") {
+      return { message: "Your last CV is still being checked: wait for it to finish.", values: typed(form) };
+    }
+  }
 
   const upload = new FormData();
   upload.set("document", cv, cv.name);
@@ -60,8 +76,14 @@ export async function uploadCv(_: FormState, form: FormData): Promise<FormState>
     }),
   ]);
   // Kept so the candidate (and the recruiters they apply to) can see the CV itself.
-  // Only the newest is shown: uploading again replaces it.
   await saveFile("cv", id, cv.name, cv);
+  // The old CV counts nowhere now: M6 keeps only the newest check, the pages show only
+  // the newest. Its file and its proofs go; its row stays, a link to M5's report.
+  for (const old of previous) {
+    await removeFile("cv", old.id, old.fileName);
+    for (const p of old.proofs) await removeFile("proofs", p.id, p.fileName);
+  }
+  await db.proof.deleteMany({ where: { verificationId: { in: previous.map((v) => v.id) } } });
   revalidatePath("/candidate/cv");
   redirect("/candidate/cv");
 }

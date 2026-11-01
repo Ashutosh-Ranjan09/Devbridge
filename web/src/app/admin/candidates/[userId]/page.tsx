@@ -59,6 +59,7 @@ async function CandidateReview({ params, searchParams }: {
                 className={c.id === chosen?.id ? "font-semibold" : "text-accent hover:underline"}>
                 {c.fileName} · {c.createdAt.toLocaleDateString("en-IN")}
               </Link>
+              {c.id !== cvs[0].id && <span className="text-muted"> · replaced</span>}
             </li>
           ))}
         </ul>

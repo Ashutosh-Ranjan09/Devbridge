@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { form, jar, NotFound, redirectOf, resetDb } from "./next";
 
 const { addProof, beginTask, finishTask, removeProof, runExamples, startPractice, submitSolution, uploadCv } = await import("@/app/candidate/actions");
-const { readStored } = await import("@/lib/files");
+const { readStored, saveFile } = await import("@/lib/files");
 const { myVerification } = await import("@/lib/candidate");
 const { db } = await import("@/lib/db");
 const { createSession } = await import("@/lib/session");
@@ -96,7 +96,8 @@ describe("uploading a CV", () => {
     const g = new FormData();
     g.set("cv", PDF());
     await redirectOf(uploadCv(undefined, g));
-    expect((sent[1].body as FormData).has("handles")).toBe(false);
+    // The second upload first asks M5 whether the last check still runs; then posts.
+    expect((sent.filter((x) => x.method === "POST")[1].body as FormData).has("handles")).toBe(false);
     expect((await db.candidate.findUniqueOrThrow({ where: { userId: asha } })).leetcodeHandle).toBeNull(); // emptied, so cleared
   });
 
@@ -131,6 +132,65 @@ describe("uploading a CV", () => {
     expect(state?.errors?.codeforces).toBeDefined();
     expect(state?.values?.codeforces).toBe("https://codeforces.com/profile/asha");
     expect(sent).toEqual([]);
+  });
+
+  it("a new CV replaces the old one: its file and proofs go, its row stays", async () => {
+    modules({ "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_1", status: "queued" }] });
+    const f = new FormData();
+    f.set("cv", PDF("old.pdf"));
+    await redirectOf(uploadCv(undefined, f));
+    await db.proof.create({ data: { id: "pr_1", verificationId: "vr_1", label: "Internship letter", fileName: "letter.pdf" } });
+    await saveFile("proofs", "pr_1", "letter.pdf", PDF("letter.pdf"));
+    expect(await readStored("cv", "vr_1", "old.pdf")).not.toBeNull();
+
+    modules({
+      "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_2", status: "queued" }],
+      "GET http://m5.test/v1/verifications/vr_1": [200, { status: "completed" }],
+    });
+    const g = new FormData();
+    g.set("cv", PDF("new.pdf"));
+    expect(await redirectOf(uploadCv(undefined, g))).toBe("/candidate/cv");
+    expect(await readStored("cv", "vr_1", "old.pdf")).toBeNull();
+    expect(await readStored("proofs", "pr_1", "letter.pdf")).toBeNull();
+    expect(await readStored("cv", "vr_2", "new.pdf")).not.toBeNull();
+    expect(await db.proof.count()).toBe(0);
+    expect((await db.verification.findMany({ orderBy: { id: "asc" } })).map((v) => v.id)).toEqual(["vr_1", "vr_2"]);
+  });
+
+  it("at most 3 CVs a day: a fourth is refused before M5 is asked, and comes back as typed", async () => {
+    for (const id of ["a", "b", "c"]) await db.verification.create({ data: { id: `vr_${id}`, candidateId: asha, fileName: "cv.pdf" } });
+    modules({ "GET http://m5.test/v1/verifications/": [200, { status: "completed" }] });
+    const f = new FormData();
+    f.set("cv", PDF());
+    f.set("note", "my fourth try");
+    const state = await uploadCv(undefined, f);
+    expect(state?.message).toMatch(/At most 3 CVs a day/);
+    expect(state?.values?.note).toBe("my fourth try");
+    expect(sent).toEqual([]);
+  });
+
+  it("CVs from before the last day do not count towards the limit", async () => {
+    const old = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    for (const id of ["a", "b", "c"]) {
+      await db.verification.create({ data: { id: `vr_${id}`, candidateId: asha, fileName: "cv.pdf", createdAt: old } });
+    }
+    modules({
+      "GET http://m5.test/v1/verifications/": [200, { status: "completed" }],
+      "POST http://m5.test/v1/verifications": [202, { verification_id: "vr_d", status: "queued" }],
+    });
+    const f = new FormData();
+    f.set("cv", PDF());
+    expect(await redirectOf(uploadCv(undefined, f))).toBe("/candidate/cv");
+  });
+
+  it("an upload while the last check is still running is refused before anything is sent", async () => {
+    await db.verification.create({ data: { id: "vr_run", candidateId: asha, fileName: "cv.pdf" } });
+    modules({ "GET http://m5.test/v1/verifications/vr_run": [202, { status: "running" }] });
+    const f = new FormData();
+    f.set("cv", PDF());
+    expect((await uploadCv(undefined, f))?.message).toMatch(/still being checked/);
+    expect(sent.filter((x) => x.method === "POST")).toEqual([]);
+    expect(await db.verification.count()).toBe(1);
   });
 
   it("another candidate's report is a 404, the same as one that does not exist", async () => {

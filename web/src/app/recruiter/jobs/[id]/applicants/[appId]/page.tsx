@@ -17,7 +17,7 @@ import { inboxFor } from "@/lib/chat";
 import { matchText } from "@/lib/match";
 import { marksFor } from "@/lib/review";
 import { START_BY_MAX_DAYS } from "@/lib/definitions";
-import { dayIn, taskStatus } from "@/lib/tasks";
+import { day, dayIn, taskStatus } from "@/lib/tasks";
 import { call, ServiceError } from "@/lib/services";
 import { settleAssessment } from "@/lib/sync";
 import type { Attempts, FullResult, JobResults, JobTasks, Profile, Report, Requirements, Running, Shortlist, Task } from "@/lib/types";
@@ -39,9 +39,10 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
   const { id: jobId, appId } = await params;
   const app = await myApplication(me.orgIds, jobId, appId);
   const ref = app.candidate.subjectRef;
-  const [latest, assessments] = await Promise.all([
+  const [latest, assessments, cvCount] = await Promise.all([
     db.verification.findFirst({ where: { candidateId: app.candidateId }, orderBy: { createdAt: "desc" }, include: { proofs: true } }),
     db.assessment.findMany({ where: { applicationId: app.id }, orderBy: { createdAt: "asc" } }),
+    db.verification.count({ where: { candidateId: app.candidateId } }),
   ]);
 
   const quiet = <T,>(p: Promise<T>) => p.catch((e: unknown) => (e instanceof ServiceError ? e : Promise.reject(e)));
@@ -169,6 +170,14 @@ async function Applicant({ params }: { params: Promise<{ id: string; appId: stri
 
       <div>
         <h3 className="mb-2 font-semibold">CV report</h3>
+        {latest && cvCount > 1 && (
+          <p className="mb-2 text-sm text-muted">This CV replaced an earlier one on {day(latest.createdAt)}.</p>
+        )}
+        {latest && app.decision && app.decision.createdAt < latest.createdAt && (
+          <p className="mb-2 text-sm text-muted">
+            Decided on {day(app.decision.createdAt)}, with the CV of that time; the candidate replaced it on {day(latest.createdAt)}.
+          </p>
+        )}
         {latest && <div className="mb-4"><Documents cv={latest} proofs={latest.proofs} /></div>}
         {!report ? <Card><p className="text-sm text-muted">No CV checked.</p></Card>
           : report instanceof ServiceError ? <Card><p>{report.message}</p></Card>

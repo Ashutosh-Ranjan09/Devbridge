@@ -84,6 +84,10 @@ export const RequestSchema = z.object({
 
 export const MAX_CV_BYTES = 5 * 1024 * 1024;
 
+/** One CV per developer, replaced by uploading again: each upload is a whole check (model
+ * calls, platform lookups), so a few a day at most. */
+export const MAX_CVS_PER_DAY = 3;
+
 /** What M5 reads: PDF (a scan is read by OCR) or Word. Checked here so a wrong file is
  * refused before it is sent anywhere. */
 export const CvSchema = z.object({

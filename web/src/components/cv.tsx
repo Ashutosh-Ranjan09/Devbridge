@@ -103,7 +103,7 @@ export function ReplaceCv({ saved }: { saved: Record<string, string> }) {
       </button>
       {open && (
         <div className="w-full rounded-2xl border border-accent/40 bg-panel p-5 sm:p-6">
-          <p className="mb-4 text-sm text-muted">The new CV replaces this one, and proofs start fresh for it.</p>
+          <p className="mb-4 text-sm text-muted">The new CV replaces this one everywhere: only it counts for your skills, and your test results stay. Proofs start fresh for it. At most 3 a day.</p>
           <UploadCv saved={saved} again />
         </div>
       )}

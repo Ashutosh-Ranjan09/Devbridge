@@ -165,7 +165,12 @@ tests/                  Vitest: actions against a temporary database; service ca
   decided there. Prefetches stop at the static shell.
 - Blanking a bar that is already set keeps the old one: `jd.edit` reads "none" as "unchanged".
   Drop the skill and add it again to remove a bar.
-- The recruiter sees a candidate's latest CV report only.
+- **One CV per developer.** Uploading again replaces the CV: M6 counts only the newest check
+  (test results always count), and every page shows only the newest. The old CV's file and
+  proofs are deleted; its `Verification` row stays as the link to M5's report, labelled
+  "replaced" on the admin's list. At most 3 uploads in 24 hours (`MAX_CVS_PER_DAY`), and none
+  while the last check still runs. The recruiter's applicant page says when the CV replaced an
+  earlier one, and when a decision was made with an earlier CV.
 - A developer's own pages show each skill as one number: M6's `score` (the interval's lower
   bound) out of 100, rescaled and nothing else, with the evidence in plain words and no
   interval. Recruiters' pages keep the interval. Labels, tiers and the edges between
