@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { logout } from "@/app/(auth)/actions";
-import { Mark } from "@/components/icons";
+import { Icon, Mark } from "@/components/icons";
 import { SessionWatch } from "@/components/session-watch";
 import { NavLinks } from "@/components/site-nav";
 import { type CurrentUser, currentUser } from "@/lib/auth";
@@ -99,9 +99,11 @@ async function Unread({ user }: { user: CurrentUser }) {
 
 function MessagesLink({ user, unread }: { user: CurrentUser; unread: number | null }) {
   return (
-    <Link href={messagesPath(user)} title={unread ? `${unread} unread` : "Messages"}
-      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-white/70 transition hover:bg-white/10 hover:text-white">
-      Messages
+    <Link href={messagesPath(user)} title={unread ? `${unread} unread` : "Messages"} aria-label={unread ? `Messages, ${unread} unread` : "Messages"}
+      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 whitespace-nowrap text-white/70 transition hover:bg-white/10 hover:text-white sm:px-3">
+      {/* On a phone the header is narrow: an envelope, the word from sm up. */}
+      <Icon.Mail className="size-5 sm:hidden" />
+      <span className="hidden sm:inline">Messages</span>
       {unread ? <span className="rounded-full bg-white px-1.5 text-xs font-bold text-[#0f5752]">{unread}</span> : null}
     </Link>
   );

@@ -20,7 +20,7 @@
 | **Documents measured** | 3 | only the student CV since October |
 | **Contract** | 11 fields ahead of the schema | awaiting a decision |
 | **M6 handoff** | ✅ live, end to end | `cvv verify --save` → `verification-report.json` → `../skill-graph` |
-| **Commits** | 113, since 4 Sep | private GitHub remote since 1 Nov |
+| **Commits** | 114, since 4 Sep | private GitHub remote since 1 Nov |
 
 ---
 

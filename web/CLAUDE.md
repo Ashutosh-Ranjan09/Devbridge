@@ -72,7 +72,8 @@ src/components/         ui · report (M5's buckets, in M5's order; recruiter and
                         · site-nav (each role's links, in the one header) · icons · dashboard (panels, chips,
                         an application's stages) · cv, jobs (client: upload, role search) · workspace, ide,
                         code-editor (a task's editor: CodeMirror, browser only)
-                        · chat (the live thread: EventSource, ✓/✓✓, send, request cards, files) · conversation · inbox
+                        · chat (the live thread: EventSource, ✓/✓✓, send, request cards, files, the Documents panel)
+                        · conversation (a chat with the application beside it) · inbox — in the developer pages' design
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
 ```
