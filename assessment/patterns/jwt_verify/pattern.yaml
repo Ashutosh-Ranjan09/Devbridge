@@ -1,0 +1,57 @@
+# A pattern: one reusable task for one skill. Written and reviewed by a person.
+# Every variant drawn from it is equally hard — that is what lets candidates be compared.
+id: jwt_verify
+version: 1
+skill: jwt                      # an id in ../../../schemas/skills/ontology.yaml
+title: Verify a JSON Web Token
+level: medium
+time_limit_minutes: 35
+language: python
+core: >
+  Verify an HS256 JWT with the standard library only: three base64url parts, the
+  header's alg must be HS256, the HMAC-SHA256 signature must match, and exp / nbf hold
+  at `now` within a leeway. Return the claims, or raise InvalidToken for anything else.
+
+# Every value in a list is equally hard. They change the surface and the numbers,
+# never what is tested.
+parameters:
+  service: [billing_api, mobile_backend, admin_dashboard]
+  leeway: [0, 30, 60]
+
+# How a parameter value reads in the task text.
+labels:
+  service:
+    billing_api: billing API
+    mobile_backend: mobile app backend
+    admin_dashboard: admin dashboard
+
+# Exactly one per variant. Each is one more function beside `verify`, so one reference
+# implements them all. All share one rating: equal extra work. If calibration shows one
+# is harder, it is moved out of this list, never weighted.
+twists:
+  audience:
+    rating: 1
+    rule: >
+      Also implement `verify_audience(token, secret, now, leeway, audience)`: everything
+      `verify` checks, and the `aud` claim must name `audience` — either equal to it, or
+      a list containing it. A token without `aud` is invalid.
+  issuer:
+    rating: 1
+    rule: >
+      Also implement `verify_issuer(token, secret, now, leeway, issuer)`: everything
+      `verify` checks, and the `iss` claim must equal `issuer` exactly. A token without
+      `iss` is invalid.
+  required:
+    rating: 1
+    rule: >
+      Also implement `verify_required(token, secret, now, leeway, required)`: everything
+      `verify` checks, and every claim named in the set `required` must be present.
+
+# Named test groups. The report and calibration speak in these names.
+tests:
+  core: [valid_token_returns_claims, wrong_secret, tampered_payload, alg_none_attack,
+         other_alg_refused, expiry_with_leeway, not_before_with_leeway, malformed_tokens,
+         base64url_without_padding]
+  twist: [twist_behaviour]
+  # The Run button's examples, read straight off the requirements; never scored.
+  visible: [example_valid, example_wrong_secret, example_twist]

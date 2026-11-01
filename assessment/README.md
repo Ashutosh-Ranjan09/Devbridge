@@ -64,7 +64,7 @@ The same commands as endpoints, for the web layer — see the table in
 ## Tests
 
 ```bash
-uv run pytest                 # 131, no Docker, no model
+uv run pytest                 # 132, no Docker, no model
 uv run pytest -m docker       # 12, real sandbox runs
 uv run pytest -m slow         # 2, the DSA and LRU patterns in every combination
 uv run pytest -m live         # 1, the real model

@@ -160,6 +160,16 @@ class TestValidation:
         assert report.ok, (report.reference_failures[:3], {m: e[:2] for m, e in report.escapes.items() if e})
         assert report.reference_cases == 27 * 8
 
+    def test_the_jwt_pattern_is_valid_in_every_combination(self) -> None:
+        """No mutant here is slow, so every combination runs by default (about 10 s). The
+        leeway tests use a second leeway too: ignoring the leeway must be caught even
+        where the variant's own leeway is 0."""
+        report = validate(load("jwt_verify"))
+        assert report.ok, (report.reference_failures[:3], {m: e[:2] for m, e in report.escapes.items() if e})
+        assert report.reference_cases == 27 * 10
+        assert report.caught_by["exp_no_leeway"] == {"expiry_with_leeway"}
+        assert "alg_none_attack" in report.caught_by["alg_none_accepted"]
+
     def test_a_wrong_reference_is_caught(self, copy: Path) -> None:
         """A test the reference fails would fail a candidate for the test's mistake."""
         ref = copy / "rate_limiter" / "reference.py"
