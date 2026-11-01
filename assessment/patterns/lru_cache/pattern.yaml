@@ -1,0 +1,54 @@
+# A pattern: one reusable task for one skill. Written and reviewed by a person.
+# Every variant drawn from it is equally hard — that is what lets candidates be compared.
+id: lru_cache
+version: 1
+skill: data_structures          # an id in ../../../schemas/skills/ontology.yaml
+title: LRU cache
+level: medium
+time_limit_minutes: 35
+language: python
+core: >
+  A cache of at most CAPACITY entries. get returns the value or None and counts as a
+  use; put adds or replaces and counts as a use; adding a new key to a full cache
+  evicts the least recently used entry. Both in constant time.
+
+# Every value in a list is equally hard. They change the surface and the numbers,
+# never what is tested.
+parameters:
+  item_kind: [user_session, product_page, dns_lookup]
+  capacity: [2, 3, 5]
+
+# How a parameter value reads in the task text.
+labels:
+  item_kind:
+    user_session: user session
+    product_page: product page
+    dns_lookup: DNS lookup
+
+# Exactly one per variant. Each is one more method beside get and put, so one reference
+# implements them all. All share one rating: equal extra work. If calibration shows one
+# is harder, it is moved out of this list, never weighted.
+twists:
+  peek:
+    rating: 1
+    rule: >
+      Also implement `peek(key)`: the value or `None`, like `get`, but it does NOT count
+      as a use, so the entry's place in the eviction order is unchanged.
+  delete:
+    rating: 1
+    rule: >
+      Also implement `delete(key)`: remove the entry and return `True`, or return
+      `False` if the key is not cached. A deleted entry frees its place at once.
+  resize:
+    rating: 1
+    rule: >
+      Also implement `resize(capacity)`: set a new capacity of 1 or more. If the cache
+      now holds more entries than that, evict least recently used ones until it fits.
+
+# Named test groups. The report and calibration speak in these names.
+tests:
+  core: [get_returns_put_value, missing_is_none, evicts_least_recent, get_counts_as_use,
+         put_existing_replaces_and_uses, never_over_capacity, many_operations_fast]
+  twist: [twist_behaviour]
+  # The Run button's examples, read straight off the requirements; never scored.
+  visible: [example_put_then_get, example_eviction, example_twist]

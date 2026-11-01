@@ -15,10 +15,11 @@ Built end to end: JD intake (extract · edit · confirm · export), pattern libr
 validation, variant generation, Docker sandbox, scoring, sessions, the M6 feed and
 calibration, an HTTP API (`assess serve`) — and in M6, the shortlist and the
 `assessment_result` event kind.
-130 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
-and 1 that takes over a minute (`-m slow`). ruff and `mypy --strict` clean. Two
-patterns: `rate_limiter` (skill `rate_limiting`) and `top_k_frequent`, a DSA problem
-(skill `algorithms`).
+131 tests, plus 12 that need Docker (`-m docker`), 1 that needs the model (`-m live`)
+and 2 that take about a minute each (`-m slow`). ruff and `mypy --strict` clean. Three
+patterns: `rate_limiter` (skill `rate_limiting`), `top_k_frequent`, a DSA problem
+(skill `algorithms`), and `lru_cache`, a data structure with an O(1) requirement
+(skill `data_structures`).
 `docs/plan.md` is the design and the build record.
 
 ```
@@ -81,7 +82,8 @@ threads. Never share one Store between requests.
    The reference must pass every case; every mutant must fail at least one case in every
    combination it applies to. Cached by a hash of the pattern's files, so any edit
    forces it again. `assess validate` shows the evidence: 648 cases, 8 mutants, 0
-   escapes for rate_limiter; 216 cases, 11 mutants, 0 escapes for top_k_frequent.
+   escapes for rate_limiter; 216 cases, 11 mutants, 0 escapes for top_k_frequent;
+   216 cases, 10 mutants, 0 escapes for lru_cache.
    Validation gives each test the sandbox's own 2 s (`sandbox.PER_TEST_SECONDS`), on
    the full CPU, so a reference too slow for the sandbox cannot pass validation.
 3. **Equal difficulty is enforced, not hoped for.** Twists must share one rating or the
@@ -144,10 +146,12 @@ threads. Never share one Store between requests.
 - **In-process tests.** Candidate code is imported by the pytest process that writes
   the result file. The path is random and the case count is checked; a deliberately
   malicious solution could still try to forge it. The stored code is the audit trail.
-- **Two patterns.** `api_security`, `python`, `postgresql` and every other must-have
-  are reported "not assessable" until a pattern exists. The second pattern, a DSA
-  problem, needed one change to module code (test ids built from the pattern's own
-  parameters), so the format does generalise; both are Python.
+- **Three patterns.** `api_security`, `python`, `postgresql` and every other must-have
+  without one are reported "not assessable" until a pattern exists. The second pattern, a
+  DSA problem, needed one change to module code (test ids built from the pattern's own
+  parameters), so the format does generalise; the third, `lru_cache`, needed none. All
+  are Python, and each speed requirement is a test the sandbox's 2 s per test enforces:
+  a 50,000-entry cache catches a linear-time LRU that every small case would pass.
 - **Calibration thresholds are placeholders** (20 points, 15 attempts) until there is
   real data.
 

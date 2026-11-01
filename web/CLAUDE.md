@@ -203,9 +203,6 @@ tests/                  Vitest: actions against a temporary database; service ca
   skills come from M6's `/skills`, which reads them from `schemas/skills/ontology.yaml`;
   My skills' graph view draws the developer's own skills on them, ordered by tier and
   name, never by score.
-- One CV per candidate: the newest Verification is theirs; uploading again replaces it on
-  every page. Older rows stay (M6 already holds their evidence, and its log cannot drop
-  it), so a replaced CV's evidence still counts in their skills.
 - The CV file and the proofs beside it are the candidate's own uploads, kept on disk like
   their note is kept in the database: never sent to a module, never checked. A proof belongs
   to the CV it was added for. A recruiter opens them only through an application, an admin

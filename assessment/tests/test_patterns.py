@@ -143,6 +143,23 @@ class TestValidation:
         assert report.ok, (report.reference_failures[:3], {m: e[:2] for m, e in report.escapes.items() if e})
         assert report.reference_cases == 27 * 8
 
+    def test_the_lru_pattern_is_valid_once_per_twist(self) -> None:
+        """Every combination takes about a minute — the list-scanning mutant must run out
+        its time in each — so the default run takes one combination per twist."""
+        p = load("lru_cache")
+        cases = [{"item_kind": kind, "capacity": c, "twist": twist}
+                 for kind, c, twist in zip(p.parameters["item_kind"], p.parameters["capacity"], p.twists, strict=True)]
+        report = validate(p, cases)
+        assert report.ok, (report.reference_failures[:3], {m: e for m, e in report.escapes.items() if e})
+        assert report.reference_cases == 3 * 8
+        assert report.caught_by["list_scan"] == {"many_operations_fast"}, "only the timing test sees linear time"
+
+    @pytest.mark.slow
+    def test_the_lru_pattern_is_valid_in_every_combination(self) -> None:
+        report = validate(load("lru_cache"))
+        assert report.ok, (report.reference_failures[:3], {m: e[:2] for m, e in report.escapes.items() if e})
+        assert report.reference_cases == 27 * 8
+
     def test_a_wrong_reference_is_caught(self, copy: Path) -> None:
         """A test the reference fails would fail a candidate for the test's mistake."""
         ref = copy / "rate_limiter" / "reference.py"
