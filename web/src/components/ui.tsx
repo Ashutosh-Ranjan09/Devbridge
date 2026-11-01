@@ -33,11 +33,13 @@ export function Field({
   );
 }
 
-export function Button({ children, pending }: { children: ReactNode; pending?: boolean }) {
+/** `outline`: the quieter of two actions side by side. */
+export function Button({ children, pending, variant = "solid" }: { children: ReactNode; pending?: boolean; variant?: "solid" | "outline" }) {
   return (
     <button
       type="submit" disabled={pending}
-      className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-60"
+      className={`rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+        variant === "solid" ? "bg-accent text-on-accent hover:brightness-110" : "border border-line bg-panel text-foreground hover:border-accent/60 hover:text-accent"}`}
     >
       {pending ? "Working…" : children}
     </button>

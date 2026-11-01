@@ -57,7 +57,8 @@ src/app/files/          cv/[id], proof/[id]: a candidate's uploaded files, to wh
 src/lib/files.ts        those files on disk (.data/files/, or FILES_DIR): PDF, Word, PNG, JPG only
 src/app/candidate/      overview · cv (one CV: its preview, Replace, and proofs beside it; the check report) · skills (profile, explain) ·
                         assessments (grouped by job; practice, Start, editor with Run and Submit, attempts, Finish) · jobs (apply, decisions) · actions.ts
-src/app/recruiter/      jobs · jobs/new · jobs/[id] (skills table, the tasks every applicant gets, confirm, open, applicants) ·
+src/app/recruiter/      jobs (counts, search) · jobs/new · jobs/[id] (a draft: skills and tasks to review, confirm; then tabs:
+                        applicants as a board by stage or a list, assessment results, requirements; open/close) ·
                         jobs/[id]/applicants/[appId] (evidence, assessment, decision) · actions.ts
 src/app/admin/          system (modules, counts) · accounts (and reset links) · candidates (each one's CV reports,
                         every line markable) · catalogue (M5's checks, the tasks) ·
@@ -70,7 +71,8 @@ src/components/         ui · report (M5's buckets, in M5's order; recruiter and
                         candidate, recruiter, admin (the client components: forms, refresh, countdown, editor)
                         · session-watch (a login or logout in another tab reloads this one: one browser, one cookie)
                         · site-nav (each role's links, in the one header) · icons · dashboard (panels, chips,
-                        an application's stages) · cv, jobs (client: upload, role search) · workspace, ide,
+                        an application's stages) · cv, jobs (client: upload, role search) · hiring (client: a recruiter's
+                        jobs and one job's applicants, searchable, in name order) · workspace, ide,
                         code-editor (a task's editor: CodeMirror, browser only)
 prisma/schema.prisma    the tables; migrations in prisma/migrations/
 tests/                  Vitest: actions against a temporary database; service calls
